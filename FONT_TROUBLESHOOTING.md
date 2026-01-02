@@ -69,3 +69,5 @@ If .otf isn't working, convert to .woff2:
 2. Replace .otf files with .woff2 files
 3. Update paths in `layout.tsx`
 
+
+

@@ -70,3 +70,5 @@ After adding your font files and updating the paths:
 - Make sure you're using the correct weight (400 for regular, 700 for bold)
 - Check that font files are not corrupted
 
+
+
