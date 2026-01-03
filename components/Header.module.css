@@ -7,11 +7,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 100;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  width: 100%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.headerSpacer {
+  width: 100%;
 }
 
 .headerTransparent {
@@ -121,6 +128,26 @@
 }
 
 .loginButton:hover {
+  background: #f1f1f1;
+}
+
+.cartButton {
+  padding: 10px 15px;
+  background: transparent;
+  color: #000;
+  border-radius: 27px;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  transition: background-color 0.06s;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cartButton:hover {
   background: #f1f1f1;
 }
 

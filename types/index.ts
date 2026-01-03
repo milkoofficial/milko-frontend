@@ -13,6 +13,40 @@ export interface AuthResponse {
 }
 
 // Product Types
+export interface ProductImage {
+  id: string;
+  productId: string;
+  imageUrl: string;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductVariation {
+  id: string;
+  productId: string;
+  size: string; // e.g., "0.5L", "1L", "2L", "5L"
+  priceMultiplier: number;
+  isAvailable: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  userId?: string;
+  reviewerName: string;
+  rating: number; // 1-5
+  comment?: string;
+  isApproved: boolean;
+  userName?: string;
+  userEmail?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -22,6 +56,10 @@ export interface Product {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  // Extended fields (when fetched with details)
+  images?: ProductImage[];
+  variations?: ProductVariation[];
+  reviews?: ProductReview[];
 }
 
 // Subscription Types

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import styles from './Header.module.css';
 
@@ -17,9 +17,23 @@ export default function Header() {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [pincode, setPincode] = useState('');
   const [address, setAddress] = useState('');
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   // Check if we're on an auth page
   const isAuthPage = pathname?.startsWith('/auth');
+
+  useEffect(() => {
+    const measure = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.getBoundingClientRect().height);
+      }
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,55 +42,59 @@ export default function Header() {
   };
 
   return (
-    <header className={isAuthPage ? `${styles.header} ${styles.headerTransparent}` : styles.header}>
-      {/* Logo */}
-      <Link href="/" className={styles.logo}>
-        <div className={styles.logoText}>
-          Milko.in
-        </div>
-      </Link>
-
-      {/* Search Bar - Hide on auth pages */}
-      {!isAuthPage && (
-        <form onSubmit={handleSearch} className={styles.searchForm}>
-          {/* Search Icon */}
-          <div className={styles.searchIcon}>
-            <svg 
-              viewBox="0 -0.5 25 25" 
-              fill="none" 
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-              <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-              <g id="SVGRepo_iconCarrier">
-                <path 
-                  fillRule="evenodd" 
-                  clipRule="evenodd" 
-                  d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
-                  stroke="#000000" 
-                  strokeWidth="1.5" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                ></path>
-                <path 
-                  d="M15.989 15.4905L19.5 19.0015" 
-                  stroke="#000000" 
-                  strokeWidth="1.5" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                ></path>
-              </g>
-            </svg>
+    <>
+      <header
+        ref={headerRef}
+        className={isAuthPage ? `${styles.header} ${styles.headerTransparent}` : styles.header}
+      >
+        {/* Logo */}
+        <Link href="/" className={styles.logo}>
+          <div className={styles.logoText}>
+            Milko.in
           </div>
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={styles.searchInput}
-          />
-        </form>
-      )}
+        </Link>
+
+        {/* Search Bar - Hide on auth pages */}
+        {!isAuthPage && (
+          <form onSubmit={handleSearch} className={styles.searchForm}>
+            {/* Search Icon */}
+            <div className={styles.searchIcon}>
+              <svg 
+                viewBox="0 -0.5 25 25" 
+                fill="none" 
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                <g id="SVGRepo_iconCarrier">
+                  <path 
+                    fillRule="evenodd" 
+                    clipRule="evenodd" 
+                    d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
+                    stroke="#000000" 
+                    strokeWidth="1.5" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  ></path>
+                  <path 
+                    d="M15.989 15.4905L19.5 19.0015" 
+                    stroke="#000000" 
+                    strokeWidth="1.5" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  ></path>
+                </g>
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search Dairy products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={styles.searchInput}
+            />
+          </form>
+        )}
 
       {/* Right Side Buttons - Hide on auth pages */}
       {!isAuthPage && (
@@ -157,6 +175,21 @@ export default function Header() {
             Login
           </Link>
         )}
+
+        {/* Cart Button */}
+        <Link
+          href="/cart"
+          className={styles.cartButton}
+        >
+          <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+            <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+            <g id="SVGRepo_iconCarrier">
+              <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11M8 8H16C19 8 20 11.8899 20 13.5C20 19.5259 18.3966 20.5 12 20.5C5.60338 20.5 4 19.5259 4 13.5C4 11.8899 5 8 8 8Z" stroke="currentColor" strokeWidth="1.488" strokeLinecap="round" strokeLinejoin="round"></path>
+            </g>
+          </svg>
+          Cart
+        </Link>
         </div>
       )}
 
@@ -219,7 +252,17 @@ export default function Header() {
           </div>
         </div>
       )}
-    </header>
+      </header>
+
+      {/* Spacer so content doesn't go under fixed header (keep auth pages overlay) */}
+      {!isAuthPage && (
+        <div
+          className={styles.headerSpacer}
+          style={{ height: headerHeight }}
+          aria-hidden="true"
+        />
+      )}
+    </>
   );
 }
 

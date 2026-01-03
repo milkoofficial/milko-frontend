@@ -22,6 +22,22 @@ export default function SubscribePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    // Get pre-filled values from URL params
+    const litersParam = searchParams.get('liters');
+    const daysParam = searchParams.get('days');
+    const monthsParam = searchParams.get('months');
+    
+    if (litersParam) {
+      setLitresPerDay(parseFloat(litersParam));
+    }
+    if (monthsParam) {
+      setDurationMonths(parseInt(monthsParam));
+    } else if (daysParam) {
+      // Convert days to months (approximate)
+      const days = parseInt(daysParam);
+      setDurationMonths(Math.ceil(days / 30));
+    }
+
     if (!productId) {
       router.push('/products');
       return;
@@ -40,7 +56,7 @@ export default function SubscribePage() {
     };
 
     fetchProduct();
-  }, [productId, router]);
+  }, [productId, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

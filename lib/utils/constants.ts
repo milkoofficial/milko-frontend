@@ -35,8 +35,17 @@ export const API_ENDPOINTS = {
     PRODUCTS: {
       LIST: '/api/admin/products',
       CREATE: '/api/admin/products',
+      DETAIL: (id: string) => `/api/admin/products/${id}`,
       UPDATE: (id: string) => `/api/admin/products/${id}`,
       DELETE: (id: string) => `/api/admin/products/${id}`,
+      ADD_IMAGE: (id: string) => `/api/admin/products/${id}/images`,
+      DELETE_IMAGE: (id: string, imageId: string) => `/api/admin/products/${id}/images/${imageId}`,
+      ADD_VARIATION: (id: string) => `/api/admin/products/${id}/variations`,
+      UPDATE_VARIATION: (id: string, variationId: string) => `/api/admin/products/${id}/variations/${variationId}`,
+      DELETE_VARIATION: (id: string, variationId: string) => `/api/admin/products/${id}/variations/${variationId}`,
+      ADD_REVIEW: (id: string) => `/api/admin/products/${id}/reviews`,
+      UPDATE_REVIEW: (id: string, reviewId: string) => `/api/admin/products/${id}/reviews/${reviewId}`,
+      DELETE_REVIEW: (id: string, reviewId: string) => `/api/admin/products/${id}/reviews/${reviewId}`,
     },
     USERS: {
       LIST: '/api/admin/users',
