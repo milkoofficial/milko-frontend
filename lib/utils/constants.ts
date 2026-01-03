@@ -26,6 +26,10 @@ export const API_ENDPOINTS = {
     CANCEL: (id: string) => `/api/subscriptions/${id}/cancel`,
     PAUSE_DATE: (id: string) => `/api/subscriptions/${id}/pause-date`,
   },
+  // Banners
+  BANNERS: {
+    LIST: '/api/banners',
+  },
   // Admin
   ADMIN: {
     PRODUCTS: {
@@ -47,6 +51,12 @@ export const API_ENDPOINTS = {
     DELIVERIES: {
       LIST: '/api/admin/deliveries',
       UPDATE_STATUS: (id: string) => `/api/admin/deliveries/${id}`,
+    },
+    BANNERS: {
+      LIST: '/api/admin/banners',
+      CREATE: '/api/admin/banners',
+      UPDATE: (id: string) => `/api/admin/banners/${id}`,
+      DELETE: (id: string) => `/api/admin/banners/${id}`,
     },
   },
 } as const;

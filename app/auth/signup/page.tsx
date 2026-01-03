@@ -1,28 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { isAdminDomain, getPostLoginRedirect } from '@/lib/utils/domain';
 import Link from 'next/link';
 
 /**
  * Sign Up Page
+ * Only available on customer domain (milko.in), not on admin subdomain
  */
 export default function SignUpPage() {
   const router = useRouter();
-  const { signup, isAuthenticated } = useAuth();
+  const { signup, isAuthenticated, user } = useAuth();
+  const isAdmin = isAdminDomain();
+
+  // Redirect admin subdomain to customer domain for signup
+  useEffect(() => {
+    if (isAdmin) {
+      router.push('https://milko.in/auth/signup');
+    }
+  }, [isAdmin, router]);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const redirectPath = getPostLoginRedirect(user.role);
+      if (redirectPath.startsWith('http')) {
+        window.location.href = redirectPath;
+      } else {
+        router.push(redirectPath);
+      }
+    }
+  }, [isAuthenticated, user, router]);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    router.push('/dashboard');
-    return null;
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,8 +58,14 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      await signup(name, email, password);
-      router.push('/dashboard');
+      const response = await signup(name, email, password);
+      const redirectPath = getPostLoginRedirect(response.user.role);
+      
+      if (redirectPath.startsWith('http')) {
+        window.location.href = redirectPath;
+      } else {
+        router.push(redirectPath);
+      }
     } catch (err: any) {
       setError(err.message || 'Sign up failed. Please try again.');
     } finally {

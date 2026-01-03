@@ -49,10 +49,11 @@ export default function AdminLayout({
         </div>
         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
           <Link href="/admin/products">Products</Link>
+          <Link href="/admin/banners">Banners</Link>
           <Link href="/admin/customers">Customers</Link>
           <Link href="/admin/subscriptions">Subscriptions</Link>
           <Link href="/admin/deliveries">Deliveries</Link>
-          <Link href="/" style={{ color: '#aaa' }}>View Site</Link>
+          <Link href="https://milko.in" style={{ color: '#aaa' }} target="_blank" rel="noopener noreferrer">View Site</Link>
           <span>Admin: {user?.name}</span>
           <button onClick={handleLogout} style={{ padding: '0.5rem 1rem', background: '#333', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
             Logout

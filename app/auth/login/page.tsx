@@ -1,26 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { isAdminDomain, getPostLoginRedirect } from '@/lib/utils/domain';
 import Link from 'next/link';
 
 /**
  * Login Page
+ * Domain-aware: Shows different UI for admin.milko.in vs milko.in
  */
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const isAdmin = isAdminDomain();
 
   // Redirect if already authenticated
-  if (isAuthenticated) {
-    router.push('/dashboard');
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const redirectPath = getPostLoginRedirect(user.role);
+      if (redirectPath.startsWith('http')) {
+        window.location.href = redirectPath;
+      } else {
+        router.push(redirectPath);
+      }
+    }
+  }, [isAuthenticated, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,8 +37,17 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      router.push('/dashboard');
+      const response = await login(email, password);
+      const redirectPath = getPostLoginRedirect(response.user.role);
+      
+      // If admin logged in on customer domain, redirect to admin subdomain
+      if (response.user.role === 'admin' && !isAdmin) {
+        window.location.href = `https://admin.milko.in${redirectPath}`;
+      } else if (redirectPath.startsWith('http')) {
+        window.location.href = redirectPath;
+      } else {
+        router.push(redirectPath);
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
@@ -53,7 +71,9 @@ export default function LoginPage() {
         width: '100%',
         maxWidth: '400px'
       }}>
-        <h1 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Login to Milko.in</h1>
+        <h1 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+          {isAdmin ? 'Admin Login' : 'Login to Milko.in'}
+        </h1>
         
         {error && (
           <div style={{ 
@@ -113,9 +133,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', color: '#666' }}>
-          Don't have an account? <Link href="/auth/signup" style={{ color: '#0070f3' }}>Sign up</Link>
-        </p>
+        {!isAdmin && (
+          <p style={{ textAlign: 'center', color: '#666' }}>
+            Don't have an account? <Link href="/auth/signup" style={{ color: '#0070f3' }}>Sign up</Link>
+          </p>
+        )}
       </div>
     </div>
   );

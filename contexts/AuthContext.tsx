@@ -61,11 +61,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     const response = await authApi.login(email, password);
     setUser(response.user);
+    return response; // Return response for redirect logic
   };
 
   const signup = async (name: string, email: string, password: string) => {
     const response = await authApi.signup(name, email, password);
     setUser(response.user);
+    return response; // Return response for redirect logic
   };
 
   const logout = async () => {

@@ -28,6 +28,17 @@ export default function AdminDashboard() {
           <p style={{ color: '#666', marginTop: '0.5rem' }}>Add, edit, or deactivate products</p>
         </Link>
 
+        <Link href="/admin/banners" style={{
+          padding: '2rem',
+          background: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          textAlign: 'center'
+        }}>
+          <h2>Manage Banners</h2>
+          <p style={{ color: '#666', marginTop: '0.5rem' }}>Manage homepage banner images</p>
+        </Link>
+
         <Link href="/admin/customers" style={{
           padding: '2rem',
           background: 'white',

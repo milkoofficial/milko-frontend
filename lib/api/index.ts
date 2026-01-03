@@ -5,5 +5,7 @@
 export { authApi } from './auth';
 export { productsApi, adminProductsApi } from './products';
 export { subscriptionsApi, adminSubscriptionsApi } from './subscriptions';
+export { bannersApi, adminBannersApi } from './banners';
+export type { Banner } from './banners';
 export { apiClient } from './client';
 

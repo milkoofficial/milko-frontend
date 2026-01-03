@@ -2,27 +2,43 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * Middleware for route protection
- * Runs on edge runtime - checks JWT token in cookies/headers
- * 
- * Note: This is a basic implementation. In production, you might want to:
- * - Verify JWT signature here (requires JWT_SECRET in edge runtime)
- * - Use httpOnly cookies instead of localStorage
- * - Add rate limiting
+ * Middleware for route protection and subdomain routing
+ * Handles:
+ * - Subdomain detection (admin.milko.in vs milko.in)
+ * - Route redirection based on domain
+ * - Admin route protection on customer domain
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get('host') || '';
+  
+  // Detect if we're on admin subdomain
+  const isAdminSubdomain = hostname.startsWith('admin.') || hostname === 'admin.milko.in';
+  const isCustomerDomain = !isAdminSubdomain && (hostname === 'milko.in' || hostname.includes('localhost'));
+
+  // Redirect admin routes on customer domain to admin subdomain
+  if (isCustomerDomain && pathname.startsWith('/admin')) {
+    const adminUrl = new URL(request.url);
+    adminUrl.hostname = `admin.${hostname.replace('localhost:3000', 'milko.in')}`;
+    if (hostname.includes('localhost')) {
+      adminUrl.hostname = 'admin.milko.in';
+    }
+    return NextResponse.redirect(adminUrl);
+  }
+
+  // Redirect customer routes on admin subdomain (except auth)
+  if (isAdminSubdomain && !pathname.startsWith('/admin') && !pathname.startsWith('/auth')) {
+    const customerUrl = new URL(request.url);
+    customerUrl.hostname = hostname.replace('admin.', '');
+    if (hostname === 'admin.milko.in') {
+      customerUrl.hostname = 'milko.in';
+    }
+    return NextResponse.redirect(customerUrl);
+  }
 
   // Public routes that don't require authentication
   const publicRoutes = ['/auth/login', '/auth/signup', '/'];
   const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route));
-
-  // Admin routes
-  const isAdminRoute = pathname.startsWith('/admin');
-
-  // Get token from cookie (if using httpOnly cookies) or check header
-  // For now, we'll let the client-side handle auth checks
-  // This middleware can be enhanced later to verify JWT server-side
 
   // Allow public routes
   if (isPublicRoute) {

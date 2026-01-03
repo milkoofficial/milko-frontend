@@ -3,7 +3,7 @@
 .header {
   background: #ffffff;
   border-bottom: 1px solid #e5e5e5;
-  padding: 0.5rem 1rem;
+  padding: 0.7rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -12,6 +12,14 @@
   z-index: 100;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.headerTransparent {
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  padding-top: 18px;
+  padding-bottom: 17px;
 }
 
 .logo {
@@ -48,11 +56,12 @@
 .searchIcon svg {
   width: 25px;
   height: 25px;
+  margin-left: -3px;
 }
 
 .searchInput {
   width: 100%;
-  padding: 0.75rem 1rem 0.75rem 3rem;
+  padding: 0.75rem 1rem 0.75rem 2.75rem;
   border: 0px solid #e5e5e5;
   border-radius: 100px;
   font-size: 0.95rem;
@@ -166,8 +175,17 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin: 0 1rem;
+  margin: 0 0rem;
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  cursor: pointer;
+  transition: opacity 0.06s;
+  padding: 6px 18px 6px 12px
+}
+
+.deliverTo:hover {
+  opacity: 0.7;
+  background: #f1f1f1;
+    border-radius: 50px;
 }
 
 .locationIcon {
@@ -189,6 +207,7 @@
   color: #666;
   letter-spacing: -0.2px;
   line-height: 1.2;
+  margin-bottom: -2px;
 }
 
 .deliverToAddress {
@@ -203,6 +222,176 @@
   width: 21px;
   height: 21px;
   flex-shrink: 0;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modalContent {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 11px 19px 19px 19px;
+  max-width: 390px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease-out;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  
+  border-bottom: 0px solid #e5e5e5;
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #000;
+  margin: 0;
+  letter-spacing: -0.8px;
+}
+
+.modalCloseButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: color 0.2s, background-color 0.2s;
+  border-radius: 40px;
+  margin-right: -7px;
+}
+
+.modalCloseButton:hover {
+  color: #000;
+  background-color: #f5f5f5;
+}
+
+.modalSearchContainer {
+  margin-bottom: 1rem;
+}
+
+.modalSearchInput {
+  width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #EEEEEE;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    background: #eeeeee;
+}
+
+.modalSearchInput:focus {
+  border-color: #0070f3;
+}
+
+.deliveryLocationText {
+  font-size: 0.875rem;
+  color: red;
+  margin-bottom: 1.5rem;
+  letter-spacing: -0.2px;
+  margin-top: -4px;
+}
+
+.modalField {
+  margin-bottom: 1.5rem;
+}
+
+.modalLabel {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #000;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.2px;
+}
+
+.modalInput,
+.modalTextarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #EEEEEE;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  resize: vertical;
+  background: #EEEEEE;
+}
+
+.modalInput:focus,
+.modalTextarea:focus {
+  border-color: #0070f3;
+}
+
+.modalTextarea {
+  min-height: 100px;
+}
+
+.modalDoneButton {
+  width: 100%;
+  padding: 0.875rem;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  letter-spacing: -0.2px;
+}
+
+.modalDoneButton:hover {
+  background: #333;
+}
+
+.modalDoneButton:active {
+  background: #000;
 }
 
 

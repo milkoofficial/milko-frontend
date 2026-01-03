@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { isAdminDomain } from '@/lib/utils/domain';
 
 /**
  * Hook to protect routes - redirects to login if not authenticated
@@ -32,7 +33,12 @@ export const useRequireAdmin = () => {
       if (!isAuthenticated) {
         router.push('/auth/login');
       } else if (!isAdmin) {
-        router.push('/');
+        // If not admin, redirect to customer domain
+        if (isAdminDomain()) {
+          window.location.href = 'https://milko.in';
+        } else {
+          router.push('/');
+        }
       }
     }
   }, [isAdmin, isAuthenticated, loading, router]);

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import styles from './Header.module.css';
 
 /**
@@ -11,7 +12,14 @@ import styles from './Header.module.css';
  */
 export default function Header() {
   const { isAuthenticated, user, logout } = useAuth();
+  const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [pincode, setPincode] = useState('');
+  const [address, setAddress] = useState('');
+
+  // Check if we're on an auth page
+  const isAuthPage = pathname?.startsWith('/auth');
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +28,7 @@ export default function Header() {
   };
 
   return (
-    <header className={styles.header}>
+    <header className={isAuthPage ? `${styles.header} ${styles.headerTransparent}` : styles.header}>
       {/* Logo */}
       <Link href="/" className={styles.logo}>
         <div className={styles.logoText}>
@@ -28,50 +36,53 @@ export default function Header() {
         </div>
       </Link>
 
-      {/* Search Bar */}
-      <form onSubmit={handleSearch} className={styles.searchForm}>
-        {/* Search Icon */}
-        <div className={styles.searchIcon}>
-          <svg 
-            viewBox="0 -0.5 25 25" 
-            fill="none" 
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-            <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-            <g id="SVGRepo_iconCarrier">
-              <path 
-                fillRule="evenodd" 
-                clipRule="evenodd" 
-                d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
-                stroke="#000000" 
-                strokeWidth="1.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              ></path>
-              <path 
-                d="M15.989 15.4905L19.5 19.0015" 
-                stroke="#000000" 
-                strokeWidth="1.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              ></path>
-            </g>
-          </svg>
-        </div>
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className={styles.searchInput}
-        />
-      </form>
+      {/* Search Bar - Hide on auth pages */}
+      {!isAuthPage && (
+        <form onSubmit={handleSearch} className={styles.searchForm}>
+          {/* Search Icon */}
+          <div className={styles.searchIcon}>
+            <svg 
+              viewBox="0 -0.5 25 25" 
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+              <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+              <g id="SVGRepo_iconCarrier">
+                <path 
+                  fillRule="evenodd" 
+                  clipRule="evenodd" 
+                  d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
+                  stroke="#000000" 
+                  strokeWidth="1.5" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                ></path>
+                <path 
+                  d="M15.989 15.4905L19.5 19.0015" 
+                  stroke="#000000" 
+                  strokeWidth="1.5" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                ></path>
+              </g>
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={styles.searchInput}
+          />
+        </form>
+      )}
 
-      {/* Right Side Buttons */}
-      <div className={styles.rightButtons}>
+      {/* Right Side Buttons - Hide on auth pages */}
+      {!isAuthPage && (
+        <div className={styles.rightButtons}>
         {/* Deliver To Address */}
-        <div className={styles.deliverTo}>
+        <div className={styles.deliverTo} onClick={() => setIsAddressModalOpen(true)}>
           <svg className={styles.locationIcon} viewBox="0 0 8.4666669 8.4666669" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
             <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
@@ -146,7 +157,68 @@ export default function Header() {
             Login
           </Link>
         )}
-      </div>
+        </div>
+      )}
+
+      {/* Address Modal */}
+      {isAddressModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setIsAddressModalOpen(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Enter your address</h2>
+              <button 
+                className={styles.modalCloseButton}
+                onClick={() => setIsAddressModalOpen(false)}
+                aria-label="Close"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Delivery Location Text */}
+            <p className={styles.deliveryLocationText}>Delivering only to Gwalior, Madhya Pradesh</p>
+
+            {/* Pincode Field */}
+            <div className={styles.modalField}>
+              <label className={styles.modalLabel}>Pincode</label>
+              <input
+                type="text"
+                placeholder="Enter pincode"
+                value={pincode}
+                onChange={(e) => setPincode(e.target.value)}
+                className={styles.modalInput}
+                maxLength={6}
+              />
+            </div>
+
+            {/* Address Field */}
+            <div className={styles.modalField}>
+              <label className={styles.modalLabel}>Address</label>
+              <textarea
+                placeholder="Enter your full address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className={styles.modalTextarea}
+                rows={4}
+              />
+            </div>
+
+            {/* Done Button */}
+            <button
+              className={styles.modalDoneButton}
+              onClick={() => {
+                // TODO: Save address and update state
+                setIsAddressModalOpen(false);
+              }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
