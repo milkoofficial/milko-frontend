@@ -135,7 +135,7 @@ export default function LoginPage() {
 
         {!isAdmin && (
           <p style={{ textAlign: 'center', color: '#666' }}>
-            Don't have an account? <Link href="/auth/signup" style={{ color: '#0070f3' }}>Sign up</Link>
+            Don&apos;t have an account? <Link href="/auth/signup" style={{ color: '#0070f3' }}>Sign up</Link>
           </p>
         )}
       </div>

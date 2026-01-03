@@ -38,7 +38,7 @@ export default function SubscriptionsPage() {
       
       {subscriptions.length === 0 ? (
         <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-          <p>You don't have any subscriptions yet.</p>
+          <p>You don&apos;t have any subscriptions yet.</p>
           <Link href="/products">Browse Products</Link>
         </div>
       ) : (

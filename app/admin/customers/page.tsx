@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/utils/constants';
 import { User } from '@/types';
+import Link from 'next/link';
 
 /**
  * Admin Customers Page

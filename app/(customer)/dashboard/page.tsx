@@ -40,7 +40,7 @@ export default function DashboardPage() {
       
       {activeSubscriptions.length === 0 ? (
         <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-          <p>You don't have any active subscriptions yet.</p>
+          <p>You don&apos;t have any active subscriptions yet.</p>
           <Link 
             href="/products"
             style={{
