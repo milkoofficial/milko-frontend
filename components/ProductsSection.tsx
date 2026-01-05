@@ -111,12 +111,32 @@ export default function ProductsSection() {
     return reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   };
 
+  // Render shimmer skeletons while loading
   if (loading) {
     return (
       <div className={styles.productsSection}>
         <div className={styles.container}>
           <h2 className={styles.sectionTitle}>Our Products</h2>
-          <div className={styles.loading}>Loading products...</div>
+          <div className={styles.productsGrid}>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className={styles.productCardShimmer}>
+                <div className={`${styles.productImageShimmer} ${styles.shimmer}`}></div>
+                <div className={styles.productInfoShimmer}>
+                  <div className={`${styles.titleShimmer} ${styles.shimmer}`}></div>
+                  <div className={`${styles.descriptionShimmer} ${styles.shimmer}`}></div>
+                  <div className={`${styles.descriptionShimmer} ${styles.shimmer}`} style={{ width: '70%' }}></div>
+                  <div className={styles.priceRowShimmer}>
+                    <div className={`${styles.priceShimmer} ${styles.shimmer}`}></div>
+                    <div className={`${styles.discountShimmer} ${styles.shimmer}`}></div>
+                  </div>
+                  <div className={styles.buttonsShimmer}>
+                    <div className={`${styles.buttonShimmer} ${styles.shimmer}`}></div>
+                    <div className={`${styles.buttonShimmer} ${styles.shimmer}`}></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -128,7 +148,14 @@ export default function ProductsSection() {
         <h2 className={styles.sectionTitle}>Our Products</h2>
         <div className={styles.productsGrid}>
           {products.map((product) => (
-            <div key={product.id} className={styles.productCard}>
+            <div 
+              key={product.id} 
+              className={styles.productCard}
+              onClick={() => {
+                setSelectedProduct(product);
+                setIsModalOpen(true);
+              }}
+            >
               <div className={styles.productImage}>
                 {/* Assured Badge */}
                 <div className={styles.assuredBadge}>
@@ -175,7 +202,8 @@ export default function ProductsSection() {
                 </div>
                 <div className={styles.productButtons}>
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card click
                       setSelectedProduct(product);
                       setIsModalOpen(true);
                     }}
@@ -183,7 +211,13 @@ export default function ProductsSection() {
                   >
                     View Details
                   </button>
-                  <Link href={`/subscribe?productId=${product.id}`} className={styles.buyNowButton}>
+                  <Link 
+                    href={`/subscribe?productId=${product.id}`} 
+                    className={styles.buyNowButton}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card click when clicking Buy Now
+                    }}
+                  >
                     <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                       <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
                       <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>

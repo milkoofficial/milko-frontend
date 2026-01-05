@@ -1,0 +1,18 @@
+/* Auth Page Styles - Mobile Only */
+
+/* Mobile: White background, no padding, no box shadow */
+@media (max-width: 767px) {
+  .authContainer {
+    background: #ffffff !important;
+    padding: 28px 0px !important;
+  }
+
+  .authCard {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0rem 1.5rem !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+

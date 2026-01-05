@@ -25,6 +25,94 @@
   font-size: 1.1rem;
 }
 
+/* Shimmer Loading Effect */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 0%,
+    #f8f8f8 20%,
+    #f0f0f0 40%,
+    #f0f0f0 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Product Card Shimmer */
+.productCardShimmer {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #dddddd;
+  cursor: default;
+}
+
+.productImageShimmer {
+  width: 100%;
+  height: 250px;
+  border-radius: 0;
+}
+
+.productInfoShimmer {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.titleShimmer {
+  height: 24px;
+  width: 60%;
+  border-radius: 4px;
+}
+
+.descriptionShimmer {
+  height: 16px;
+  width: 100%;
+  border-radius: 4px;
+}
+
+.priceRowShimmer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.priceShimmer {
+  height: 32px;
+  width: 120px;
+  border-radius: 4px;
+}
+
+.discountShimmer {
+  height: 24px;
+  width: 70px;
+  border-radius: 4px;
+}
+
+.buttonsShimmer {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.buttonShimmer {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+}
+
 .productsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

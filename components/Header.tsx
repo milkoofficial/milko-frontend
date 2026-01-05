@@ -20,20 +20,58 @@ export default function Header() {
   const [address, setAddress] = useState('');
   const headerRef = useRef<HTMLElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const hasScrolledToMembershipRef = useRef(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Check if we're on an auth page
   const isAuthPage = pathname?.startsWith('/auth');
 
+  // Simulate initial loading (show shimmer for first load)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 800); // Show shimmer for 800ms on initial load
+
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     const measure = () => {
       if (headerRef.current) {
-        setHeaderHeight(headerRef.current.getBoundingClientRect().height);
+        // On mobile, when scrolled, only measure searchRow height
+        if (window.innerWidth <= 767 && isScrolled) {
+          const searchRow = headerRef.current.querySelector(`.${styles.searchRow}`);
+          if (searchRow) {
+            setHeaderHeight(searchRow.getBoundingClientRect().height + 0.5); // Add padding
+          }
+        } else {
+          setHeaderHeight(headerRef.current.getBoundingClientRect().height);
+        }
       }
     };
 
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
+  }, [isScrolled]);
+
+  // Scroll detection for mobile header behavior
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollY = window.scrollY;
+          setIsScrolled(scrollY > 10); // Small threshold to prevent flickering
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToMembership = () => {
@@ -46,14 +84,26 @@ export default function Header() {
   };
 
   // If we land on /#membership (e.g., from another route), scroll after the page renders.
+  // Only scroll once when the hash is first detected, not on every render or scroll.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (window.location.hash !== '#membership') return;
+    if (window.location.hash !== '#membership') {
+      // Reset the ref when hash changes away from membership
+      hasScrolledToMembershipRef.current = false;
+      return;
+    }
+
+    // If we've already scrolled to membership in this session, don't scroll again
+    // This prevents the glitch where scrolling back up triggers another scroll
+    if (hasScrolledToMembershipRef.current) return;
 
     let cancelled = false;
     const tryScroll = (attempt: number) => {
       if (cancelled) return;
-      if (scrollToMembership()) return;
+      if (scrollToMembership()) {
+        hasScrolledToMembershipRef.current = true;
+        return;
+      }
       if (attempt >= 20) return;
       window.setTimeout(() => tryScroll(attempt + 1), 100);
     };
@@ -63,7 +113,7 @@ export default function Header() {
     return () => {
       cancelled = true;
     };
-  }, [pathname, headerHeight]);
+  }, [pathname]); // Only depend on pathname, not headerHeight, to prevent re-triggering on scroll
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,62 +125,81 @@ export default function Header() {
     <>
       <header
         ref={headerRef}
-        className={isAuthPage ? `${styles.header} ${styles.headerTransparent}` : styles.header}
+        className={isAuthPage 
+          ? `${styles.header} ${styles.headerTransparent}` 
+          : `${styles.header} ${isScrolled ? styles.headerScrolled : ''}`
+        }
       >
         {/* First Row: Logo and Icons */}
-        <div className={styles.headerRow}>
+        <div className={`${styles.headerRow} ${isScrolled ? styles.headerRowHidden : ''}`}>
           {/* Logo */}
           <Link href="/" className={styles.logo}>
-            <div className={styles.logoText}>
-              Milko.in
-            </div>
+            {isLoading ? (
+              <div className={`${styles.logoShimmer} ${styles.shimmer}`}></div>
+            ) : (
+              <div className={styles.logoText}>
+                Milko.in
+              </div>
+            )}
           </Link>
 
           {/* Desktop Search Bar - Hide on auth pages */}
           {!isAuthPage ? (
-            <form onSubmit={handleSearch} className={styles.searchForm}>
-              {/* Search Icon */}
-              <div className={styles.searchIcon}>
-                <svg 
-                  viewBox="0 -0.5 25 25" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                  <g id="SVGRepo_iconCarrier">
-                    <path 
-                      fillRule="evenodd" 
-                      clipRule="evenodd" 
-                      d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
-                      stroke="#000000" 
-                      strokeWidth="1.5" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                    ></path>
-                    <path 
-                      d="M15.989 15.4905L19.5 19.0015" 
-                      stroke="#000000" 
-                      strokeWidth="1.5" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                    ></path>
-                  </g>
-                </svg>
-              </div>
-              <input
-                type="text"
-                placeholder="Search Dairy products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              className={styles.searchInput}
-            />
-            </form>
+            isLoading ? (
+              <div className={`${styles.searchShimmer} ${styles.shimmer}`}></div>
+            ) : (
+              <form onSubmit={handleSearch} className={styles.searchForm}>
+                {/* Search Icon */}
+                <div className={styles.searchIcon}>
+                  <svg 
+                    viewBox="0 -0.5 25 25" 
+                    fill="none" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                    <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <path 
+                        fillRule="evenodd" 
+                        clipRule="evenodd" 
+                        d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
+                        stroke="#000000" 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      ></path>
+                      <path 
+                        d="M15.989 15.4905L19.5 19.0015" 
+                        stroke="#000000" 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      ></path>
+                    </g>
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search Dairy products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                className={styles.searchInput}
+              />
+              </form>
+            )
           ) : null}
 
           {/* Right Side Icons - Hide on auth pages */}
           {!isAuthPage ? (
-            <div className={styles.rightButtons}>
+            isLoading ? (
+              <div className={styles.rightButtonsShimmer}>
+                <div className={`${styles.buttonShimmer} ${styles.shimmer}`}></div>
+                <div className={`${styles.buttonShimmer} ${styles.shimmer}`}></div>
+                <div className={`${styles.buttonShimmer} ${styles.shimmer}`}></div>
+                <div className={`${styles.buttonShimmer} ${styles.shimmer}`}></div>
+              </div>
+            ) : (
+              <div className={styles.rightButtons}>
               {/* Deliver To Address - Icon Only on Mobile */}
               <button 
                 className={styles.iconButton} 
@@ -176,14 +245,21 @@ export default function Header() {
                   // If we're already on the homepage, don't navigate — just scroll.
                   if (pathname === '/') {
                     e.preventDefault();
+                    // Reset the ref to allow scrolling
+                    hasScrolledToMembershipRef.current = false;
                     if (scrollToMembership()) {
                       window.history.pushState(null, '', '#membership');
+                      // Mark as scrolled after a short delay to allow smooth scroll
+                      setTimeout(() => {
+                        hasScrolledToMembershipRef.current = true;
+                      }, 1000);
                     }
                     return;
                   }
 
                   // For other routes, navigate to the homepage anchor (effect above will scroll after render).
                   e.preventDefault();
+                  hasScrolledToMembershipRef.current = false;
                   router.push('/#membership');
                 }}
                 aria-label="Membership"
@@ -206,14 +282,21 @@ export default function Header() {
                   // If we're already on the homepage, don't navigate — just scroll.
                   if (pathname === '/') {
                     e.preventDefault();
+                    // Reset the ref to allow scrolling
+                    hasScrolledToMembershipRef.current = false;
                     if (scrollToMembership()) {
                       window.history.pushState(null, '', '#membership');
+                      // Mark as scrolled after a short delay to allow smooth scroll
+                      setTimeout(() => {
+                        hasScrolledToMembershipRef.current = true;
+                      }, 1000);
                     }
                     return;
                   }
 
                   // For other routes, navigate to the homepage anchor (effect above will scroll after render).
                   e.preventDefault();
+                  hasScrolledToMembershipRef.current = false;
                   router.push('/#membership');
                 }}
               >
@@ -349,13 +432,17 @@ export default function Header() {
                 Cart
               </Link>
             </div>
+            )
           ) : null}
         </div>
 
       {/* Second Row: Search Bar - Mobile Only */}
       {!isAuthPage ? (
-        <div className={styles.searchRow}>
-          <form onSubmit={handleSearch} className={styles.searchForm}>
+        <div className={`${styles.searchRow} ${isScrolled ? styles.searchRowSticky : ''}`}>
+          {isLoading ? (
+            <div className={`${styles.searchShimmer} ${styles.shimmer}`}></div>
+          ) : (
+            <form onSubmit={handleSearch} className={styles.searchForm}>
             {/* Search Icon */}
             <div className={styles.searchIcon}>
               <svg 
@@ -393,6 +480,7 @@ export default function Header() {
               className={styles.searchInput}
             />
           </form>
+          )}
         </div>
       ) : null}
 

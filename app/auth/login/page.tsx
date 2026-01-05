@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isAdminDomain, getPostLoginRedirect } from '@/lib/utils/domain';
 import Link from 'next/link';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
+import styles from '../auth.module.css';
 
 /**
  * Login Page
@@ -70,7 +71,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ 
+    <div className={styles.authContainer} style={{ 
       display: 'flex', 
       flexDirection: 'column',
       justifyContent: 'center', 
@@ -96,7 +97,7 @@ export default function LoginPage() {
       </div>
 
       {/* Login Card */}
-      <div style={{ 
+      <div className={styles.authCard} style={{ 
         background: 'white', 
         padding: '2.5rem',
         borderRadius: '12px', 
@@ -224,6 +225,20 @@ export default function LoginPage() {
           </p>
         )}
       </div>
+
+      {/* Terms and Privacy Policy - Outside the card */}
+      <p style={{ 
+        textAlign: 'center', 
+        color: '#999',
+        fontSize: '0.75rem',
+        margin: 0,
+        marginTop: '1.5rem',
+        lineHeight: '1.4',
+        width: '100%',
+        maxWidth: '440px'
+      }}>
+        By continuing, you agree to our Terms of service & Privacy policy
+      </p>
     </div>
   );
 }
