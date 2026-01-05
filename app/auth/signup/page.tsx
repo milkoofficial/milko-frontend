@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminDomain, getPostLoginRedirect } from '@/lib/utils/domain';
 import Link from 'next/link';
+import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 
 /**
  * Sign Up Page
@@ -38,12 +39,22 @@ export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({ name: false, email: false, password: false, confirmPassword: false });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setTouched({ name: true, email: true, password: true, confirmPassword: true });
+
+    // Validate required fields
+    if (!name || !email || !password || !confirmPassword) {
+      setError('Please fill in all required fields');
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -76,107 +87,179 @@ export default function SignUpPage() {
   return (
     <div style={{ 
       display: 'flex', 
+      flexDirection: 'column',
       justifyContent: 'center', 
       alignItems: 'center', 
       minHeight: '100vh',
-      background: '#f5f5f5'
+      background: '#f5f5f5',
+      padding: '1rem'
     }}>
+      {/* Logo */}
+      <div style={{ 
+        marginBottom: '2rem',
+        textAlign: 'center'
+      }}>
+        <h1 style={{ 
+          fontSize: '2rem',
+          fontWeight: 600,
+          color: '#1a1a1a',
+          letterSpacing: '-0.5px',
+          margin: 0
+        }}>
+          Milko
+        </h1>
+      </div>
+
+      {/* Signup Card */}
       <div style={{ 
         background: 'white', 
-        padding: '2rem', 
-        borderRadius: '8px', 
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        padding: '2.5rem',
+        borderRadius: '12px', 
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         width: '100%',
-        maxWidth: '400px'
+        maxWidth: '440px'
       }}>
-        <h1 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Sign Up for Milko.in</h1>
+        {/* Title */}
+        <h2 style={{ 
+          fontSize: '1.5rem',
+          fontWeight: 700,
+          color: '#1a1a1a',
+          marginBottom: '0.5rem',
+          letterSpacing: '-1px',
+          textAlign: 'center'
+        }}>
+          Create your account
+        </h2>
         
+        {/* Subtitle */}
+        <p style={{ 
+          fontSize: '0.85rem',
+          color: '#666',
+          marginBottom: '2rem',
+          lineHeight: '1.5',
+          textAlign: 'center'
+        }}>
+          Welcome! Please enter your details to get started.
+        </p>
+        
+        {/* Error Message */}
         {error && (
           <div style={{ 
-            padding: '0.75rem', 
+            padding: '0.75rem 1rem', 
             background: '#fee', 
             color: '#c33', 
-            borderRadius: '4px',
-            marginBottom: '1rem'
+            borderRadius: '8px',
+            marginBottom: '1.5rem',
+            fontSize: '0.9rem'
           }}>
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-          </div>
+          {/* Name Field */}
+          <FloatingLabelInput
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
+            label="Name"
+            required
+            hasError={touched.name && !name}
+          />
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-          </div>
+          {/* Email Field */}
+          <FloatingLabelInput
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
+            label="Email"
+            required
+            hasError={touched.email && !email}
+          />
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
-            />
-          </div>
+          {/* Password Field */}
+          <FloatingLabelInput
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
+            label="Password"
+            required
+            showPasswordToggle
+            showPassword={showPassword}
+            onTogglePassword={() => setShowPassword(!showPassword)}
+            hasError={touched.password && !password}
+          />
 
+          {/* Confirm Password Field */}
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Confirm Password
-            </label>
-            <input
+            <FloatingLabelInput
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              onBlur={() => setTouched(prev => ({ ...prev, confirmPassword: true }))}
+              label="Confirm Password"
               required
-              style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+              showPasswordToggle
+              showPassword={showConfirmPassword}
+              onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
+              hasError={touched.confirmPassword && !confirmPassword}
             />
           </div>
 
+          {/* Sign Up Button */}
           <button
             type="submit"
             disabled={loading}
             style={{
               width: '100%',
-              padding: '0.75rem',
-              background: loading ? '#ccc' : '#0070f3',
+              padding: '0.875rem',
+              background: loading ? '#93c5fd' : '#2563eb',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
-              fontSize: '1rem',
+              borderRadius: '8px',
+              fontSize: '0.95rem',
+              fontWeight: 500,
               cursor: loading ? 'not-allowed' : 'pointer',
-              marginBottom: '1rem'
+              marginBottom: '1.5rem',
+              transition: 'background-color 0.2s',
+              fontFamily: 'inherit'
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = '#1d4ed8';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = '#2563eb';
+              }
             }}
           >
-            {loading ? 'Creating account...' : 'Sign Up'}
+            {loading ? 'Creating account...' : 'Sign up'}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', color: '#666' }}>
-          Already have an account? <Link href="/auth/login" style={{ color: '#0070f3' }}>Login</Link>
+        {/* Login Link */}
+        <p style={{ 
+          textAlign: 'center', 
+          color: '#666',
+          fontSize: '0.9rem',
+          margin: 0
+        }}>
+          Already have an account?{' '}
+          <Link 
+            href="/auth/login" 
+            style={{ 
+              color: '#0070f3',
+              textDecoration: 'none',
+              fontWeight: 500
+            }}
+          >
+            Log in
+          </Link>
         </p>
       </div>
     </div>

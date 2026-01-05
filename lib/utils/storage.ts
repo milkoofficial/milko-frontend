@@ -1,4 +1,3 @@
-import Cookies from 'js-cookie';
 import { STORAGE_KEYS } from './constants';
 import { User } from '@/types';
 
