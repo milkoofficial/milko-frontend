@@ -137,7 +137,7 @@ export default function MembershipSection() {
 
   if (loading) {
     return (
-      <div className={styles.membershipSection}>
+      <div id="membership" className={styles.membershipSection}>
         <div className={styles.container}>
           <div className={styles.loading}>Loading membership options...</div>
         </div>
@@ -146,7 +146,7 @@ export default function MembershipSection() {
   }
 
   return (
-    <div className={styles.membershipSection}>
+    <div id="membership" className={styles.membershipSection}>
       <div className={styles.container}>
         <h2 className={styles.sectionTitle}>Become a Member to Daily Delivery</h2>
         <p className={styles.sectionSubtitle}>Get fresh milk delivered to your doorstep daily</p>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import styles from './Header.module.css';
 
 /**
@@ -12,6 +12,7 @@ import styles from './Header.module.css';
  */
 export default function Header() {
   const { isAuthenticated, user, logout } = useAuth();
+  const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
@@ -34,6 +35,35 @@ export default function Header() {
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, []);
+
+  const scrollToMembership = () => {
+    const el = document.getElementById('membership');
+    if (!el) return false;
+
+    const y = el.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    return true;
+  };
+
+  // If we land on /#membership (e.g., from another route), scroll after the page renders.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.location.hash !== '#membership') return;
+
+    let cancelled = false;
+    const tryScroll = (attempt: number) => {
+      if (cancelled) return;
+      if (scrollToMembership()) return;
+      if (attempt >= 20) return;
+      window.setTimeout(() => tryScroll(attempt + 1), 100);
+    };
+
+    // Let Next render the page first.
+    window.setTimeout(() => tryScroll(0), 0);
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, headerHeight]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,8 +149,22 @@ export default function Header() {
 
         {/* Membership Button */}
         <Link
-          href="/membership"
+          href="/#membership"
           className={styles.membershipButton}
+          onClick={(e) => {
+            // If we're already on the homepage, don't navigate — just scroll.
+            if (pathname === '/') {
+              e.preventDefault();
+              if (scrollToMembership()) {
+                window.history.pushState(null, '', '#membership');
+              }
+              return;
+            }
+
+            // For other routes, navigate to the homepage anchor (effect above will scroll after render).
+            e.preventDefault();
+            router.push('/#membership');
+          }}
         >
           <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" xmlns="http://www.w3.org/2000/svg">
             <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>

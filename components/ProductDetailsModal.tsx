@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Product } from '@/types';
+import { Product, ProductVariation } from '@/types';
 import { productsApi } from '@/lib/api';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './ProductDetailsModal.module.css';
+import RatingBadge from '@/components/ui/RatingBadge';
 
 interface ProductDetailsModalProps {
   product: Product;
@@ -23,9 +24,15 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
   const [productDetails, setProductDetails] = useState<Product | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [loadingRelated, setLoadingRelated] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [selectedVariationId, setSelectedVariationId] = useState<string | null>(null);
+  const [pincode, setPincode] = useState('');
+  const [showDeliveryInfo, setShowDeliveryInfo] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      setQuantity(1);
+      setSelectedVariationId(null);
       // Fetch product details with images, variations, and reviews
       const fetchDetails = async () => {
         setLoadingDetails(true);
@@ -73,8 +80,37 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
     ? displayProduct.images.map(img => img.imageUrl)
     : (product.imageUrl ? [product.imageUrl] : []);
 
-  // Get variations from product details
-  const variations = displayProduct.variations || [];
+  // Demo emoji "images" for products without real images (so you can verify collage layout)
+  const demoEmojiImages = ['🥛', '🐮', '🌿', '🚚'].map((e) => `emoji:${e}`);
+  const collageItems = productImages.length > 0 ? productImages : demoEmojiImages;
+
+  // Get variations from product details (or demo variations for testing UI)
+  const demoVariations: ProductVariation[] = [
+    { id: 'demo-0.5L', productId: displayProduct.id, size: '0.5L', priceMultiplier: 0.5, isAvailable: true, displayOrder: 1, createdAt: '', updatedAt: '' },
+    { id: 'demo-1L', productId: displayProduct.id, size: '1L', priceMultiplier: 1, isAvailable: true, displayOrder: 2, createdAt: '', updatedAt: '' },
+    { id: 'demo-2L', productId: displayProduct.id, size: '2L', priceMultiplier: 2, isAvailable: true, displayOrder: 3, createdAt: '', updatedAt: '' },
+    { id: 'demo-5L', productId: displayProduct.id, size: '5L', priceMultiplier: 4.8, isAvailable: false, displayOrder: 4, createdAt: '', updatedAt: '' },
+  ];
+  const variations = (displayProduct.variations && displayProduct.variations.length > 0) 
+    ? displayProduct.variations 
+    : demoVariations;
+  const availableVariations = variations.filter((v) => v.isAvailable);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (availableVariations.length === 0) {
+      setSelectedVariationId(null);
+      return;
+    }
+    // If nothing selected (or selection no longer valid), default to first available.
+    if (!selectedVariationId || !availableVariations.some((v) => v.id === selectedVariationId)) {
+      setSelectedVariationId(availableVariations[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, displayProduct.id, availableVariations.map((v) => v.id).join(',')]);
+
+  const selectedVariation =
+    availableVariations.find((v) => v.id === selectedVariationId) || availableVariations[0] || null;
 
   // Get reviews from product details
   const reviews = displayProduct.reviews || [];
@@ -83,6 +119,16 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
   const averageRating = reviews.length > 0
     ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
     : 5; // Default to 5 if no reviews
+
+  const safeQty = Math.max(1, Math.min(99, quantity));
+  const descriptionText =
+    displayProduct.description ||
+    'Demo description text for layout testing. Freshly sourced every day, quality checked, and delivered chilled to your doorstep.';
+
+  const unitMultiplier = selectedVariation?.priceMultiplier ?? 1;
+  const unitLabel = selectedVariation?.size ?? 'litre';
+  const unitPrice = displayProduct.pricePerLitre * unitMultiplier;
+  const originalUnitPrice = Math.round(unitPrice * 1.15);
 
   if (!isOpen) return null;
 
@@ -96,14 +142,34 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
           </svg>
         </button>
 
-        <div className={styles.modalBody}>
+        {loadingDetails ? (
+          <div className={styles.shimmerWrapper}>
+            <div className={styles.shimmerImage}></div>
+            <div className={styles.shimmerDetails}>
+              <div className={styles.shimmerTitle}></div>
+              <div className={styles.shimmerRating}></div>
+              <div className={styles.shimmerPrice}></div>
+              <div className={styles.shimmerButtons}>
+                <div className={styles.shimmerButton}></div>
+                <div className={styles.shimmerButton}></div>
+              </div>
+              <div className={styles.shimmerText}></div>
+              <div className={styles.shimmerText}></div>
+            </div>
+          </div>
+        ) : (
+          <div className={styles.modalBody}>
           {/* Left Side - Images */}
           <div className={styles.imageSection}>
-            {/* Main Image */}
+            {/* Main image with navigation (no collage rail) */}
             <div className={styles.mainImage}>
-              {productImages[selectedImageIndex] ? (
+              {collageItems[selectedImageIndex]?.startsWith('emoji:') ? (
+                <div className={styles.emojiMain} aria-hidden="true">
+                  {collageItems[selectedImageIndex].replace('emoji:', '')}
+                </div>
+              ) : collageItems[selectedImageIndex] ? (
                 <Image
-                  src={productImages[selectedImageIndex]}
+                  src={collageItems[selectedImageIndex]}
                   alt={product.name}
                   fill
                   style={{ objectFit: 'cover' }}
@@ -113,28 +179,45 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
                   <span>🥛</span>
                 </div>
               )}
+
+              {collageItems.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    className={`${styles.imageNavButton} ${styles.imageNavLeft}`}
+                    onClick={() =>
+                      setSelectedImageIndex((i) => (i - 1 + collageItems.length) % collageItems.length)
+                    }
+                    aria-label="Previous image"
+                  >
+                    <svg fill="currentColor" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'scaleX(-1)' }}>
+                      <path d="M8.489 31.975c-0.271 0-0.549-0.107-0.757-0.316-0.417-0.417-0.417-1.098 0-1.515l14.258-14.264-14.050-14.050c-0.417-0.417-0.417-1.098 0-1.515s1.098-0.417 1.515 0l14.807 14.807c0.417 0.417 0.417 1.098 0 1.515l-15.015 15.022c-0.208 0.208-0.486 0.316-0.757 0.316z"></path>
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.imageNavButton} ${styles.imageNavRight}`}
+                    onClick={() => setSelectedImageIndex((i) => (i + 1) % collageItems.length)}
+                    aria-label="Next image"
+                  >
+                    <svg fill="currentColor" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8.489 31.975c-0.271 0-0.549-0.107-0.757-0.316-0.417-0.417-0.417-1.098 0-1.515l14.258-14.264-14.050-14.050c-0.417-0.417-0.417-1.098 0-1.515s1.098-0.417 1.515 0l14.807 14.807c0.417 0.417 0.417 1.098 0 1.515l-15.015 15.022c-0.208 0.208-0.486 0.316-0.757 0.316z"></path>
+                    </svg>
+                  </button>
+                </>
+              )}
             </div>
 
-            {/* Thumbnail Images */}
-            {productImages.length > 1 && (
-              <div className={styles.thumbnailContainer}>
-                {productImages.map((image, index) => (
+            {collageItems.length > 1 && (
+              <div className={styles.imageDots} aria-label="Image navigation">
+                {collageItems.map((_, idx) => (
                   <button
-                    key={index}
-                    className={`${styles.thumbnail} ${selectedImageIndex === index ? styles.thumbnailActive : ''}`}
-                    onClick={() => setSelectedImageIndex(index)}
-                  >
-                    {image ? (
-                      <Image
-                        src={image}
-                        alt={`${product.name} ${index + 1}`}
-                        fill
-                        style={{ objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <span>🥛</span>
-                    )}
-                  </button>
+                    key={idx}
+                    type="button"
+                    className={`${styles.imageDot} ${idx === selectedImageIndex ? styles.imageDotActive : ''}`}
+                    onClick={() => setSelectedImageIndex(idx)}
+                    aria-label={`Go to image ${idx + 1}`}
+                  />
                 ))}
               </div>
             )}
@@ -146,20 +229,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
             <div className={styles.productHeader}>
               <h1 className={styles.productTitle}>{displayProduct.name}</h1>
               <div className={styles.productRating}>
-                <div className={styles.starsContainer}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <svg 
-                      key={star} 
-                      className={styles.starIcon} 
-                      viewBox="0 0 24 24" 
-                      fill={star <= Math.round(averageRating) ? "currentColor" : "none"}
-                      stroke={star <= Math.round(averageRating) ? "none" : "currentColor"}
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
-                    </svg>
-                  ))}
-                </div>
+                <RatingBadge rating={averageRating} size="md" />
                 <span className={styles.reviewCount}>({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</span>
               </div>
             </div>
@@ -168,10 +238,10 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
             <div className={styles.priceSection}>
               <div className={styles.priceContainer}>
                 <div className={styles.originalPrice}>
-                  ₹{Math.round(displayProduct.pricePerLitre * 1.15)} <span className={styles.priceUnit}>/litre</span>
+                  ₹{originalUnitPrice} <span className={styles.priceUnit}>/{unitLabel}</span>
                 </div>
                 <div className={styles.currentPrice}>
-                  ₹{displayProduct.pricePerLitre} <span className={styles.priceUnit}>/litre</span>
+                  ₹{unitPrice} <span className={styles.priceUnit}>/{unitLabel}</span>
                 </div>
               </div>
               <div className={styles.discountBadge}>
@@ -179,35 +249,154 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
               </div>
             </div>
 
-            {/* Description */}
-            {displayProduct.description && (
-              <div className={styles.descriptionSection}>
-                <h3 className={styles.sectionTitle}>Description</h3>
-                <p className={styles.descriptionText}>{displayProduct.description}</p>
-              </div>
-            )}
-
-            {/* Variations */}
-            {variations.length > 0 && (
-              <div className={styles.variationsSection}>
-                <h3 className={styles.sectionTitle}>Available Sizes</h3>
-                <div className={styles.variationsGrid}>
-                  {variations.map((variation) => {
-                    const price = displayProduct.pricePerLitre * variation.priceMultiplier;
-                    return (
-                      <button 
-                        key={variation.id}
-                        className={`${styles.variationButton} ${variation.isAvailable ? '' : styles.variationDisabled}`}
-                        disabled={!variation.isAvailable}
-                        title={!variation.isAvailable ? 'Not available' : `${variation.size} - ₹${price.toFixed(2)}`}
-                      >
-                        {variation.size}
-                      </button>
-                    );
-                  })}
+            {/* Qty + Actions (before description) */}
+            <div className={styles.purchaseSection}>
+              <div className={styles.qtyRow}>
+                <div className={styles.qtyLabel}>Qty</div>
+                <div className={styles.qtyControl} aria-label="Quantity selector">
+                  <button
+                    type="button"
+                    className={styles.qtyButton}
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    aria-label="Decrease quantity"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M6 12L18 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                    </svg>
+                  </button>
+                  <input
+                    className={styles.qtyInput}
+                    value={safeQty}
+                    inputMode="numeric"
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value || '1', 10);
+                      setQuantity(Number.isFinite(n) ? n : 1);
+                    }}
+                    aria-label="Quantity"
+                  />
+                  <button
+                    type="button"
+                    className={styles.qtyButton}
+                    onClick={() => setQuantity((q) => Math.min(99, q + 1))}
+                    aria-label="Increase quantity"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 12H20M12 4V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                    </svg>
+                  </button>
                 </div>
               </div>
-            )}
+
+              {/* Variations (managed by admin) */}
+              {variations.length > 0 && (
+                <div className={styles.variationPicker}>
+                  <div className={styles.variationRow}>
+                    <div className={styles.variationLabel}>Size</div>
+                    <div className={styles.variationsGrid}>
+                    {variations.map((variation) => {
+                      const price = displayProduct.pricePerLitre * variation.priceMultiplier;
+                      const isActive = variation.id === selectedVariation?.id;
+                      return (
+                        <button
+                          key={variation.id}
+                          type="button"
+                          className={`${styles.variationButton} ${isActive ? styles.variationActive : ''} ${variation.isAvailable ? '' : styles.variationDisabled}`}
+                          disabled={!variation.isAvailable}
+                          onClick={() => setSelectedVariationId(variation.id)}
+                          title={!variation.isAvailable ? 'Not available' : `${variation.size} - ₹${price.toFixed(2)}`}
+                        >
+                          {variation.size}
+                        </button>
+                      );
+                    })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Delivery Pincode Section */}
+              <div className={styles.deliverySection}>
+                <div className={styles.deliveryLabel}>Delivery</div>
+                <div className={styles.pincodeInputWrapper}>
+                  <input
+                    type="text"
+                    className={styles.pincodeInput}
+                    placeholder="Enter pincode"
+                    value={pincode}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setPincode(val);
+                      setShowDeliveryInfo(false);
+                    }}
+                    maxLength={6}
+                    inputMode="numeric"
+                    aria-label="Delivery pincode"
+                  />
+                  <button
+                    type="button"
+                    className={styles.pincodeCheckButton}
+                    onClick={() => {
+                      if (pincode.length === 6) {
+                        setShowDeliveryInfo(true);
+                      }
+                    }}
+                    disabled={pincode.length !== 6}
+                    aria-label="Check delivery"
+                  >
+                    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8.489 31.975c-0.271 0-0.549-0.107-0.757-0.316-0.417-0.417-0.417-1.098 0-1.515l14.258-14.264-14.050-14.050c-0.417-0.417-0.417-1.098 0-1.515s1.098-0.417 1.515 0l14.807 14.807c0.417 0.417 0.417 1.098 0 1.515l-15.015 15.022c-0.208 0.208-0.486 0.316-0.757 0.316z" fill="currentColor"></path>
+                    </svg>
+                  </button>
+                </div>
+                {showDeliveryInfo && pincode.length === 6 && (
+                  <div className={styles.deliveryInfo}>
+                    ✓ Will be delivered by today
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.actionButtons}>
+                <button
+                  type="button"
+                  className={styles.addToCartButton}
+                  onClick={() => {
+                    // Cart is implemented via localStorage (see lib/utils/cart)
+                    import('@/lib/utils/cart').then(({ cartStorage }) => {
+                      cartStorage.add({
+                        productId: displayProduct.id,
+                        variationId: selectedVariation?.id ?? undefined,
+                        quantity: safeQty,
+                      });
+                    });
+                  }}
+                >
+                  Add to Cart
+                </button>
+                <Link
+                  href={`/subscribe?productId=${displayProduct.id}`}
+                  className={styles.buyNowButton}
+                  onClick={onClose}
+                >
+                  <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                    <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <path id="primary" d="M18,11.74a1,1,0,0,0-.52-.63L14.09,9.43,15,3.14a1,1,0,0,0-1.78-.75l-7,9a1,1,0,0,0-.18.87,1.05,1.05,0,0,0,.6.67l4.27,1.71L10,20.86a1,1,0,0,0,.63,1.07A.92.92,0,0,0,11,22a1,1,0,0,0,.83-.45l6-9A1,1,0,0,0,18,11.74Z"></path>
+                    </g>
+                  </svg>
+                  Buy Now
+                </Link>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className={styles.descriptionSection}>
+              <h3 className={styles.sectionTitle}>Description</h3>
+              <p className={styles.descriptionText}>{descriptionText}</p>
+              <p className={styles.descriptionText} style={{ marginTop: '0.75rem' }}>
+                Demo: smooth scrolling content + long text block. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+              </p>
+            </div>
 
             {/* Reviews Section */}
             {reviews.length > 0 ? (
@@ -229,18 +418,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
                             <div>
                               <div className={styles.reviewerName}>{review.reviewerName}</div>
                               <div className={styles.reviewRating}>
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <svg 
-                                    key={star} 
-                                    className={styles.starIconSmall} 
-                                    viewBox="0 0 24 24" 
-                                    fill={star <= review.rating ? "currentColor" : "none"}
-                                    stroke={star <= review.rating ? "none" : "currentColor"}
-                                    xmlns="http://www.w3.org/2000/svg"
-                                  >
-                                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
-                                  </svg>
-                                ))}
+                                <RatingBadge rating={review.rating} size="sm" />
                               </div>
                             </div>
                           </div>
@@ -294,32 +472,10 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
               </div>
             )}
 
-            {/* Loading State */}
-            {loadingDetails && (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
-                Loading product details...
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className={styles.actionButtons}>
-              <Link
-                href={`/subscribe?productId=${displayProduct.id}`}
-                className={styles.buyNowButton}
-                onClick={onClose}
-              >
-                <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                  <g id="SVGRepo_iconCarrier">
-                    <path id="primary" d="M18,11.74a1,1,0,0,0-.52-.63L14.09,9.43,15,3.14a1,1,0,0,0-1.78-.75l-7,9a1,1,0,0,0-.18.87,1.05,1.05,0,0,0,.6.67l4.27,1.71L10,20.86a1,1,0,0,0,.63,1.07A.92.92,0,0,0,11,22a1,1,0,0,0,.83-.45l6-9A1,1,0,0,0,18,11.74Z"></path>
-                  </g>
-                </svg>
-                Buy Now
-              </Link>
-            </div>
+            {/* Action Buttons moved above description */}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

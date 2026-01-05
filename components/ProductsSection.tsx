@@ -6,6 +6,7 @@ import { Product } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
 import ProductDetailsModal from './ProductDetailsModal';
+import RatingBadge from '@/components/ui/RatingBadge';
 import styles from './ProductsSection.module.css';
 
 /**
@@ -24,7 +25,7 @@ export default function ProductsSection() {
     {
       id: '1',
       name: 'Fresh Cow Milk',
-      description: 'Pure, fresh cow milk delivered daily',
+      description: 'Pure, fresh cow milk delivered daily. ✅ Farm-fresh • 🥛 Rich taste • 🚚 Morning delivery',
       pricePerLitre: 60,
       imageUrl: undefined,
       isActive: true,
@@ -34,7 +35,7 @@ export default function ProductsSection() {
     {
       id: '2',
       name: 'Buffalo Milk',
-      description: 'Rich and creamy buffalo milk',
+      description: 'Rich and creamy buffalo milk. 🐃 Higher fat • Perfect for tea/coffee • Daily delivery',
       pricePerLitre: 70,
       imageUrl: undefined,
       isActive: true,
@@ -44,7 +45,7 @@ export default function ProductsSection() {
     {
       id: '3',
       name: 'Toned Milk',
-      description: 'Light and healthy toned milk',
+      description: 'Light and healthy toned milk. 🌿 Balanced nutrition • Great for fitness • Fresh daily',
       pricePerLitre: 55,
       imageUrl: undefined,
       isActive: true,
@@ -54,7 +55,7 @@ export default function ProductsSection() {
     {
       id: '4',
       name: 'Full Cream Milk',
-      description: 'Premium full cream milk',
+      description: 'Premium full cream milk. ⭐ Extra creamy • Family pack favourite • Delivered chilled',
       pricePerLitre: 65,
       imageUrl: undefined,
       isActive: true,
@@ -76,7 +77,18 @@ export default function ProductsSection() {
         clearTimeout(timeoutId);
         // Show only first 4 products for homepage, or fallback if empty
         if (data && data.length > 0) {
-          setProducts(data.slice(0, 4));
+          const base = data.slice(0, 4);
+          // Fetch details (incl. reviews) for accurate rating badges (only 4 items → OK)
+          const withDetails = await Promise.all(
+            base.map(async (p) => {
+              try {
+                return await productsApi.getById(p.id, true);
+              } catch {
+                return p;
+              }
+            })
+          );
+          setProducts(withDetails);
         } else {
           setProducts(fallbackProducts);
         }
@@ -92,6 +104,12 @@ export default function ProductsSection() {
 
     fetchProducts();
   }, []);
+
+  const getAverageRating = (p: Product) => {
+    const reviews = p.reviews || [];
+    if (reviews.length === 0) return 5;
+    return reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+  };
 
   if (loading) {
     return (
@@ -133,24 +151,10 @@ export default function ProductsSection() {
                 <div className={styles.productTitleRow}>
                   <h3 className={styles.productName}>{product.name}</h3>
                   <div className={styles.productRating}>
-                    <div className={styles.starsContainer}>
-                      <svg className={styles.starIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
-                      </svg>
-                      <svg className={styles.starIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
-                      </svg>
-                      <svg className={styles.starIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
-                      </svg>
-                      <svg className={styles.starIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
-                      </svg>
-                      <svg className={styles.starIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"/>
-                      </svg>
-                    </div>
-                    <span className={styles.reviewCount}>(24)</span>
+                    <RatingBadge rating={getAverageRating(product)} size="sm" />
+                    {product.reviews && product.reviews.length > 0 && (
+                      <span className={styles.reviewCount}>({product.reviews.length})</span>
+                    )}
                   </div>
                 </div>
                 {product.description && (
