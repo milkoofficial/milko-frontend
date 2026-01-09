@@ -17,17 +17,19 @@ export function middleware(request: NextRequest) {
   const isCustomerDomain = !isAdminSubdomain && (hostname === 'milko.in' || hostname.includes('localhost'));
 
   // Redirect admin routes on customer domain to admin subdomain
-  if (isCustomerDomain && pathname.startsWith('/admin')) {
+  // BUT: In localhost, allow admin routes on same domain
+  if (isCustomerDomain && pathname.startsWith('/admin') && !hostname.includes('localhost')) {
     const adminUrl = new URL(request.url);
     adminUrl.hostname = `admin.${hostname.replace('localhost:3000', 'milko.in')}`;
-    if (hostname.includes('localhost')) {
+    if (hostname === 'milko.in' || hostname.includes('milko.in')) {
       adminUrl.hostname = 'admin.milko.in';
     }
     return NextResponse.redirect(adminUrl);
   }
 
   // Redirect customer routes on admin subdomain (except auth)
-  if (isAdminSubdomain && !pathname.startsWith('/admin') && !pathname.startsWith('/auth')) {
+  // BUT: In localhost, allow all routes on same domain
+  if (isAdminSubdomain && !pathname.startsWith('/admin') && !pathname.startsWith('/auth') && !hostname.includes('localhost')) {
     const customerUrl = new URL(request.url);
     customerUrl.hostname = hostname.replace('admin.', '');
     if (hostname === 'admin.milko.in') {

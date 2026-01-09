@@ -4,6 +4,7 @@ import { useRequireAdmin } from '@/hooks/useRequireAuth';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 
 /**
  * Admin Layout
@@ -24,7 +25,17 @@ export default function AdminLayout({
   };
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100vh',
+        background: '#f5f5f5'
+      }}>
+        <LoadingSpinnerWithText text="Loading..." />
+      </div>
+    );
   }
 
   if (!isAuthenticated || !isAdmin) {
@@ -33,34 +44,8 @@ export default function AdminLayout({
 
   return (
     <div>
-      {/* Admin Navigation */}
-      <nav style={{ 
-        background: '#1a1a1a', 
-        padding: '1rem 2rem', 
-        color: 'white',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div>
-          <Link href="/admin" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>
-            Milko.in Admin
-          </Link>
-        </div>
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-          <Link href="/admin/products">Products</Link>
-          <Link href="/admin/banners">Banners</Link>
-          <Link href="/admin/customers">Customers</Link>
-          <Link href="/admin/subscriptions">Subscriptions</Link>
-          <Link href="/admin/deliveries">Deliveries</Link>
-          <Link href="https://milko.in" style={{ color: '#aaa' }} target="_blank" rel="noopener noreferrer">View Site</Link>
-          <span>Admin: {user?.name}</span>
-          <button onClick={handleLogout} style={{ padding: '0.5rem 1rem', background: '#333', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-            Logout
-          </button>
-        </div>
-      </nav>
-      <main style={{ background: '#f5f5f5', minHeight: 'calc(100vh - 60px)' }}>{children}</main>
+      {/* AdminHeader is now in root layout via ConditionalHeader */}
+      <main style={{ background: '#f5f5f5', minHeight: 'calc(100vh - 60px)', paddingTop: '60px' }}>{children}</main>
     </div>
   );
 }

@@ -44,13 +44,24 @@ export const getApiBaseUrl = (): string => {
 /**
  * Get the appropriate redirect path after login based on domain and role
  */
-export const getPostLoginRedirect = (role: 'admin' | 'customer'): string => {
+export const getPostLoginRedirect = (role: 'admin' | 'customer' | string): string => {
+  const hostname = getHostname();
+  const isLocalhost = hostname === 'localhost' || hostname.includes('localhost');
+  
+  // Normalize role to lowercase for comparison
+  const normalizedRole = role?.toLowerCase() || 'customer';
+  
   if (isAdminDomain()) {
     return '/admin';
   }
   
-  if (role === 'admin' && !isAdminDomain()) {
-    // Admin logged in on customer domain - redirect to admin domain
+  if (normalizedRole === 'admin' && !isAdminDomain()) {
+    // Admin logged in on customer domain
+    if (isLocalhost) {
+      // In development, just redirect to /admin on same domain
+      return '/admin';
+    }
+    // In production, redirect to admin subdomain
     return 'https://admin.milko.in/admin';
   }
   

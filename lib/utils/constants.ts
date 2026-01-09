@@ -30,6 +30,10 @@ export const API_ENDPOINTS = {
   BANNERS: {
     LIST: '/api/banners',
   },
+  // Content
+  CONTENT: {
+    GET: (type: string) => `/api/content/${type}`,
+  },
   // Admin
   ADMIN: {
     PRODUCTS: {
@@ -66,6 +70,12 @@ export const API_ENDPOINTS = {
       CREATE: '/api/admin/banners',
       UPDATE: (id: string) => `/api/admin/banners/${id}`,
       DELETE: (id: string) => `/api/admin/banners/${id}`,
+    },
+    CONTENT: {
+      LIST: '/api/admin/content',
+      GET: (type: string) => `/api/admin/content/${type}`,
+      UPDATE: (type: string) => `/api/admin/content/${type}`,
+      TOGGLE_STATUS: (type: string) => `/api/admin/content/${type}/status`,
     },
   },
 } as const;

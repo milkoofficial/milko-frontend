@@ -6,6 +6,8 @@ import { adminProductsApi } from '@/lib/api';
 import { Product, ProductImage, ProductVariation, ProductReview } from '@/types';
 import Image from 'next/image';
 import styles from './page.module.css';
+import { LoadingSpinnerWithText, LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import adminStyles from '../../admin-styles.module.css';
 
 /**
  * Admin Product Edit Page
@@ -176,7 +178,17 @@ export default function AdminProductEditPage() {
   };
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '50vh',
+        padding: '2rem'
+      }}>
+        <LoadingSpinnerWithText text="Loading product..." />
+      </div>
+    );
   }
 
   if (!product) {
@@ -189,7 +201,7 @@ export default function AdminProductEditPage() {
         <button onClick={() => router.back()} className={styles.backButton}>
           ← Back
         </button>
-        <h1>Edit Product: {product.name}</h1>
+        <h1 className={adminStyles.adminPageTitle}>Edit Product: {product.name}</h1>
       </div>
 
       {/* Tabs */}

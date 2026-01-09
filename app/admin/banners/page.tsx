@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { adminBannersApi, Banner } from '@/lib/api';
+import { LoadingSpinnerWithText, LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import adminStyles from '../admin-styles.module.css';
 
 /**
  * Admin Banners Page
@@ -126,13 +128,23 @@ export default function AdminBannersPage() {
   };
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '50vh',
+        padding: '2rem'
+      }}>
+        <LoadingSpinnerWithText text="Loading banners..." />
+      </div>
+    );
   }
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1>Manage Banners</h1>
+        <h1 className={adminStyles.adminPageTitle}>Manage Banners</h1>
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
@@ -246,7 +258,12 @@ export default function AdminBannersPage() {
                   fontSize: '1rem',
                 }}
               >
-                {submitting ? 'Saving...' : editingBanner ? 'Update Banner' : 'Create Banner'}
+                {submitting ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <LoadingSpinner size="small" />
+                    Saving...
+                  </span>
+                ) : editingBanner ? 'Update Banner' : 'Create Banner'}
               </button>
               <button
                 type="button"

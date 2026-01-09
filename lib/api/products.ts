@@ -44,15 +44,18 @@ export const adminProductsApi = {
 
   /**
    * Create new product
+   * Accepts FormData for file uploads
    */
-  create: async (product: {
-    name: string;
-    description?: string;
-    pricePerLitre: number;
-    imageUrl?: string;
-    isActive: boolean;
-  }): Promise<Product> => {
-    return apiClient.post<Product>(API_ENDPOINTS.ADMIN.PRODUCTS.CREATE, product);
+  create: async (formData: FormData): Promise<Product> => {
+    const instance = apiClient.getInstance();
+    const response = await instance.post<{ success: boolean; data: Product }>(
+      API_ENDPOINTS.ADMIN.PRODUCTS.CREATE,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data.data;
   },
 
   /**

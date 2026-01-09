@@ -34,7 +34,8 @@ export const useRequireAdmin = () => {
         router.push('/auth/login');
       } else if (!isAdmin) {
         // If not admin, redirect to customer domain
-        if (isAdminDomain()) {
+        // BUT: In localhost, just redirect to home
+        if (isAdminDomain() && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
           window.location.href = 'https://milko.in';
         } else {
           router.push('/');

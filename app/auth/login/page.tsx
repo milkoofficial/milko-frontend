@@ -28,7 +28,10 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      const redirectPath = getPostLoginRedirect(user.role);
+      const userRole = user.role?.toLowerCase() || 'customer';
+      console.log('[LOGIN] Already authenticated, user role:', user.role, 'normalized:', userRole);
+      const redirectPath = getPostLoginRedirect(userRole);
+      console.log('[LOGIN] Redirect path for authenticated user:', redirectPath);
       if (redirectPath.startsWith('http')) {
         window.location.href = redirectPath;
       } else {
@@ -52,19 +55,34 @@ export default function LoginPage() {
 
     try {
       const response = await login(email, password);
-      const redirectPath = getPostLoginRedirect(response.user.role);
+      
+      // Normalize role to lowercase for comparison
+      const userRole = response.user.role?.toLowerCase() || 'customer';
+      console.log('[LOGIN] User role after login:', response.user.role, 'normalized:', userRole);
+      
+      const redirectPath = getPostLoginRedirect(userRole as 'admin' | 'customer');
+      console.log('[LOGIN] Redirect path:', redirectPath);
       
       // If admin logged in on customer domain, redirect to admin subdomain
       // In local development we keep admin and customer routes on the same origin.
-      if (response.user.role === 'admin' && !isAdmin && !isLocalhost) {
+      if (userRole === 'admin' && !isAdmin && !isLocalhost) {
         window.location.href = `https://admin.milko.in${redirectPath}`;
       } else if (redirectPath.startsWith('http')) {
         window.location.href = redirectPath;
       } else {
+        console.log('[LOGIN] Redirecting to:', redirectPath);
         router.push(redirectPath);
       }
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      console.error('Login error:', err);
+      // Handle timeout errors specifically
+      if (err.message?.includes('timeout') || err.message?.includes('timed out')) {
+        setError('Connection timed out. Please check your internet connection and try again.');
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('Login failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }

@@ -18,11 +18,12 @@ export default function SignUpPage() {
   const isAdmin = isAdminDomain();
 
   // Redirect admin subdomain to customer domain for signup
+  // BUT: In localhost, allow signup on same domain
   useEffect(() => {
-    if (isAdmin) {
-      router.push('https://milko.in/auth/signup');
+    if (isAdmin && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+      window.location.href = 'https://milko.in/auth/signup';
     }
-  }, [isAdmin, router]);
+  }, [isAdmin]);
 
   // Redirect if already authenticated
   useEffect(() => {

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { adminProductsApi } from '@/lib/api';
 import { Product } from '@/types';
 import Link from 'next/link';
+import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
+import adminStyles from '../admin-styles.module.css';
 
 /**
  * Admin Products Page
@@ -29,13 +31,23 @@ export default function AdminProductsPage() {
   }, []);
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '50vh',
+        padding: '2rem'
+      }}>
+        <LoadingSpinnerWithText text="Loading products..." />
+      </div>
+    );
   }
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1>Manage Products</h1>
+        <h1 className={adminStyles.adminPageTitle}>Manage Products</h1>
         <Link 
           href="/admin/products/new"
           style={{

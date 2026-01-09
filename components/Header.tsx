@@ -5,13 +5,128 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import styles from './Header.module.css';
+import { User } from '@/types';
+
+/**
+ * User Dropdown Component
+ * Shows "Hi, [name]" with dropdown menu
+ */
+function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User | null; logout: () => void; isAdmin: boolean; isMobile?: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleLogout = async () => {
+    await logout();
+    setIsOpen(false);
+    router.push('/');
+  };
+
+  if (isMobile) {
+    return (
+      <div className={styles.userDropdownMobile} ref={dropdownRef}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={styles.iconButton}
+          aria-label="User menu"
+        >
+          <svg className={styles.buttonIcon} viewBox="0 0 24.00 24.00" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+            <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+            <g id="SVGRepo_iconCarrier">
+              <path fillRule="evenodd" clipRule="evenodd" d="M8.25 9C8.25 6.92893 9.92893 5.25 12 5.25C14.0711 5.25 15.75 6.92893 15.75 9C15.75 11.0711 14.0711 12.75 12 12.75C9.92893 12.75 8.25 11.0711 8.25 9ZM12 6.75C10.7574 6.75 9.75 7.75736 9.75 9C9.75 10.2426 10.7574 11.25 12 11.25C13.2426 11.25 14.25 10.2426 14.25 9C14.25 7.75736 13.2426 6.75 12 6.75Z" fill="currentColor"></path>
+              <path fillRule="evenodd" clipRule="evenodd" d="M1.25 12C1.25 6.06294 6.06294 1.25 12 1.25C17.9371 1.25 22.75 6.06294 22.75 12C22.75 17.9371 17.9371 22.75 12 22.75C6.06294 22.75 1.25 17.9371 1.25 12ZM12 2.75C6.89137 2.75 2.75 6.89137 2.75 12C2.75 14.5456 3.77827 16.851 5.4421 18.5235C5.6225 17.5504 5.97694 16.6329 6.68837 15.8951C7.75252 14.7915 9.45416 14.25 12 14.25C14.5457 14.25 16.2474 14.7915 17.3115 15.8951C18.023 16.6329 18.3774 17.5505 18.5578 18.5236C20.2217 16.8511 21.25 14.5456 21.25 12C21.25 6.89137 17.1086 2.75 12 2.75ZM17.1937 19.6554C17.0918 18.4435 16.8286 17.5553 16.2318 16.9363C15.5823 16.2628 14.3789 15.75 12 15.75C9.62099 15.75 8.41761 16.2628 7.76815 16.9363C7.17127 17.5553 6.90811 18.4434 6.80622 19.6553C8.28684 20.6618 10.0747 21.25 12 21.25C13.9252 21.25 15.7131 20.6618 17.1937 19.6554Z" fill="currentColor"></path>
+            </g>
+          </svg>
+          <span className={styles.iconButtonText}>Account</span>
+        </button>
+        {isOpen && (
+          <div className={styles.dropdownMenu}>
+            <div className={styles.dropdownHeader}>
+              <span>Hi, {user?.name || 'User'}</span>
+            </div>
+            <Link href="/dashboard" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+              My Account
+            </Link>
+            <Link href="/orders" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+              Orders
+            </Link>
+            <Link href="/subscriptions" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+              Memberships
+            </Link>
+            {isAdmin && (
+              <Link href="/admin" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+                Panel
+              </Link>
+            )}
+            <button className={styles.dropdownItem} onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.userDropdown} ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={styles.userButton}
+      >
+        <span>Hi, {user?.name || 'User'}</span>
+        <svg className={`${styles.dropdownArrow} ${isOpen ? styles.dropdownArrowOpen : ''}`} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {isOpen && (
+        <div className={styles.dropdownMenu}>
+          <Link href="/dashboard" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+            My Account
+          </Link>
+          <Link href="/orders" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+            Orders
+          </Link>
+          <Link href="/subscriptions" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+            Memberships
+          </Link>
+          {isAdmin && (
+            <Link href="/admin" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+              Panel
+            </Link>
+          )}
+          <button className={styles.dropdownItem} onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Header Component
  * Contains logo, search bar, membership button, and login button
  */
 export default function Header() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, isAdmin } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,8 +139,14 @@ export default function Header() {
   const hasScrolledToMembershipRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if we're on an auth page
+  // Check if we're on an auth page or admin page
   const isAuthPage = pathname?.startsWith('/auth');
+  const isAdminPage = pathname?.startsWith('/admin');
+  
+  // Don't render header on admin pages (AdminHeader handles that)
+  if (isAdminPage) {
+    return null;
+  }
 
   // Simulate initial loading (show shimmer for first load)
   useEffect(() => {
@@ -312,33 +433,7 @@ export default function Header() {
 
               {/* Login/User Button - Icon Only on Mobile */}
               {isAuthenticated ? (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className={styles.iconButton}
-                    aria-label="Dashboard"
-                  >
-                    <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="3" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <rect x="14" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <rect x="14" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <rect x="3" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span className={styles.iconButtonText}>Dashboard</span>
-                  </Link>
-                  <button
-                    onClick={logout}
-                    className={styles.iconButton}
-                    aria-label="Logout"
-                  >
-                    <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span className={styles.iconButtonText}>Logout</span>
-                  </button>
-                </>
+                <UserDropdown user={user} logout={logout} isAdmin={isAdmin} isMobile={true} />
               ) : (
                 <Link
                   href="/auth/login"
@@ -359,31 +454,7 @@ export default function Header() {
 
               {/* Desktop Login/User Button */}
               {isAuthenticated ? (
-                <div className={styles.userActions}>
-                  <Link
-                    href="/dashboard"
-                    className={styles.dashboardButton}
-                  >
-                    <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="3" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <rect x="14" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <rect x="14" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <rect x="3" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Dashboard
-                  </Link>
-                  <button
-                    onClick={logout}
-                    className={styles.logoutButton}
-                  >
-                    <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Logout
-                  </button>
-                </div>
+                <UserDropdown user={user} logout={logout} isAdmin={isAdmin} />
               ) : (
                 <Link
                   href="/auth/login"

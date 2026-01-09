@@ -42,16 +42,40 @@ class ApiClient {
       (response) => response,
       (error: AxiosError<ApiResponse<unknown>>) => {
         // Handle 401 Unauthorized - clear auth and redirect to login
+        // BUT don't redirect if we're already on the login page (to prevent reload loop)
         if (error.response?.status === 401) {
           clearAuth();
           if (typeof window !== 'undefined') {
-            window.location.href = '/auth/login';
+            const currentPath = window.location.pathname;
+            // Only redirect if not already on login or signup page
+            if (!currentPath.includes('/auth/login') && !currentPath.includes('/auth/signup')) {
+              window.location.href = '/auth/login';
+            }
           }
+        }
+
+        // Extract error message from different response formats
+        let errorMessage = 'An error occurred';
+        if (error.response?.data) {
+          // Backend returns { success: false, error: "message" } for errors
+          if ('error' in error.response.data) {
+            errorMessage = (error.response.data as any).error;
+          } 
+          // Or { success: false, message: "message" }
+          else if ('message' in error.response.data) {
+            errorMessage = (error.response.data as any).message;
+          }
+          // Or standard ApiResponse format
+          else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+        } else if (error.message) {
+          errorMessage = error.message;
         }
 
         // Return error in consistent format
         return Promise.reject({
-          message: error.response?.data?.message || error.message || 'An error occurred',
+          message: errorMessage,
           status: error.response?.status,
           data: error.response?.data,
         });

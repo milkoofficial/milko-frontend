@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/utils/constants';
 import { DeliverySchedule } from '@/types';
+import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
+import adminStyles from '../admin-styles.module.css';
 
 /**
  * Admin Deliveries Page
@@ -32,12 +34,22 @@ export default function AdminDeliveriesPage() {
   }, [selectedDate]);
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '50vh',
+        padding: '2rem'
+      }}>
+        <LoadingSpinnerWithText text="Loading deliveries..." />
+      </div>
+    );
   }
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-      <h1>Delivery Schedule</h1>
+      <h1 className={adminStyles.adminPageTitle}>Delivery Schedule</h1>
 
       <div style={{ marginTop: '2rem', marginBottom: '1rem' }}>
         <label style={{ marginRight: '1rem', fontWeight: 'bold' }}>Select Date:</label>

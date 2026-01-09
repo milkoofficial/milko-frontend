@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { adminSubscriptionsApi } from '@/lib/api';
 import { Subscription } from '@/types';
+import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
+import adminStyles from '../admin-styles.module.css';
 
 /**
  * Admin Subscriptions Page
@@ -52,12 +54,22 @@ export default function AdminSubscriptionsPage() {
   };
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '50vh',
+        padding: '2rem'
+      }}>
+        <LoadingSpinnerWithText text="Loading memberships..." />
+      </div>
+    );
   }
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-      <h1>Subscriptions</h1>
+      <h1 className={adminStyles.adminPageTitle}>Subscriptions</h1>
 
       <div style={{ background: 'white', borderRadius: '8px', overflow: 'hidden', marginTop: '2rem' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>

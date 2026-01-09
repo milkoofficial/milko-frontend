@@ -41,14 +41,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = tokenStorage.get();
 
       if (storedUser && token) {
-        // Verify token is still valid by fetching current user
+        // Use stored user immediately (don't wait for API call)
+        setUser(storedUser);
+        
+        // Then verify token in background and update if needed
+        // But don't clear storage if it fails - use stored user as fallback
         try {
           const currentUser = await authApi.getCurrentUser();
           setUser(currentUser);
+          userStorage.set(currentUser); // Update storage with fresh data
         } catch (error) {
-          // Token invalid, clear storage
-          userStorage.remove();
-          tokenStorage.remove();
+          // Token might be invalid, but keep using stored user
+          // Only clear if it's a 401 (unauthorized) error
+          console.warn('[AUTH] Failed to verify token, using stored user:', error);
+          // Don't clear storage - let user stay logged in with stored data
+          // If token is truly invalid, API calls will fail and handle it
         }
       }
 
@@ -61,7 +68,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     const response = await authApi.login(email, password);
     setUser(response.user);
-    return response; // Return response for redirect logic
+    
+    // Always refresh user data from database to get correct role
+    // This ensures we have the latest role even if login response had stale data
+    let finalUser = response.user;
+    try {
+      const currentUser = await authApi.getCurrentUser();
+      setUser(currentUser);
+      userStorage.set(currentUser);
+      finalUser = currentUser;
+      console.log('[AUTH] User data refreshed from database, role:', currentUser.role);
+    } catch (error) {
+      console.warn('[AUTH] Failed to refresh user data, using login response:', error);
+      // Continue with login response user data
+    }
+    
+    return { ...response, user: finalUser }; // Return updated user
   };
 
   const signup = async (name: string, email: string, password: string) => {
@@ -90,7 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     loading,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
+    isAdmin: user?.role?.toLowerCase() === 'admin', // Case-insensitive comparison
     login,
     signup,
     logout,
