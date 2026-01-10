@@ -142,11 +142,6 @@ export default function Header() {
   // Check if we're on an auth page or admin page
   const isAuthPage = pathname?.startsWith('/auth');
   const isAdminPage = pathname?.startsWith('/admin');
-  
-  // Don't render header on admin pages (AdminHeader handles that)
-  if (isAdminPage) {
-    return null;
-  }
 
   // Simulate initial loading (show shimmer for first load)
   useEffect(() => {
@@ -234,7 +229,13 @@ export default function Header() {
     return () => {
       cancelled = true;
     };
-  }, [pathname]); // Only depend on pathname, not headerHeight, to prevent re-triggering on scroll
+  }, [pathname, headerHeight]); // Include headerHeight in dependencies
+
+  // Don't render header on admin pages (AdminHeader handles that)
+  // This check must come AFTER all hooks are called
+  if (isAdminPage) {
+    return null;
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
