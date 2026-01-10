@@ -6,7 +6,7 @@ import { adminProductsApi } from '@/lib/api';
 import { Product, ProductImage, ProductVariation, ProductReview } from '@/types';
 import Image from 'next/image';
 import styles from './page.module.css';
-import { LoadingSpinnerWithText, LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import LoadingSpinner, { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import adminStyles from '../../admin-styles.module.css';
 
 /**

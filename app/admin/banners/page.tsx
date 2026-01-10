@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { adminBannersApi, Banner } from '@/lib/api';
-import { LoadingSpinnerWithText, LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import LoadingSpinner, { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import adminStyles from '../admin-styles.module.css';
 
 /**

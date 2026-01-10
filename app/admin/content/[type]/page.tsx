@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { adminContentApi, SiteContent } from '@/lib/api';
-import { LoadingSpinnerWithText, LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import LoadingSpinner, { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import adminStyles from '../../admin-styles.module.css';
 import styles from './edit.module.css';
 
