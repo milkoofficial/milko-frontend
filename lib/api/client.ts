@@ -66,13 +66,17 @@ class ApiClient {
         }
 
         // Handle 401 Unauthorized - clear auth and redirect to login
-        // BUT don't redirect if we're already on the login page (to prevent reload loop)
+        // BUT don't redirect if we're on public routes (homepage, login, signup)
         if (error.response?.status === 401) {
           clearAuth();
           if (typeof window !== 'undefined') {
             const currentPath = window.location.pathname;
-            // Only redirect if not already on login or signup page
-            if (!currentPath.includes('/auth/login') && !currentPath.includes('/auth/signup')) {
+            // Public routes where we don't want to redirect to login
+            const publicRoutes = ['/', '/auth/login', '/auth/signup'];
+            const isPublicRoute = publicRoutes.includes(currentPath) || currentPath.startsWith('/auth/');
+            
+            // Only redirect if not on a public route
+            if (!isPublicRoute) {
               window.location.href = '/auth/login';
             }
           }

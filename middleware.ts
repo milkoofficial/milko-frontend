@@ -16,27 +16,9 @@ export function middleware(request: NextRequest) {
   const isAdminSubdomain = hostname.startsWith('admin.') || hostname === 'admin.milko.in';
   const isCustomerDomain = !isAdminSubdomain && (hostname === 'milko.in' || hostname.includes('localhost'));
 
-  // Redirect admin routes on customer domain to admin subdomain
-  // BUT: In localhost, allow admin routes on same domain
-  if (isCustomerDomain && pathname.startsWith('/admin') && !hostname.includes('localhost')) {
-    const adminUrl = new URL(request.url);
-    adminUrl.hostname = `admin.${hostname.replace('localhost:3000', 'milko.in')}`;
-    if (hostname === 'milko.in' || hostname.includes('milko.in')) {
-      adminUrl.hostname = 'admin.milko.in';
-    }
-    return NextResponse.redirect(adminUrl);
-  }
-
-  // Redirect customer routes on admin subdomain (except auth)
-  // BUT: In localhost, allow all routes on same domain
-  if (isAdminSubdomain && !pathname.startsWith('/admin') && !pathname.startsWith('/auth') && !hostname.includes('localhost')) {
-    const customerUrl = new URL(request.url);
-    customerUrl.hostname = hostname.replace('admin.', '');
-    if (hostname === 'admin.milko.in') {
-      customerUrl.hostname = 'milko.in';
-    }
-    return NextResponse.redirect(customerUrl);
-  }
+  // Allow admin routes on same domain - no subdomain redirect needed
+  // (admin.milko.in subdomain doesn't exist, so use milko.in/admin instead)
+  // This middleware now just allows all routes on the same domain
 
   // Public routes that don't require authentication
   const publicRoutes = ['/auth/login', '/auth/signup', '/'];

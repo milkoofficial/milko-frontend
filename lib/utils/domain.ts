@@ -53,13 +53,9 @@ export const getPostLoginRedirect = (role: 'admin' | 'customer' | string): strin
   }
   
   if (normalizedRole === 'admin' && !isAdminDomain()) {
-    // Admin logged in on customer domain
-    if (isLocalhost) {
-      // In development, just redirect to /admin on same domain
-      return '/admin';
-    }
-    // In production, redirect to admin subdomain
-    return 'https://admin.milko.in/admin';
+    // Admin logged in on customer domain - redirect to /admin on same domain
+    // No subdomain redirect needed, use same domain
+    return '/admin';
   }
   
   return '/dashboard';

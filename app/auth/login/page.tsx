@@ -63,11 +63,9 @@ export default function LoginPage() {
       const redirectPath = getPostLoginRedirect(userRole as 'admin' | 'customer');
       console.log('[LOGIN] Redirect path:', redirectPath);
       
-      // If admin logged in on customer domain, redirect to admin subdomain
-      // In local development we keep admin and customer routes on the same origin.
-      if (userRole === 'admin' && !isAdmin && !isLocalhost) {
-        window.location.href = `https://admin.milko.in${redirectPath}`;
-      } else if (redirectPath.startsWith('http')) {
+      // If redirect path is an absolute URL (shouldn't happen now), use it
+      // Otherwise, use router.push for same-domain navigation
+      if (redirectPath.startsWith('http')) {
         window.location.href = redirectPath;
       } else {
         console.log('[LOGIN] Redirecting to:', redirectPath);
