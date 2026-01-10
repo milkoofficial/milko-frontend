@@ -190,19 +190,19 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToMembership = () => {
-    const el = document.getElementById('membership');
-    if (!el) return false;
-
-    const y = el.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
-    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-    return true;
-  };
-
   // If we land on /#membership (e.g., from another route), scroll after the page renders.
   // Only scroll once when the hash is first detected, not on every render or scroll.
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
+    const scrollToMembership = () => {
+      const el = document.getElementById('membership');
+      if (!el) return false;
+      const y = el.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
+      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      return true;
+    };
+
     if (window.location.hash !== '#membership') {
       // Reset the ref when hash changes away from membership
       hasScrolledToMembershipRef.current = false;
@@ -229,19 +229,27 @@ export default function Header() {
     return () => {
       cancelled = true;
     };
-  }, [pathname, headerHeight]); // Include headerHeight in dependencies
+  }, [pathname, headerHeight]);
 
-  // Don't render header on admin pages (AdminHeader handles that)
-  // This check must come AFTER all hooks are called
-  if (isAdminPage) {
-    return null;
-  }
+  const scrollToMembership = () => {
+    const el = document.getElementById('membership');
+    if (!el) return false;
+    const y = el.getBoundingClientRect().top + window.scrollY - headerHeight - 8;
+    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    return true;
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Implement search functionality
     console.log('Searching for:', searchQuery);
   };
+
+  // Don't render header on admin pages (AdminHeader handles that)
+  // All hooks are called above, so this is safe
+  if (isAdminPage) {
+    return null;
+  }
 
   return (
     <>
