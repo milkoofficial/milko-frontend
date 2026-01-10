@@ -41,6 +41,30 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError<ApiResponse<unknown>>) => {
+        // Handle network errors (no response from server)
+        if (!error.response) {
+          console.error('[API Client] Network error:', error.message);
+          if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error')) {
+            return Promise.reject({
+              message: 'Unable to connect to server. Please check if the backend is running.',
+              status: 0,
+              data: null,
+            });
+          }
+          if (error.message.includes('timeout')) {
+            return Promise.reject({
+              message: 'Request timed out. Please try again.',
+              status: 0,
+              data: null,
+            });
+          }
+          return Promise.reject({
+            message: error.message || 'Network error. Please check your connection.',
+            status: 0,
+            data: null,
+          });
+        }
+
         // Handle 401 Unauthorized - clear auth and redirect to login
         // BUT don't redirect if we're already on the login page (to prevent reload loop)
         if (error.response?.status === 401) {
@@ -72,6 +96,12 @@ class ApiClient {
         } else if (error.message) {
           errorMessage = error.message;
         }
+
+        console.error('[API Client] API error:', {
+          status: error.response?.status,
+          message: errorMessage,
+          url: error.config?.url,
+        });
 
         // Return error in consistent format
         return Promise.reject({

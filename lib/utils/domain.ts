@@ -33,12 +33,9 @@ export const isCustomerDomain = (): boolean => {
  * Get the base URL for API calls based on domain
  */
 export const getApiBaseUrl = (): string => {
-  if (typeof window !== 'undefined') {
-    // In production, API will be on the same domain or a separate API subdomain
-    // For now, use environment variable or default
-    return process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.milko.in';
-  }
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+  // Use environment variable if set, otherwise use Render backend URL
+  // Development: Can override with http://localhost:3001
+  return process.env.NEXT_PUBLIC_API_BASE_URL || 'https://milko-backend.onrender.com';
 };
 
 /**
