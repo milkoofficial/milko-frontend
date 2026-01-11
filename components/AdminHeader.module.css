@@ -1,7 +1,7 @@
 /* Admin Header Styles */
 
 .adminHeader {
-  background: #1a1a1a;
+  background: #ffffff;
   color: white;
   padding: 0.8rem 1rem;
   position: fixed;
@@ -9,7 +9,7 @@
   left: 0;
   right: 0;
   z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e6e6e6;
 }
 
 .adminHeaderContent {
@@ -23,12 +23,12 @@
 
 /* Logo */
 .adminLogo {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: white;
-  text-decoration: none;
-  white-space: nowrap;
-  letter-spacing: -0.5px;
+  font-size: 1.4rem;
+    font-weight: 600;
+    color: #000000;
+    text-decoration: none;
+    white-space: nowrap;
+    letter-spacing: -1px;
 }
 
 .adminLogo:hover {
@@ -45,7 +45,7 @@
 .searchForm {
   display: flex;
   align-items: center;
-  background: #2a2a2a;
+  background: #ededed;
   border-radius: 85px;
   padding: 6px 13px 6px 9px;
   border: 0px solid #3a3a3a;
@@ -72,7 +72,7 @@
   background: transparent;
   border: none;
   outline: none;
-  color: white;
+  color: rgb(0, 0, 0);
   font-size: 0.95rem;
   padding: 0.25rem 0;
 }
@@ -155,25 +155,26 @@
 }
 
 .adminMenu a {
-  color: #ccc;
+  color: #1d1d1d;
   text-decoration: none;
   font-size: 0.95rem;
   transition: color 0.2s;
     padding: 9px 16px;
     border-radius: 27px;
+    letter-spacing: -0.3px;
 }
 
 
 .adminMenu a:hover {
-  color: white;
-  background: #9b9b9b1a;
+  color: #000000;
+    background: #9b9b9b1a;
 }
 
 .adminMenu .activeLink {
-    color: #b1dbff;
-    font-weight: 600;
-    border-bottom: 0px solid #0070f3;
-    background: #002b4a;
+  color: #000000;
+  font-weight: 600;
+  border-bottom: 0px solid #0070f3;
+  background: #dfdfdf;
 }
 
 .viewSiteLink {
@@ -192,7 +193,7 @@
   gap: 0.5rem;
   background: transparent;
   border: none;
-  color: white;
+  color: rgb(0, 0, 0);
   cursor: pointer;
   font-size: 0.95rem;
     padding: 10px 13px 10px 16px;

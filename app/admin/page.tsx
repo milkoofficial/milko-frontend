@@ -456,7 +456,7 @@ export default function AdminDashboard() {
               <div className={styles.insightItem}>
                 <div className={styles.insightIcon}>👑</div>
                 <div>
-                  <div className={styles.insightLabel}>Membership Customers</div>
+                  <div className={styles.insightLabel}>Subscription Customers</div>
                   <div className={styles.insightValue}>{customerInsights?.vipCustomers || 0}</div>
                   <div className={styles.insightSubtext}>Active</div>
                 </div>
@@ -520,7 +520,7 @@ export default function AdminDashboard() {
 
           {/* Active Memberships */}
           <div className={styles.insightCard}>
-            <h3>Active Memberships</h3>
+            <h3>Active Subscriptions</h3>
             <div className={styles.promotionItem}>
               <div className={styles.promotionInfo}>
                 <div className={styles.promotionName}>Total Active</div>

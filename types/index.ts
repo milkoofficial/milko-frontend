@@ -126,3 +126,18 @@ export interface SubscriptionCreateRequest {
   deliveryTime: string;
 }
 
+// Address Types
+export interface Address {
+  id: string;
+  userId: string;
+  name: string; // Address name/label (e.g., "Home", "Office")
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone?: string;
+  isDefault?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

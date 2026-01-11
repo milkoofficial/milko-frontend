@@ -29,6 +29,7 @@
   letter-spacing: 0;
 }
 
+
 .loading {
   text-align: center;
   padding: 3rem;
@@ -251,6 +252,13 @@ letter-spacing: -1.2px;
   cursor: not-allowed;
   box-shadow: none;
 }
+
+@media (max-width: 768px) {
+
+  .sectionSubtitle {
+
+    margin-top: -1.55rem;
+  }}
 
 /* Responsive Design */
 @media (max-width: 968px) {

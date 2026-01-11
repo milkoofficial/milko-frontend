@@ -62,7 +62,7 @@ export default function AdminSubscriptionsPage() {
         minHeight: '50vh',
         padding: '2rem'
       }}>
-        <LoadingSpinnerWithText text="Loading memberships..." />
+        <LoadingSpinnerWithText text="Loading subscriptions..." />
       </div>
     );
   }

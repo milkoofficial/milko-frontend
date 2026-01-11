@@ -139,7 +139,7 @@ export default function MembershipSection() {
     return (
       <div id="membership" className={styles.membershipSection}>
         <div className={styles.container}>
-          <div className={styles.loading}>Loading membership options...</div>
+          <div className={styles.loading}>Loading subscription options...</div>
         </div>
       </div>
     );
@@ -148,13 +148,13 @@ export default function MembershipSection() {
   return (
     <div id="membership" className={styles.membershipSection}>
       <div className={styles.container}>
-        <h2 className={styles.sectionTitle}>Become a Member to Daily Delivery</h2>
+        <h2 className={styles.sectionTitle}>Become a Subscriber</h2>
         <p className={styles.sectionSubtitle}>Get fresh milk delivered to your doorstep daily</p>
         
         <div className={styles.twoColumnLayout}>
           {/* Left Column - Benefits */}
           <div className={styles.benefitsColumn}>
-            <h3 className={styles.benefitsTitle}>Why Choose Our Membership?</h3>
+            <h3 className={styles.benefitsTitle}>Why Choose Our Subscription?</h3>
             <ul className={styles.benefitsList}>
               <li className={styles.benefitItem}>
                 <span className={styles.benefitIcon} aria-hidden="true">

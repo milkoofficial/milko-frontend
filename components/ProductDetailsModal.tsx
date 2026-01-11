@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Product, ProductVariation } from '@/types';
 import { productsApi } from '@/lib/api';
+import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/contexts/ToastContext';
+import { animateToCart } from '@/lib/utils/cartAnimation';
+import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './ProductDetailsModal.module.css';
@@ -19,6 +23,9 @@ interface ProductDetailsModalProps {
  * Shows detailed product information in a beautiful animated popup
  */
 export default function ProductDetailsModal({ product, isOpen, onClose }: ProductDetailsModalProps) {
+  const { addItem } = useCart();
+  const { showToast } = useToast();
+  const addToCartButtonRef = useRef<HTMLButtonElement>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [productDetails, setProductDetails] = useState<Product | null>(null);
@@ -357,17 +364,37 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
 
               <div className={styles.actionButtons}>
                 <button
+                  ref={addToCartButtonRef}
                   type="button"
                   className={styles.addToCartButton}
                   onClick={() => {
-                    // Cart is implemented via localStorage (see lib/utils/cart)
-                    import('@/lib/utils/cart').then(({ cartStorage }) => {
-                      cartStorage.add({
-                        productId: displayProduct.id,
-                        variationId: selectedVariation?.id ?? undefined,
-                        quantity: safeQty,
-                      });
+                    // Add to cart
+                    addItem({
+                      productId: displayProduct.id,
+                      variationId: selectedVariation?.id ?? undefined,
+                      quantity: safeQty,
                     });
+
+                    // Show notification
+                    showToast('Added to cart', 'success');
+
+                    // Get product image URL for animation
+                    const imageUrl = productImages.length > 0 && !productImages[0].startsWith('emoji:')
+                      ? productImages[0]
+                      : displayProduct.imageUrl || '';
+
+                    // Get source and target elements for animation
+                    const sourceElement = addToCartButtonRef.current;
+                    const targetElement = cartIconRefStore.getAny();
+
+                    // Animate if we have both elements and an image
+                    if (sourceElement && targetElement && imageUrl) {
+                      animateToCart({
+                        imageUrl,
+                        sourceElement,
+                        targetElement,
+                      });
+                    }
                   }}
                 >
                   Add to Cart

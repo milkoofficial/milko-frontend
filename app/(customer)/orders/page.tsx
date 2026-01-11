@@ -1,31 +1,31 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { subscriptionsApi } from '@/lib/api';
-import { Subscription } from '@/types';
 import Link from 'next/link';
 
 /**
- * My Subscriptions Page
- * Lists all subscriptions for the current user
+ * My Orders Page
+ * Lists all orders for the current user
  */
-export default function SubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+export default function OrdersPage() {
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSubscriptions = async () => {
+    const fetchOrders = async () => {
       try {
-        const data = await subscriptionsApi.getAll();
-        setSubscriptions(data);
+        // TODO: Replace with actual orders API when available
+        // const data = await ordersApi.getAll();
+        // setOrders(data);
+        setOrders([]);
       } catch (error) {
-        console.error('Failed to fetch subscriptions:', error);
+        console.error('Failed to fetch orders:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSubscriptions();
+    fetchOrders();
   }, []);
 
   if (loading) {
@@ -34,9 +34,9 @@ export default function SubscriptionsPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>My Subscriptions</h1>
+      <h1>My Orders</h1>
       
-      {subscriptions.length === 0 ? (
+      {orders.length === 0 ? (
         <div style={{ marginTop: '2rem', textAlign: 'center' }}>
           <svg 
             viewBox="0 0 400 400" 
@@ -52,9 +52,9 @@ export default function SubscriptionsPage() {
               <path d="M142.71 148.845C142.007 152.51 148.963 167.717 151.144 170.81C169.028 196.155 189.4 232.596 223.701 236.643C226.813 237.01 229.933 235.319 232.977 236.992C233.683 237.382 234.488 236.478 235.107 235.976C237.021 234.424 238.895 232.819 240.285 230.783C241.588 228.877 242.709 226.899 245.782 227.905C248.761 228.883 250.756 230.562 250.968 233.665C251.089 235.434 251.085 237.181 251.929 238.814C267.165 268.244 280.722 296.267 291.172 327.626C292.39 331.283 294.472 333.263 298.883 332.765" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path> 
             </g>
           </svg>
-          <p>You don&apos;t have any subscriptions yet.</p>
+          <p>You don&apos;t have any orders yet.</p>
           <Link 
-            href="/#membership"
+            href="/products"
             style={{
               display: 'inline-block',
               marginTop: '1.5rem',
@@ -75,66 +75,36 @@ export default function SubscriptionsPage() {
               e.currentTarget.style.background = '#000';
             }}
           >
-            Browse Subscriptions
+            Browse Products
           </Link>
         </div>
       ) : (
-        <div style={{ marginTop: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <div></div>
-            <Link 
-              href="/#membership"
-              style={{
-                display: 'inline-block',
-                padding: '0.875rem 1.75rem',
-                background: '#000',
-                color: '#fff',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                fontSize: '0.95rem',
-                fontWeight: '600',
-                transition: 'background-color 0.2s',
-                letterSpacing: '-0.2px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#333';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#000';
-              }}
-            >
-              Browse Subscriptions
-            </Link>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {subscriptions.map((subscription) => (
-              <div key={subscription.id} style={{ 
-                border: '1px solid #e0e0e0', 
-                borderRadius: '8px', 
-                padding: '1.5rem',
-                background: '#fff'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                  <div>
-                    <h3>{subscription.product?.name || 'Product'}</h3>
-                    <p>Quantity: {subscription.litresPerDay} litres/day</p>
-                    <p>Delivery Time: {subscription.deliveryTime}</p>
-                    <p>Status: <strong>{subscription.status}</strong></p>
-                    <p>Start: {new Date(subscription.startDate).toLocaleDateString()}</p>
-                    <p>End: {new Date(subscription.endDate).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <Link 
-                      href={`/subscriptions/${subscription.id}`}
-                      style={{ color: '#0070f3' }}
-                    >
-                      View Details
-                    </Link>
-                  </div>
+        <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {orders.map((order) => (
+            <div key={order.id} style={{ 
+              border: '1px solid #e0e0e0', 
+              borderRadius: '8px', 
+              padding: '1.5rem',
+              background: '#fff'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                <div>
+                  <h3>Order #{order.id}</h3>
+                  <p>Date: {new Date(order.createdAt).toLocaleDateString()}</p>
+                  <p>Total: ₹{order.total}</p>
+                  <p>Status: <strong>{order.status}</strong></p>
+                </div>
+                <div>
+                  <Link 
+                    href={`/orders/${order.id}`}
+                    style={{ color: '#0070f3' }}
+                  >
+                    View Details
+                  </Link>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

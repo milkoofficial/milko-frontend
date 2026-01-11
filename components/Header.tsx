@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import styles from './Header.module.css';
 import { User } from '@/types';
+import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 
 /**
  * User Dropdown Component
@@ -63,20 +65,44 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
               <span>Hi, {user?.name || 'User'}</span>
             </div>
             <Link href="/dashboard" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+              <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M20.5899 22C20.5899 18.13 16.7399 15 11.9999 15C7.25991 15 3.40991 18.13 3.40991 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
               My Account
             </Link>
             <Link href="/orders" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+              <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 16V8C21 7.46957 20.7893 6.96086 20.4142 6.58579C20.0391 6.21071 19.5304 6 19 6H5C4.46957 6 3.96086 6.21071 3.58579 6.58579C3.21071 6.96086 3 7.46957 3 8V16C3 16.5304 3.21071 17.0391 3.58579 17.4142C3.96086 17.7893 4.46957 18 5 18H19C19.5304 18 20.0391 17.7893 20.4142 17.4142C20.7893 17.0391 21 16.5304 21 16Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 10H21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 14H8.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
               Orders
             </Link>
             <Link href="/subscriptions" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
-              Memberships
+              <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 16H21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Subscriptions
             </Link>
             {isAdmin && (
               <Link href="/admin" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+                <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 3H10V10H3V3Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M14 3H21V10H14V3Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M3 14H10V21H3V14Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M14 14H21V21H14V14Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
                 Panel
               </Link>
             )}
             <button className={styles.dropdownItem} onClick={handleLogout}>
+              <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M21 12H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
               Logout
             </button>
           </div>
@@ -99,20 +125,44 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
       {isOpen && (
         <div className={styles.dropdownMenu}>
           <Link href="/dashboard" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+            <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M20.5899 22C20.5899 18.13 16.7399 15 11.9999 15C7.25991 15 3.40991 18.13 3.40991 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
             My Account
           </Link>
           <Link href="/orders" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+            <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 16V8C21 7.46957 20.7893 6.96086 20.4142 6.58579C20.0391 6.21071 19.5304 6 19 6H5C4.46957 6 3.96086 6.21071 3.58579 6.58579C3.21071 6.96086 3 7.46957 3 8V16C3 16.5304 3.21071 17.0391 3.58579 17.4142C3.96086 17.7893 4.46957 18 5 18H19C19.5304 18 20.0391 17.7893 20.4142 17.4142C20.7893 17.0391 21 16.5304 21 16Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3 10H21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M8 14H8.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
             Orders
           </Link>
           <Link href="/subscriptions" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
-            Memberships
+            <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3 16H21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Subscriptions
           </Link>
           {isAdmin && (
             <Link href="/admin" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+              <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 3H10V10H3V3Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M14 3H21V10H14V3Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 14H10V21H3V14Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M14 14H21V21H14V14Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
               Panel
             </Link>
           )}
           <button className={styles.dropdownItem} onClick={handleLogout}>
+            <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M21 12H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
             Logout
           </button>
         </div>
@@ -127,17 +177,34 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
  */
 export default function Header() {
   const { isAuthenticated, user, logout, isAdmin } = useAuth();
+  const { itemCount } = useCart();
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [pincode, setPincode] = useState('');
   const [address, setAddress] = useState('');
   const headerRef = useRef<HTMLElement | null>(null);
+  const cartButtonMobileRef = useRef<HTMLElement | null>(null);
+  const cartButtonDesktopRef = useRef<HTMLElement | null>(null);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const hasScrolledToMembershipRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Store cart icon refs for animation
+  useEffect(() => {
+    const updateRefs = () => {
+      cartIconRefStore.setMobile(cartButtonMobileRef.current);
+      cartIconRefStore.setDesktop(cartButtonDesktopRef.current);
+    };
+    
+    updateRefs();
+    // Update refs after a short delay to ensure DOM is ready
+    const timeout = setTimeout(updateRefs, 100);
+    return () => clearTimeout(timeout);
+  }, [itemCount]); // Re-run when cart count changes
 
   // Check if we're on an auth page or admin page
   const isAuthPage = pathname?.startsWith('/auth');
@@ -241,8 +308,12 @@ export default function Header() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement search functionality
-    console.log('Searching for:', searchQuery);
+    if (searchQuery.trim()) {
+      setIsSearching(true);
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      // Reset searching state after navigation (component will unmount anyway, but just in case)
+      setTimeout(() => setIsSearching(false), 1000);
+    }
   };
 
   // Don't render header on admin pages (AdminHeader handles that)
@@ -280,41 +351,74 @@ export default function Header() {
             ) : (
               <form onSubmit={handleSearch} className={styles.searchForm}>
                 {/* Search Icon */}
-                <div className={styles.searchIcon}>
-                  <svg 
-                    viewBox="0 -0.5 25 25" 
-                    fill="none" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                    <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                    <g id="SVGRepo_iconCarrier">
-                      <path 
-                        fillRule="evenodd" 
-                        clipRule="evenodd" 
-                        d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
-                        stroke="#000000" 
-                        strokeWidth="1.5" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      ></path>
-                      <path 
-                        d="M15.989 15.4905L19.5 19.0015" 
-                        stroke="#000000" 
-                        strokeWidth="1.5" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      ></path>
-                    </g>
-                  </svg>
-                </div>
+                {!isSearching && (
+                  <div className={styles.searchIcon}>
+                    <svg 
+                      viewBox="0 -0.5 25 25" 
+                      fill="none" 
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                      <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                      <g id="SVGRepo_iconCarrier">
+                        <path 
+                          fillRule="evenodd" 
+                          clipRule="evenodd" 
+                          d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
+                          stroke="#000000" 
+                          strokeWidth="1.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        ></path>
+                        <path 
+                          d="M15.989 15.4905L19.5 19.0015" 
+                          stroke="#000000" 
+                          strokeWidth="1.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        ></path>
+                      </g>
+                    </svg>
+                  </div>
+                )}
                 <input
                   type="text"
                   placeholder="Search Dairy products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                className={styles.searchInput}
-              />
+                  className={styles.searchInput}
+                  disabled={isSearching}
+                />
+                {isSearching && (
+                  <div className={styles.searchSpinner}>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={styles.spinnerIcon}
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="#000000"
+                        strokeWidth="2"
+                        strokeOpacity="0.2"
+                        fill="none"
+                      />
+                      <path
+                        d="M12 2C6.477 2 2 6.477 2 12"
+                        stroke="#000000"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        fill="none"
+                        strokeDasharray="20 40"
+                      />
+                    </svg>
+                  </div>
+                )}
               </form>
             )
           ) : null}
@@ -392,7 +496,7 @@ export default function Header() {
                   hasScrolledToMembershipRef.current = false;
                   router.push('/#membership');
                 }}
-                aria-label="Membership"
+                aria-label="Subscription"
               >
                 <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" xmlns="http://www.w3.org/2000/svg">
                   <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
@@ -401,7 +505,7 @@ export default function Header() {
                     <path d="M21.609 13.5616L21.8382 11.1263C22.0182 9.2137 22.1082 8.25739 21.781 7.86207C21.604 7.64823 21.3633 7.5172 21.106 7.4946C20.6303 7.45282 20.0329 8.1329 18.8381 9.49307C18.2202 10.1965 17.9113 10.5482 17.5666 10.6027C17.3757 10.6328 17.1811 10.6018 17.0047 10.5131C16.6865 10.3529 16.4743 9.91812 16.0499 9.04851L13.8131 4.46485C13.0112 2.82162 12.6102 2 12 2C11.3898 2 10.9888 2.82162 10.1869 4.46486L7.95007 9.04852C7.5257 9.91812 7.31351 10.3529 6.99526 10.5131C6.81892 10.6018 6.62434 10.6328 6.43337 10.6027C6.08872 10.5482 5.77977 10.1965 5.16187 9.49307C3.96708 8.1329 3.36968 7.45282 2.89399 7.4946C2.63666 7.5172 2.39598 7.64823 2.21899 7.86207C1.8918 8.25739 1.9818 9.2137 2.16181 11.1263L2.391 13.5616C2.76865 17.5742 2.95748 19.5805 4.14009 20.7902C5.32271 22 7.09517 22 10.6401 22H13.3599C16.9048 22 18.6773 22 19.8599 20.7902C21.0425 19.5805 21.2313 17.5742 21.609 13.5616Z" stroke="currentColor" strokeWidth="1.5"></path>
                   </g>
                 </svg>
-                <span className={styles.iconButtonText}>Membership</span>
+                <span className={styles.iconButtonText}>Subscription</span>
               </Link>
               
               {/* Desktop Membership Button */}
@@ -437,7 +541,7 @@ export default function Header() {
                     <path d="M21.609 13.5616L21.8382 11.1263C22.0182 9.2137 22.1082 8.25739 21.781 7.86207C21.604 7.64823 21.3633 7.5172 21.106 7.4946C20.6303 7.45282 20.0329 8.1329 18.8381 9.49307C18.2202 10.1965 17.9113 10.5482 17.5666 10.6027C17.3757 10.6328 17.1811 10.6018 17.0047 10.5131C16.6865 10.3529 16.4743 9.91812 16.0499 9.04851L13.8131 4.46485C13.0112 2.82162 12.6102 2 12 2C11.3898 2 10.9888 2.82162 10.1869 4.46486L7.95007 9.04852C7.5257 9.91812 7.31351 10.3529 6.99526 10.5131C6.81892 10.6018 6.62434 10.6328 6.43337 10.6027C6.08872 10.5482 5.77977 10.1965 5.16187 9.49307C3.96708 8.1329 3.36968 7.45282 2.89399 7.4946C2.63666 7.5172 2.39598 7.64823 2.21899 7.86207C1.8918 8.25739 1.9818 9.2137 2.16181 11.1263L2.391 13.5616C2.76865 17.5742 2.95748 19.5805 4.14009 20.7902C5.32271 22 7.09517 22 10.6401 22H13.3599C16.9048 22 18.6773 22 19.8599 20.7902C21.0425 19.5805 21.2313 17.5742 21.609 13.5616Z" stroke="currentColor" strokeWidth="1.5"></path>
                   </g>
                 </svg>
-                Membership
+                Subscription
               </Link>
 
               {/* Login/User Button - Icon Only on Mobile */}
@@ -487,13 +591,18 @@ export default function Header() {
                 className={styles.iconButton}
                 aria-label="Cart"
               >
-                <svg className={`${styles.buttonIcon} ${styles.cartIcon}`} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                  <g id="SVGRepo_iconCarrier">
-                    <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11M8 8H16C19 8 20 11.8899 20 13.5C20 19.5259 18.3966 20.5 12 20.5C5.60338 20.5 4 19.5259 4 13.5C4 11.8899 5 8 8 8Z" stroke="currentColor" strokeWidth="1.488" strokeLinecap="round" strokeLinejoin="round"></path>
-                  </g>
-                </svg>
+                <div ref={cartButtonMobileRef as any} className={styles.cartIconWrapper}>
+                  <svg className={`${styles.buttonIcon} ${styles.cartIcon}`} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                    <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11M8 8H16C19 8 20 11.8899 20 13.5C20 19.5259 18.3966 20.5 12 20.5C5.60338 20.5 4 19.5259 4 13.5C4 11.8899 5 8 8 8Z" stroke="currentColor" strokeWidth="1.488" strokeLinecap="round" strokeLinejoin="round"></path>
+                    </g>
+                  </svg>
+                  {itemCount > 0 && (
+                    <span className={styles.cartBadge}>{itemCount}</span>
+                  )}
+                </div>
                 <span className={styles.iconButtonText}>Cart</span>
               </Link>
               
@@ -502,13 +611,18 @@ export default function Header() {
                 href="/cart"
                 className={styles.cartButton}
               >
-                <svg className={`${styles.buttonIcon} ${styles.cartIcon}`} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                  <g id="SVGRepo_iconCarrier">
-                    <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11M8 8H16C19 8 20 11.8899 20 13.5C20 19.5259 18.3966 20.5 12 20.5C5.60338 20.5 4 19.5259 4 13.5C4 11.8899 5 8 8 8Z" stroke="currentColor" strokeWidth="1.488" strokeLinecap="round" strokeLinejoin="round"></path>
-                  </g>
-                </svg>
+                <div ref={cartButtonDesktopRef as any} className={styles.cartIconWrapper}>
+                  <svg className={`${styles.buttonIcon} ${styles.cartIcon}`} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                    <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11M8 8H16C19 8 20 11.8899 20 13.5C20 19.5259 18.3966 20.5 12 20.5C5.60338 20.5 4 19.5259 4 13.5C4 11.8899 5 8 8 8Z" stroke="currentColor" strokeWidth="1.488" strokeLinecap="round" strokeLinejoin="round"></path>
+                    </g>
+                  </svg>
+                  {itemCount > 0 && (
+                    <span className={styles.cartBadge}>{itemCount}</span>
+                  )}
+                </div>
                 Cart
               </Link>
             </div>
@@ -524,41 +638,74 @@ export default function Header() {
           ) : (
             <form onSubmit={handleSearch} className={styles.searchForm}>
             {/* Search Icon */}
-            <div className={styles.searchIcon}>
-              <svg 
-                viewBox="0 -0.5 25 25" 
-                fill="none" 
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                <g id="SVGRepo_iconCarrier">
-                  <path 
-                    fillRule="evenodd" 
-                    clipRule="evenodd" 
-                    d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
-                    stroke="#000000" 
-                    strokeWidth="1.5" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                  ></path>
-                  <path 
-                    d="M15.989 15.4905L19.5 19.0015" 
-                    stroke="#000000" 
-                    strokeWidth="1.5" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                  ></path>
-                </g>
-              </svg>
-            </div>
+            {!isSearching && (
+              <div className={styles.searchIcon}>
+                <svg 
+                  viewBox="0 -0.5 25 25" 
+                  fill="none" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                  <g id="SVGRepo_iconCarrier">
+                    <path 
+                      fillRule="evenodd" 
+                      clipRule="evenodd" 
+                      d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
+                      stroke="#000000" 
+                      strokeWidth="1.5" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    ></path>
+                    <path 
+                      d="M15.989 15.4905L19.5 19.0015" 
+                      stroke="#000000" 
+                      strokeWidth="1.5" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    ></path>
+                  </g>
+                </svg>
+              </div>
+            )}
             <input
               type="text"
               placeholder="Search Dairy products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={styles.searchInput}
+              disabled={isSearching}
             />
+            {isSearching && (
+              <div className={styles.searchSpinner}>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={styles.spinnerIcon}
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="#000000"
+                    strokeWidth="2"
+                    strokeOpacity="0.2"
+                    fill="none"
+                  />
+                  <path
+                    d="M12 2C6.477 2 2 6.477 2 12"
+                    stroke="#000000"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    fill="none"
+                    strokeDasharray="20 40"
+                  />
+                </svg>
+              </div>
+            )}
           </form>
           )}
         </div>
