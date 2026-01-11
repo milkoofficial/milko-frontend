@@ -3,7 +3,7 @@
  * Allows access to cart icon elements from anywhere for animation
  */
 
-let cartIconRefs: {
+const cartIconRefs: {
   mobile?: HTMLElement;
   desktop?: HTMLElement;
 } = {};
