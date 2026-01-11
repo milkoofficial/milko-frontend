@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -11,7 +11,7 @@ import { Product } from '@/types';
  * Search Results Page
  * Displays products matching the search query
  */
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const [products, setProducts] = useState<Product[]>([]);
@@ -220,5 +220,17 @@ export default function SearchPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', minHeight: '50vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#666' }}>Loading...</p>
+      </div>
+    }>
+      <SearchContent />
+    </Suspense>
   );
 }
