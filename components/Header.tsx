@@ -183,8 +183,70 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [pincode, setPincode] = useState('');
-  const [address, setAddress] = useState('');
+  const [pincode, setPincode] = useState(['', '', '', '', '', '']);
+  const [deliveryStatus, setDeliveryStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
+  const [savedPincode, setSavedPincode] = useState<string | null>(null);
+  const [savedDeliveryStatus, setSavedDeliveryStatus] = useState<'available' | 'unavailable' | null>(null);
+  const pincodeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Load saved pincode from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('milko_delivery_pincode');
+    const savedStatus = localStorage.getItem('milko_delivery_status') as 'available' | 'unavailable' | null;
+    if (saved && savedStatus) {
+      setSavedPincode(saved);
+      setSavedDeliveryStatus(savedStatus);
+    }
+  }, []);
+
+  // Focus first pincode input when modal opens
+  useEffect(() => {
+    if (isAddressModalOpen) {
+      // Reset pincode and delivery status when modal opens
+      setPincode(['', '', '', '', '', '']);
+      setDeliveryStatus(null);
+      // Focus first input after a short delay to ensure DOM is ready
+      setTimeout(() => {
+        pincodeInputRefs.current[0]?.focus();
+      }, 100);
+    }
+  }, [isAddressModalOpen]);
+
+  // Check pincode delivery availability
+  const checkPincodeDelivery = async () => {
+    const fullPincode = pincode.join('');
+    if (fullPincode.length !== 6) return;
+
+    setDeliveryStatus('checking');
+    
+    // Simulate API call - Replace with actual API call
+    // For now, we'll simulate: pincodes starting with 47 are available (Gwalior area)
+    setTimeout(() => {
+      const isAvailable = fullPincode.startsWith('47');
+      setDeliveryStatus(isAvailable ? 'available' : 'unavailable');
+    }, 800); // Simulate network delay
+  };
+
+  // Handle final done action
+  const handleDone = () => {
+    const fullPincode = pincode.join('');
+    if (deliveryStatus === 'available') {
+      // Save pincode and status to localStorage and state
+      localStorage.setItem('milko_delivery_pincode', fullPincode);
+      localStorage.setItem('milko_delivery_status', 'available');
+      setSavedPincode(fullPincode);
+      setSavedDeliveryStatus('available');
+      setIsAddressModalOpen(false);
+    } else if (deliveryStatus === 'unavailable') {
+      // Save unavailable status
+      localStorage.setItem('milko_delivery_pincode', fullPincode);
+      localStorage.setItem('milko_delivery_status', 'unavailable');
+      setSavedPincode(fullPincode);
+      setSavedDeliveryStatus('unavailable');
+      // Close the modal when pincode is unavailable
+      setIsAddressModalOpen(false);
+    }
+  };
   const headerRef = useRef<HTMLElement | null>(null);
   const cartButtonMobileRef = useRef<HTMLElement | null>(null);
   const cartButtonDesktopRef = useRef<HTMLElement | null>(null);
@@ -466,8 +528,19 @@ export default function Header() {
                   </g>
                 </svg>
                 <div className={styles.deliverToContent}>
-                  <span className={styles.deliverToLabel}>Deliver to:</span>
-                  <span className={styles.deliverToAddress}>xyz address</span>
+                  {savedPincode && savedDeliveryStatus ? (
+                    <>
+                      <span className={styles.deliverToLabel}>
+                        {savedDeliveryStatus === 'available' ? 'Available:' : 'Not available:'}
+                      </span>
+                      <span className={styles.deliverToAddress}>{savedPincode}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={styles.deliverToLabel}>Deliver to:</span>
+                      <span className={styles.deliverToAddress}>Enter pincode</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -732,40 +805,104 @@ export default function Header() {
             {/* Delivery Location Text */}
             <p className={styles.deliveryLocationText}>Delivering only to Gwalior, Madhya Pradesh</p>
 
-            {/* Pincode Field */}
+            {/* Pincode Field - 6 separate boxes */}
             <div className={styles.modalField}>
               <label className={styles.modalLabel}>Pincode</label>
-              <input
-                type="text"
-                placeholder="Enter pincode"
-                value={pincode}
-                onChange={(e) => setPincode(e.target.value)}
-                className={styles.modalInput}
-                maxLength={6}
-              />
+              <div className={styles.pincodeBoxes}>
+                {pincode.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => (pincodeInputRefs.current[index] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={digit}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9]/g, '');
+                      if (value.length <= 1) {
+                        const newPincode = [...pincode];
+                        newPincode[index] = value;
+                        setPincode(newPincode);
+                        
+                        // Auto-focus next box if value entered
+                        if (value && index < 5) {
+                          pincodeInputRefs.current[index + 1]?.focus();
+                        }
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Handle backspace to go to previous box
+                      if (e.key === 'Backspace' && !pincode[index] && index > 0) {
+                        pincodeInputRefs.current[index - 1]?.focus();
+                      }
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+                      const newPincode = [...pincode];
+                      for (let i = 0; i < 6; i++) {
+                        newPincode[i] = pastedData[i] || '';
+                      }
+                      setPincode(newPincode);
+                      // Focus the last filled box or next empty box
+                      const nextIndex = Math.min(pastedData.length, 5);
+                      pincodeInputRefs.current[nextIndex]?.focus();
+                    }}
+                    className={styles.pincodeBox}
+                    maxLength={1}
+                    autoComplete="off"
+                  />
+                ))}
+              </div>
             </div>
 
-            {/* Address Field */}
-            <div className={styles.modalField}>
-              <label className={styles.modalLabel}>Address</label>
-              <textarea
-                placeholder="Enter your full address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className={styles.modalTextarea}
-                rows={4}
-              />
-            </div>
+            {/* Delivery Status Message */}
+            {deliveryStatus && deliveryStatus !== 'checking' && (
+              <div className={`${styles.deliveryStatusMessage} ${
+                deliveryStatus === 'available' ? styles.deliveryStatusSuccess : styles.deliveryStatusError
+              }`}>
+                {deliveryStatus === 'available' ? (
+                  <>
+                    <svg className={styles.statusIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>{pincode.join('')} available to deliver</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className={styles.statusIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>{pincode.join('')} not available to deliver</span>
+                  </>
+                )}
+              </div>
+            )}
 
-            {/* Done Button */}
+            {/* Check/Done Button */}
             <button
-              className={styles.modalDoneButton}
+              className={`${styles.modalDoneButton} ${
+                deliveryStatus === 'available' ? styles.modalDoneButtonSuccess :
+                deliveryStatus === 'unavailable' ? styles.modalDoneButtonError : ''
+              }`}
               onClick={() => {
-                // TODO: Save address and update state
-                setIsAddressModalOpen(false);
+                const fullPincode = pincode.join('');
+                if (fullPincode.length !== 6) return;
+                
+                if (deliveryStatus === null || deliveryStatus === 'checking') {
+                  checkPincodeDelivery();
+                } else {
+                  handleDone();
+                }
+              }}
+              disabled={pincode.join('').length !== 6 || deliveryStatus === 'checking'}
+              style={{
+                opacity: (pincode.join('').length === 6 && deliveryStatus !== 'checking') ? 1 : 0.5,
+                cursor: (pincode.join('').length === 6 && deliveryStatus !== 'checking') ? 'pointer' : 'not-allowed'
               }}
             >
-              Done
+              {deliveryStatus === 'checking' ? 'Checking...' : 
+               deliveryStatus === 'available' || deliveryStatus === 'unavailable' ? 'Done' : 'Check'}
             </button>
           </div>
         </div>

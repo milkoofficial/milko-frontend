@@ -597,7 +597,7 @@
   color: #666;
   letter-spacing: -0.2px;
   line-height: 1.2;
-  margin-bottom: -2px;
+  margin-bottom: -1px;
 }
 
 .deliverToAddress {
@@ -812,6 +812,70 @@
   min-height: 100px;
 }
 
+/* Pincode Boxes Container */
+.pincodeBoxes {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.pincodeBox {
+  flex: 1;
+  width: 100%;
+  height: 50px;
+  padding: 0;
+  border: 1.5px solid #EEEEEE;
+  border-radius: 8px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s, background-color 0.2s;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  background: #EEEEEE;
+  color: #000;
+}
+
+.pincodeBox:focus {
+  border-color: #0070f3;
+  background: #fff;
+}
+
+.pincodeBox::placeholder {
+  color: transparent;
+}
+
+/* Delivery Status Message */
+.deliveryStatusMessage {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.deliveryStatusSuccess {
+  background: #d4edda;
+  color: #155724;
+  border: 0px solid #c3e6cb;
+}
+
+.deliveryStatusError {
+  background: #f8d7da;
+  color: #721c24;
+  border: 0px solid #f5c6cb;
+}
+
+.statusIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .modalDoneButton {
   width: 100%;
   padding: 0.875rem;
@@ -827,12 +891,36 @@
   letter-spacing: -0.2px;
 }
 
-.modalDoneButton:hover {
+.modalDoneButton:hover:not(:disabled) {
   background: #333;
 }
 
-.modalDoneButton:active {
+.modalDoneButton:active:not(:disabled) {
   background: #000;
+}
+
+.modalDoneButtonSuccess {
+  background: #28a745;
+}
+
+.modalDoneButtonSuccess:hover:not(:disabled) {
+  background: #218838;
+}
+
+.modalDoneButtonSuccess:active:not(:disabled) {
+  background: #1e7e34;
+}
+
+.modalDoneButtonError {
+  background: #dc3545;
+}
+
+.modalDoneButtonError:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.modalDoneButtonError:active:not(:disabled) {
+  background: #bd2130;
 }
 
 

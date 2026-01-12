@@ -7,7 +7,7 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import Header from '@/components/Header';
 import AdminHeader from '@/components/AdminHeader';
 import ConditionalHeader from '@/components/ConditionalHeader';
-import Footer from '@/components/Footer';
+import ConditionalFooter from '@/components/ConditionalFooter';
 import Toast from '@/components/Toast';
 
 const inter = Inter({ 
@@ -34,7 +34,7 @@ export default function RootLayout({
             <ToastProvider>
               <ConditionalHeader />
               {children}
-              <Footer />
+              <ConditionalFooter />
               <Toast />
             </ToastProvider>
           </CartProvider>

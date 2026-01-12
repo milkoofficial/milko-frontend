@@ -9,10 +9,10 @@
 }
 
 .sectionTitle {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
   color: black;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   letter-spacing: -2px;;
@@ -115,8 +115,8 @@
 
 .productsGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .7rem;
   margin-bottom: 2rem;
 }
 
@@ -125,20 +125,20 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 13px rgb(0 0 0 / 0%);
-  transition: 0.09s;;
+  transition: 0.03s;;
   cursor: pointer;
   border: 1px solid #dddddd;
 }
 
 .productCard:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .productImage {
   position: relative;
   width: 100%;
-  height: 250px;
+  height: 220px;
   background: #f0f0f0;
   overflow: hidden;
 }
@@ -184,7 +184,7 @@
 }
 
 .productInfo {
-  padding: 1.5rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
 }
@@ -199,11 +199,11 @@
 }
 
 .productName {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 800;
   color: black;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  letter-spacing: -1px;
+  letter-spacing: -0.5px;
   margin: 0;
   flex: 1;
   min-width: 0; /* Allows text truncation */
@@ -242,10 +242,10 @@
 }
 
 .productDescription {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #666;
-  margin-bottom: 1rem;
-  line-height: 1.5;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
 }
 
 .productPriceRow {
@@ -262,7 +262,7 @@
 }
 
 .originalPrice {
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: #999;
   text-decoration: line-through;
@@ -271,7 +271,7 @@
 }
 
 .productPrice {
-  font-size: 1.75rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: #0070f3;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
@@ -279,7 +279,7 @@
 }
 
 .priceUnit {
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 400;
   color: #666;
 }
@@ -292,14 +292,14 @@
 
 .viewDetailsButton {
   flex: 1;
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 0.85rem;
   background: transparent;
   color: #0070f3;
   border: 1.5px solid #0070f3;
   border-radius: 8px;
   text-align: center;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   transition: all 0.06s ease;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   cursor: pointer;
@@ -312,7 +312,7 @@
 
 .buyNowButton {
   flex: 1;
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 0.85rem;
   background: #0070f3;
   color: white;
   border: 1.5px solid #0070f3;
@@ -320,7 +320,7 @@
   text-decoration: none;
   text-align: center;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   transition: all 0.06s ease;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   display: flex;
@@ -363,6 +363,13 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+  .productsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+}
+
 @media (max-width: 968px) {
   .productsGrid {
     grid-template-columns: repeat(2, 1fr);

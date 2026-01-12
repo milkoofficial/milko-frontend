@@ -11,7 +11,7 @@ import styles from './ProductsSection.module.css';
 
 /**
  * Products Section Component
- * Displays products in a grid (3 per row)
+ * Displays products in a grid (4 per row)
  * Shows 4 demo products on homepage
  */
 export default function ProductsSection() {
@@ -245,6 +245,11 @@ export default function ProductsSection() {
           onClose={() => {
             setIsModalOpen(false);
             setSelectedProduct(null);
+          }}
+          onRelatedProductClick={(relatedProduct) => {
+            // Close current modal and open new one with related product
+            setSelectedProduct(relatedProduct);
+            // Modal will automatically update since selectedProduct changes
           }}
         />
       )}

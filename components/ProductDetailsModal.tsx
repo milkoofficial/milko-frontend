@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Product, ProductVariation } from '@/types';
+import { Product, ProductVariation, ProductReview } from '@/types';
 import { productsApi } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -16,13 +16,14 @@ interface ProductDetailsModalProps {
   product: Product;
   isOpen: boolean;
   onClose: () => void;
+  onRelatedProductClick?: (product: Product) => void;
 }
 
 /**
  * Product Details Modal Component
  * Shows detailed product information in a beautiful animated popup
  */
-export default function ProductDetailsModal({ product, isOpen, onClose }: ProductDetailsModalProps) {
+export default function ProductDetailsModal({ product, isOpen, onClose, onRelatedProductClick }: ProductDetailsModalProps) {
   const { addItem } = useCart();
   const { showToast } = useToast();
   const addToCartButtonRef = useRef<HTMLButtonElement>(null);
@@ -35,6 +36,134 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
   const [selectedVariationId, setSelectedVariationId] = useState<string | null>(null);
   const [pincode, setPincode] = useState('');
   const [showDeliveryInfo, setShowDeliveryInfo] = useState(false);
+  const [isPincodeAvailable, setIsPincodeAvailable] = useState<boolean | null>(null);
+  const [isCheckingPincode, setIsCheckingPincode] = useState(false);
+  
+  // Swipe/drag state
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [mouseStart, setMouseStart] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const mainImageRef = useRef<HTMLDivElement>(null);
+
+  // Load pincode from localStorage when modal opens and check availability
+  useEffect(() => {
+    if (isOpen) {
+      const savedPincode = localStorage.getItem('milko_delivery_pincode');
+      const savedStatus = localStorage.getItem('milko_delivery_status') as 'available' | 'unavailable' | null;
+      
+      if (savedPincode && savedPincode.length === 6) {
+        setPincode(savedPincode);
+        // If we have a saved status, use it immediately
+        if (savedStatus === 'available') {
+          setIsPincodeAvailable(true);
+          setShowDeliveryInfo(true);
+        } else if (savedStatus === 'unavailable') {
+          setIsPincodeAvailable(false);
+          setShowDeliveryInfo(false);
+        } else {
+          // If no saved status, automatically check availability
+          setIsCheckingPincode(true);
+          setTimeout(() => {
+            const isAvailable = savedPincode.startsWith('47');
+            setIsPincodeAvailable(isAvailable);
+            setShowDeliveryInfo(isAvailable);
+            setIsCheckingPincode(false);
+            // Save the status for future use
+            localStorage.setItem('milko_delivery_status', isAvailable ? 'available' : 'unavailable');
+          }, 800);
+        }
+      } else {
+        setPincode('');
+        setIsPincodeAvailable(null);
+        setShowDeliveryInfo(false);
+      }
+    }
+  }, [isOpen]);
+
+  // Listen for storage events (for cross-tab sync only)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'milko_delivery_pincode') {
+        setPincode(e.newValue || '');
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [isOpen]);
+
+  // Save pincode to localStorage when changed
+  const handlePincodeChange = (val: string) => {
+    // Update state first
+    setPincode(val);
+    setShowDeliveryInfo(false);
+    // Reset availability when pincode changes
+    setIsPincodeAvailable(null);
+    // Save to localStorage (use setTimeout to avoid blocking input)
+    setTimeout(() => {
+      if (val.length > 0) {
+        localStorage.setItem('milko_delivery_pincode', val);
+      } else {
+        localStorage.removeItem('milko_delivery_pincode');
+      }
+    }, 0);
+  };
+
+  // Check pincode availability
+  const handleCheckPincode = async () => {
+    if (pincode.length !== 6) return;
+
+    setIsCheckingPincode(true);
+    setShowDeliveryInfo(false);
+    setIsPincodeAvailable(null);
+
+    // Simulate API call - Replace with actual API call
+    // For now, we'll simulate: pincodes starting with 47 are available (Gwalior area)
+    setTimeout(() => {
+      const isAvailable = pincode.startsWith('47');
+      setIsPincodeAvailable(isAvailable);
+      setShowDeliveryInfo(isAvailable);
+      setIsCheckingPincode(false);
+      // Save the status to localStorage for future use
+      localStorage.setItem('milko_delivery_status', isAvailable ? 'available' : 'unavailable');
+    }, 800); // Simulate network delay
+  };
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      // Disable body scroll
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      // Cleanup function to restore scroll when modal closes
+      return () => {
+        const scrollY = document.body.style.top;
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        // Restore scroll position
+        if (scrollY) {
+          const savedScrollY = Math.abs(parseInt(scrollY.replace('px', '') || '0', 10));
+          // Use requestAnimationFrame to ensure DOM is ready
+          requestAnimationFrame(() => {
+            window.scrollTo(0, savedScrollY);
+          });
+        }
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,9 +195,92 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
           const products = await productsApi.getAll();
           // Get other products excluding current one
           const related = products.filter(p => p.id !== product.id).slice(0, 4);
-          setRelatedProducts(related);
+          // If no related products from API, use demo products
+          if (related.length === 0) {
+            const demoRelated: Product[] = [
+              {
+                id: 'demo-1',
+                name: 'Buffalo Milk',
+                description: 'Rich and creamy buffalo milk',
+                pricePerLitre: 70,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+              {
+                id: 'demo-2',
+                name: 'Toned Milk',
+                description: 'Light and healthy toned milk',
+                pricePerLitre: 55,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+              {
+                id: 'demo-3',
+                name: 'Full Cream Milk',
+                description: 'Premium full cream milk',
+                pricePerLitre: 65,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+              {
+                id: 'demo-4',
+                name: 'Organic Milk',
+                description: 'Pure organic farm fresh milk',
+                pricePerLitre: 80,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+            ];
+            setRelatedProducts(demoRelated);
+          } else {
+            setRelatedProducts(related);
+          }
         } catch (error) {
           console.error('Failed to fetch related products:', error);
+          // Use demo products on error
+          const demoRelated: Product[] = [
+            {
+              id: 'demo-1',
+              name: 'Buffalo Milk',
+              description: 'Rich and creamy buffalo milk',
+              pricePerLitre: 70,
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              id: 'demo-2',
+              name: 'Toned Milk',
+              description: 'Light and healthy toned milk',
+              pricePerLitre: 55,
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              id: 'demo-3',
+              name: 'Full Cream Milk',
+              description: 'Premium full cream milk',
+              pricePerLitre: 65,
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              id: 'demo-4',
+              name: 'Organic Milk',
+              description: 'Pure organic farm fresh milk',
+              pricePerLitre: 80,
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ];
+          setRelatedProducts(demoRelated);
         } finally {
           setLoadingRelated(false);
         }
@@ -90,6 +302,72 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
   // Demo emoji "images" for products without real images (so you can verify collage layout)
   const demoEmojiImages = ['🥛', '🐮', '🌿', '🚚'].map((e) => `emoji:${e}`);
   const collageItems = productImages.length > 0 ? productImages : demoEmojiImages;
+
+  // Swipe/drag handlers
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && collageItems.length > 1) {
+      setSelectedImageIndex((i) => (i + 1) % collageItems.length);
+    }
+    if (isRightSwipe && collageItems.length > 1) {
+      setSelectedImageIndex((i) => (i - 1 + collageItems.length) % collageItems.length);
+    }
+
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setMouseStart(e.clientX);
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || mouseStart === null) return;
+    // Prevent text selection while dragging
+    e.preventDefault();
+  };
+
+  const onMouseUp = (e: React.MouseEvent) => {
+    if (!isDragging || mouseStart === null) return;
+
+    const distance = mouseStart - e.clientX;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && collageItems.length > 1) {
+      setSelectedImageIndex((i) => (i + 1) % collageItems.length);
+    }
+    if (isRightSwipe && collageItems.length > 1) {
+      setSelectedImageIndex((i) => (i - 1 + collageItems.length) % collageItems.length);
+    }
+
+    setIsDragging(false);
+    setMouseStart(null);
+  };
+
+  const onMouseLeave = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      setMouseStart(null);
+    }
+  };
 
   // Get variations from product details (or demo variations for testing UI)
   const demoVariations: ProductVariation[] = [
@@ -119,8 +397,62 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
   const selectedVariation =
     availableVariations.find((v) => v.id === selectedVariationId) || availableVariations[0] || null;
 
-  // Get reviews from product details
-  const reviews = displayProduct.reviews || [];
+  // Get reviews from product details or use demo reviews
+  const demoReviews: ProductReview[] = [
+    {
+      id: 'demo-review-1',
+      productId: displayProduct.id,
+      reviewerName: 'Rajesh Kumar',
+      rating: 5,
+      comment: 'Excellent quality milk! Fresh and creamy. Highly recommended for daily use.',
+      isApproved: true,
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'demo-review-2',
+      productId: displayProduct.id,
+      reviewerName: 'Priya Sharma',
+      rating: 5,
+      comment: 'Best milk delivery service in town. Always on time and the milk is so fresh!',
+      isApproved: true,
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'demo-review-3',
+      productId: displayProduct.id,
+      reviewerName: 'Amit Patel',
+      rating: 4,
+      comment: 'Good quality milk, consistent delivery. Would love to see more variety.',
+      isApproved: true,
+      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'demo-review-4',
+      productId: displayProduct.id,
+      reviewerName: 'Sneha Reddy',
+      rating: 5,
+      comment: 'Perfect for my family! The milk tastes so natural and pure. Thank you!',
+      isApproved: true,
+      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'demo-review-5',
+      productId: displayProduct.id,
+      reviewerName: 'Vikram Singh',
+      rating: 4,
+      comment: 'Great service and quality. The subscription model is very convenient.',
+      isApproved: true,
+      createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
+  const reviews = displayProduct.reviews && displayProduct.reviews.length > 0 
+    ? displayProduct.reviews 
+    : demoReviews;
 
   // Calculate average rating
   const averageRating = reviews.length > 0
@@ -169,7 +501,18 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
           {/* Left Side - Images */}
           <div className={styles.imageSection}>
             {/* Main image with navigation (no collage rail) */}
-            <div className={styles.mainImage}>
+            <div 
+              ref={mainImageRef}
+              className={styles.mainImage}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              onMouseDown={onMouseDown}
+              onMouseMove={onMouseMove}
+              onMouseUp={onMouseUp}
+              onMouseLeave={onMouseLeave}
+              style={{ cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
+            >
               {collageItems[selectedImageIndex]?.startsWith('emoji:') ? (
                 <div className={styles.emojiMain} aria-hidden="true">
                   {collageItems[selectedImageIndex].replace('emoji:', '')}
@@ -332,8 +675,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
                     value={pincode}
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                      setPincode(val);
-                      setShowDeliveryInfo(false);
+                      handlePincodeChange(val);
                     }}
                     maxLength={6}
                     inputMode="numeric"
@@ -342,12 +684,8 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
                   <button
                     type="button"
                     className={styles.pincodeCheckButton}
-                    onClick={() => {
-                      if (pincode.length === 6) {
-                        setShowDeliveryInfo(true);
-                      }
-                    }}
-                    disabled={pincode.length !== 6}
+                    onClick={handleCheckPincode}
+                    disabled={pincode.length !== 6 || isCheckingPincode}
                     aria-label="Check delivery"
                   >
                     <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -355,11 +693,34 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
                     </svg>
                   </button>
                 </div>
-                {showDeliveryInfo && pincode.length === 6 && (
-                  <div className={styles.deliveryInfo}>
+                {isCheckingPincode && (
+                  <div className={styles.deliveryInfo} style={{ color: '#666' }}>
+                    Checking availability...
+                  </div>
+                )}
+                {!isCheckingPincode && isPincodeAvailable === true && (
+                  <div className={styles.deliveryInfo} style={{ color: '#10b981' }}>
                     ✓ Will be delivered by today
                   </div>
                 )}
+                {!isCheckingPincode && isPincodeAvailable === false && (
+                  <div className={styles.deliveryInfo} style={{ color: '#dc3545' }}>
+                    ✗ Delivery not available for this pincode
+                  </div>
+                )}
+              </div>
+
+              {/* Your Amount Section */}
+              <div className={styles.amountSection}>
+                <div className={styles.amountLabel}>Your amount</div>
+                <div className={styles.amountRow}>
+                  <span className={styles.amountValue}>₹{(unitPrice * safeQty).toFixed(2)}</span>
+                  {safeQty > 0 && (
+                    <span className={styles.amountSavings}>
+                      You will save ₹{((originalUnitPrice - unitPrice) * safeQty).toFixed(2)}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className={styles.actionButtons}>
@@ -367,6 +728,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
                   ref={addToCartButtonRef}
                   type="button"
                   className={styles.addToCartButton}
+                  disabled={pincode.length !== 6 || isPincodeAvailable !== true}
                   onClick={() => {
                     // Add to cart
                     addItem({
@@ -400,9 +762,20 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
                   Add to Cart
                 </button>
                 <Link
-                  href={`/subscribe?productId=${displayProduct.id}`}
+                  href={pincode.length === 6 && isPincodeAvailable === true ? `/subscribe?productId=${displayProduct.id}` : '#'}
                   className={styles.buyNowButton}
-                  onClick={onClose}
+                  onClick={(e) => {
+                    if (pincode.length !== 6 || isPincodeAvailable !== true) {
+                      e.preventDefault();
+                      return;
+                    }
+                    onClose();
+                  }}
+                  style={{
+                    opacity: (pincode.length === 6 && isPincodeAvailable === true) ? 1 : 0.5,
+                    cursor: (pincode.length === 6 && isPincodeAvailable === true) ? 'pointer' : 'not-allowed',
+                    pointerEvents: (pincode.length === 6 && isPincodeAvailable === true) ? 'auto' : 'none',
+                  }}
                 >
                   <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                     <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
@@ -468,24 +841,44 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
               </div>
             )}
 
-            {/* Other Offerings */}
-            {relatedProducts.length > 0 && (
+            {/* Related Products / Other Offerings */}
+            {loadingRelated ? (
               <div className={styles.relatedSection}>
-                <h3 className={styles.sectionTitle}>Other Offerings</h3>
+                <h3 className={styles.sectionTitle}>Related Products</h3>
+                <div className={styles.relatedProductsGrid}>
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className={styles.relatedProductCardShimmer}>
+                      <div className={styles.relatedPlaceholderShimmer}></div>
+                      <div className={styles.relatedProductNameShimmer}></div>
+                      <div className={styles.relatedProductPriceShimmer}></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : relatedProducts.length > 0 ? (
+              <div className={styles.relatedSection}>
+                <h3 className={styles.sectionTitle}>Related Products</h3>
                 <div className={styles.relatedProductsGrid}>
                   {relatedProducts.map((relatedProduct) => (
-                    <Link
+                    <button
                       key={relatedProduct.id}
-                      href={`/subscribe?productId=${relatedProduct.id}`}
+                      type="button"
                       className={styles.relatedProductCard}
-                      onClick={onClose}
+                      onClick={() => {
+                        if (onRelatedProductClick) {
+                          onRelatedProductClick(relatedProduct);
+                        } else {
+                          // Fallback: navigate to subscribe page
+                          window.location.href = `/subscribe?productId=${relatedProduct.id}`;
+                        }
+                      }}
                     >
                       {relatedProduct.imageUrl ? (
                         <Image
                           src={relatedProduct.imageUrl}
                           alt={relatedProduct.name}
-                          width={80}
-                          height={80}
+                          width={100}
+                          height={100}
                           style={{ objectFit: 'cover', borderRadius: '8px' }}
                         />
                       ) : (
@@ -493,11 +886,11 @@ export default function ProductDetailsModal({ product, isOpen, onClose }: Produc
                       )}
                       <div className={styles.relatedProductName}>{relatedProduct.name}</div>
                       <div className={styles.relatedProductPrice}>₹{relatedProduct.pricePerLitre}/L</div>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Action Buttons moved above description */}
           </div>

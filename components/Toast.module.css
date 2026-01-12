@@ -27,7 +27,7 @@
   max-width: 500px;
   pointer-events: auto;
   cursor: pointer;
-  animation: slideUp 0.3s ease-out;
+  animation: slideUp 0.06s ease-out;
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
