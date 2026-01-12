@@ -812,7 +812,7 @@ export default function Header() {
                 {pincode.map((digit, index) => (
                   <input
                     key={index}
-                    ref={(el) => (pincodeInputRefs.current[index] = el)}
+                    ref={(el) => { pincodeInputRefs.current[index] = el; }}
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
