@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import ProductDetailsModal from './ProductDetailsModal';
 import RatingBadge from '@/components/ui/RatingBadge';
+import { useCart } from '@/contexts/CartContext';
 import styles from './ProductsSection.module.css';
 
 /**
@@ -19,6 +20,7 @@ export default function ProductsSection() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { addItem } = useCart();
 
   // Fallback demo products
   const fallbackProducts: Product[] = [
@@ -159,7 +161,10 @@ export default function ProductsSection() {
               <div className={styles.productImage}>
                 {/* Assured Badge */}
                 <div className={styles.assuredBadge}>
-                  Assured
+                  <svg className={styles.verifiedIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>Assured</span>
                 </div>
                 {product.imageUrl ? (
                   <Image
@@ -175,58 +180,51 @@ export default function ProductsSection() {
                 )}
               </div>
               <div className={styles.productInfo}>
+                <div className={styles.productCategory}>
+                  {(product as any).category || 'Dairy'}
+                </div>
                 <div className={styles.productTitleRow}>
                   <h3 className={styles.productName}>{product.name}</h3>
                   <div className={styles.productRating}>
                     <RatingBadge rating={getAverageRating(product)} size="sm" />
                     {product.reviews && product.reviews.length > 0 && (
-                      <span className={styles.reviewCount}>({product.reviews.length})</span>
+                      <span className={styles.reviewCount}>
+                        ({product.reviews.length >= 1000 
+                          ? `${(product.reviews.length / 1000).toFixed(1)}k` 
+                          : product.reviews.length})
+                      </span>
                     )}
                   </div>
                 </div>
-                {product.description && (
-                  <p className={styles.productDescription}>{product.description}</p>
-                )}
-                <div className={styles.productPriceRow}>
-                  <div className={styles.priceContainer}>
-                    <div className={styles.originalPrice}>
-                      ₹{Math.round(product.pricePerLitre * 1.15)} <span className={styles.priceUnit}>/litre</span>
+                {(() => {
+                  const originalPrice = Math.round(product.pricePerLitre * 1.15);
+                  const discount = originalPrice - product.pricePerLitre;
+                  return discount > 0 ? (
+                    <div className={styles.discountOff}>
+                      ₹ {discount.toFixed(1)} OFF
                     </div>
-                    <div className={styles.productPrice}>
-                      ₹{product.pricePerLitre} <span className={styles.priceUnit}>/litre</span>
-                    </div>
+                  ) : null;
+                })()}
+                <div className={styles.addToCartRow}>
+                  <div className={styles.priceDisplay}>
+                    <span className={styles.priceAmount}>₹{product.pricePerLitre}</span>
+                    <span className={styles.priceUnit}>/litre</span>
                   </div>
-                  <div className={styles.discountBadge}>
-                    15% OFF
-                  </div>
-                </div>
-                <div className={styles.productButtons}>
                   <button
+                    className={styles.addToCartButton}
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent card click
-                      setSelectedProduct(product);
-                      setIsModalOpen(true);
+                      addItem({
+                        productId: product.id,
+                        quantity: 1,
+                      });
                     }}
-                    className={styles.viewDetailsButton}
+                    aria-label="Add to cart"
                   >
-                    View Details
-                  </button>
-                  <Link 
-                    href={`/subscribe?productId=${product.id}`} 
-                    className={styles.buyNowButton}
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click when clicking Buy Now
-                    }}
-                  >
-                    <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                      <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                      <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                      <g id="SVGRepo_iconCarrier">
-                        <path id="primary" d="M18,11.74a1,1,0,0,0-.52-.63L14.09,9.43,15,3.14a1,1,0,0,0-1.78-.75l-7,9a1,1,0,0,0-.18.87,1.05,1.05,0,0,0,.6.67l4.27,1.71L10,20.86a1,1,0,0,0,.63,1.07A.92.92,0,0,0,11,22a1,1,0,0,0,.83-.45l6-9A1,1,0,0,0,18,11.74Z"></path>
-                      </g>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    Buy Now
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
 import { productsApi } from '@/lib/api';
 import { Product } from '@/types';
+import Select from '@/components/ui/Select';
 import styles from './cart.module.css';
 
 export default function CartPage() {
@@ -15,7 +16,14 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
-  const [isGiftWrap, setIsGiftWrap] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<{ name: string; price: number } | null>(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [subscriptionProducts, setSubscriptionProducts] = useState<Product[]>([]);
+  const [subscriptionSelectedProduct, setSubscriptionSelectedProduct] = useState<string>('');
+  const [subscriptionLitersPerDay, setSubscriptionLitersPerDay] = useState<string>('1');
+  const [subscriptionDurationDays, setSubscriptionDurationDays] = useState<string>('30');
+  
+  // Subscription price is 0 as it's included in the subscription service itself
 
   useEffect(() => {
     const load = async () => {
@@ -41,6 +49,35 @@ export default function CartPage() {
     };
     if (items.length) load();
   }, [items]);
+
+  // Fetch products for subscription form
+  useEffect(() => {
+    const fetchSubscriptionProducts = async () => {
+      try {
+        const data = await productsApi.getAll();
+        if (data && data.length > 0) {
+          setSubscriptionProducts(data);
+          setSubscriptionSelectedProduct(data[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to fetch products for subscription:', error);
+      }
+    };
+    fetchSubscriptionProducts();
+  }, []);
+
+  // Calculate subscription total amount
+  const subscriptionSelectedProductData = subscriptionProducts.find(p => p.id === subscriptionSelectedProduct);
+  const subscriptionTotalAmount = subscriptionSelectedProductData
+    ? parseFloat(subscriptionLitersPerDay) * parseFloat(subscriptionDurationDays) * subscriptionSelectedProductData.pricePerLitre
+    : 0;
+
+  const formatINR = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2,
+    }).format(amount);
+  };
 
   const getItemKey = (productId: string, variationId?: string) => {
     return `${productId}:${variationId || ''}`;
@@ -74,24 +111,25 @@ export default function CartPage() {
     }
   };
 
-  // Items to keep (not selected = not marked for deletion)
+  // Items to keep (not selected = not marked for deletion) - only used for remove functionality
   const itemsToKeep = useMemo(() => {
     return items.filter(it => !selectedItems.has(getItemKey(it.productId, it.variationId)));
   }, [items, selectedItems]);
 
+  // Calculate subtotal based on ALL items in cart (not filtered by selection)
   const subtotal = useMemo(() => {
-    return itemsToKeep.reduce((sum, it) => {
+    return items.reduce((sum, it) => {
       const p = products[it.productId];
       if (!p) return sum;
       const v = it.variationId ? (p.variations || []).find((x) => x.id === it.variationId) : null;
       const mult = v?.priceMultiplier ?? 1;
       return sum + p.pricePerLitre * mult * it.quantity;
     }, 0);
-  }, [itemsToKeep, products]);
+  }, [items, products]);
 
-  const deliveryCharges = itemsToKeep.length > 0 ? 0 : 0; // Free delivery
-  const giftWrapCharge = isGiftWrap ? 20 : 0;
-  const total = subtotal - couponDiscount + deliveryCharges + giftWrapCharge;
+  const deliveryCharges = items.length > 0 ? 0 : 0; // Free delivery
+  const subscriptionCharge = selectedSubscription ? selectedSubscription.price : 0;
+  const total = subtotal - couponDiscount + deliveryCharges + subscriptionCharge;
 
   const handleApplyCoupon = () => {
     if (couponCode.trim()) {
@@ -108,12 +146,12 @@ export default function CartPage() {
   };
 
   const handlePlaceOrder = () => {
-    if (itemsToKeep.length === 0) {
+    if (items.length === 0) {
       alert('Please add at least one item to place an order');
       return;
     }
     // TODO: Navigate to checkout/address page
-    console.log('Place order with items:', itemsToKeep);
+    console.log('Place order with items:', items);
   };
 
   if (items.length === 0) {
@@ -203,13 +241,16 @@ export default function CartPage() {
 
               return (
                 <div key={itemKey} className={`${styles.cartItem} ${isSelected ? styles.cartItemSelected : ''}`}>
-                  <label className={styles.itemCheckbox}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleItemSelection(it.productId, it.variationId)}
-                    />
-                  </label>
+                  <div 
+                    className={`${styles.itemCheckbox} ${isSelected ? styles.itemCheckboxChecked : ''}`}
+                    onClick={() => toggleItemSelection(it.productId, it.variationId)}
+                  >
+                    {isSelected && (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
                   
                   <div className={styles.itemImage}>
                     {p && productImage && productImage !== '/placeholder-product.png' ? (
@@ -281,34 +322,51 @@ export default function CartPage() {
                 <button onClick={handleRemoveCoupon} className={styles.removeCouponButton}>×</button>
               </div>
             ) : (
-              <input
-                type="text"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                placeholder="Enter coupon code"
-                className={styles.couponInput}
-                onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
-              />
+              <div className={styles.couponInputContainer}>
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  placeholder="Enter coupon code"
+                  className={styles.couponInput}
+                  onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                />
+                <button
+                  onClick={handleApplyCoupon}
+                  className={styles.applyCouponButton}
+                  disabled={!couponCode.trim()}
+                >
+                  Apply
+                </button>
+              </div>
             )}
           </div>
 
-          {/* Gifting */}
+          {/* Subscription */}
           <div className={styles.summarySection}>
-            <h3 className={styles.sectionTitle}>Gifting</h3>
-            <div className={styles.giftingBox}>
-              <div className={styles.giftingContent}>
-                <p className={styles.giftingQuestion}>Buying for a loved one?</p>
-                <p className={styles.giftingText}>
-                  Send personalized message at ₹{giftWrapCharge}
+            <h3 className={styles.sectionTitle}>Subscription</h3>
+            <div className={styles.subscriptionBox}>
+              <div className={styles.subscriptionContent}>
+                <p className={styles.subscriptionQuestion}>Get exclusive benefits!</p>
+                <p className={styles.subscriptionText}>
+                  {selectedSubscription 
+                    ? `${selectedSubscription.name} - ₹${selectedSubscription.price}/month`
+                    : 'Choose a membership plan to save more'
+                  }
                 </p>
                 <button
-                  onClick={() => setIsGiftWrap(!isGiftWrap)}
-                  className={styles.addGiftWrapLink}
+                  onClick={() => setShowSubscriptionModal(true)}
+                  className={styles.addSubscriptionLink}
                 >
-                  {isGiftWrap ? 'Remove gift wrap' : 'Add gift wrap'}
+                  {selectedSubscription ? 'Change subscription' : 'Select membership'}
                 </button>
               </div>
-              <div className={styles.giftIcon}>🎁</div>
+              <div className={styles.subscriptionIcon}>
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M3 16H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
             </div>
           </div>
 
@@ -317,9 +375,9 @@ export default function CartPage() {
             <h3 className={styles.sectionTitle}>Price Details</h3>
               <div className={styles.priceDetailsBox}>
               <div className={styles.priceRow}>
-                <span>{itemsToKeep.length} item{itemsToKeep.length !== 1 ? 's' : ''}</span>
+                <span>{items.length} item{items.length !== 1 ? 's' : ''}</span>
               </div>
-              {itemsToKeep.map((it) => {
+              {items.map((it) => {
                 const p = products[it.productId];
                 const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
                 const mult = v?.priceMultiplier ?? 1;
@@ -342,10 +400,10 @@ export default function CartPage() {
                 <span>Delivery Charges</span>
                 <span className={styles.freeDelivery}>Free Delivery</span>
               </div>
-              {isGiftWrap && (
+              {selectedSubscription && (
                 <div className={styles.priceRow}>
-                  <span>Gift wrap</span>
-                  <span>₹{giftWrapCharge.toFixed(2)}</span>
+                  <span>Subscription ({selectedSubscription.name})</span>
+                  <span className={styles.freeDelivery}>Free</span>
                 </div>
               )}
               <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
@@ -356,18 +414,179 @@ export default function CartPage() {
           </div>
 
           {/* Place Order Button */}
-          <button
-            onClick={handlePlaceOrder}
-            className={styles.placeOrderButton}
-            disabled={itemsToKeep.length === 0}
-          >
-            Place order
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+          <div className={styles.placeOrderContainer}>
+            <div className={styles.totalAmountMobile}>
+              <span className={styles.totalAmountLabel}>Total Amount</span>
+              <span className={styles.totalAmountValue}>₹{total.toFixed(2)}</span>
+            </div>
+            <button
+              onClick={handlePlaceOrder}
+              className={styles.placeOrderButton}
+              disabled={items.length === 0}
+            >
+              Place order
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Subscription Membership Modal */}
+      {showSubscriptionModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowSubscriptionModal(false)}>
+          <div className={styles.subscriptionModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Become a Subscriber</h2>
+              <button 
+                className={styles.modalCloseButton}
+                onClick={() => setShowSubscriptionModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.subscriptionModalContent}>
+              {/* Left Column - Benefits */}
+              <div className={styles.subscriptionBenefitsColumn}>
+                <h3 className={styles.subscriptionBenefitsTitle}>Why Choose Our Subscription?</h3>
+                <ul className={styles.subscriptionBenefitsList}>
+                  <li className={styles.subscriptionBenefitItem}>
+                    <span className={styles.subscriptionBenefitIcon} aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                    <span className={styles.subscriptionBenefitText}>Fresh, home-handled milk delivered daily.</span>
+                  </li>
+                  <li className={styles.subscriptionBenefitItem}>
+                    <span className={styles.subscriptionBenefitIcon} aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                    <span className={styles.subscriptionBenefitText}>Zero adulteration — no water, chemicals, or preservatives.</span>
+                  </li>
+                  <li className={styles.subscriptionBenefitItem}>
+                    <span className={styles.subscriptionBenefitIcon} aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                    <span className={styles.subscriptionBenefitText}>Daily quality checks before delivery.</span>
+                  </li>
+                  <li className={styles.subscriptionBenefitItem}>
+                    <span className={styles.subscriptionBenefitIcon} aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </span>
+                    <span className={styles.subscriptionBenefitText}>Priority delivery and assured supply for members.</span>
+                  </li>
+                  <li className={styles.subscriptionBenefitItem}>
+                    <span className={styles.subscriptionBenefitIcon}>💰</span>
+                    <span className={styles.subscriptionBenefitText}>Adulteration proven? ₹5,100 paid to the customer.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Right Column - Membership Card Form */}
+              <div className={styles.subscriptionMembershipCard}>
+                <div className={styles.subscriptionFormFields}>
+                  {/* Product Selection */}
+                  <div className={styles.subscriptionFormField}>
+                    <label className={styles.subscriptionLabel}>Select Product</label>
+                    <Select
+                      className={styles.subscriptionSelect}
+                      value={subscriptionSelectedProduct}
+                      onChange={setSubscriptionSelectedProduct}
+                      options={subscriptionProducts.map((product) => ({
+                        value: product.id,
+                        label: `${product.name} - ₹${product.pricePerLitre}/litre`,
+                      }))}
+                    />
+                  </div>
+
+                  {/* Liters Per Day */}
+                  <div className={styles.subscriptionFormField}>
+                    <label className={styles.subscriptionLabel}>Liters Per Day</label>
+                    <Select
+                      className={styles.subscriptionSelect}
+                      value={subscriptionLitersPerDay}
+                      onChange={setSubscriptionLitersPerDay}
+                      options={[
+                        { value: '0.5', label: '0.5 Liters' },
+                        { value: '1', label: '1 Liter' },
+                        { value: '2', label: '2 Liters' },
+                        { value: '3', label: '3 Liters' },
+                        { value: '4', label: '4 Liters' },
+                        { value: '5', label: '5 Liters' },
+                      ]}
+                    />
+                  </div>
+
+                  {/* Duration (Days) */}
+                  <div className={styles.subscriptionFormField}>
+                    <label className={styles.subscriptionLabel}>Duration</label>
+                    <Select
+                      className={styles.subscriptionSelect}
+                      value={subscriptionDurationDays}
+                      onChange={setSubscriptionDurationDays}
+                      options={[
+                        { value: '7', label: '7 Days (1 Week)' },
+                        { value: '15', label: '15 Days' },
+                        { value: '30', label: '30 Days (1 Month)' },
+                        { value: '60', label: '60 Days (2 Months)' },
+                        { value: '90', label: '90 Days (3 Months)' },
+                        { value: '180', label: '180 Days (6 Months)' },
+                        { value: '365', label: '365 Days (1 Year)' },
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                {/* Amount Display */}
+                <div className={styles.subscriptionAmountSection}>
+                  <div className={styles.subscriptionAmountLabel}>Total Amount</div>
+                  <div className={styles.subscriptionAmountValue}>
+                    ₹{formatINR(subscriptionTotalAmount)}
+                  </div>
+                  {subscriptionSelectedProductData && (
+                    <div className={styles.subscriptionAmountBreakdown}>
+                      {subscriptionLitersPerDay}L/day × {subscriptionDurationDays} days × ₹{formatINR(subscriptionSelectedProductData.pricePerLitre)}/L
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className={styles.subscriptionCardActions}>
+                  <button
+                    className={styles.selectMembershipButton}
+                    onClick={() => {
+                      setSelectedSubscription({ name: 'Milko Subscription', price: 0 });
+                      setShowSubscriptionModal(false);
+                    }}
+                    disabled={!subscriptionSelectedProduct || subscriptionTotalAmount === 0}
+                  >
+                    {selectedSubscription ? 'Update Subscription' : 'Select Subscription'}
+                  </button>
+                  {selectedSubscription && (
+                    <button
+                      className={styles.removeSubscriptionButton}
+                      onClick={() => {
+                        setSelectedSubscription(null);
+                        setShowSubscriptionModal(false);
+                      }}
+                    >
+                      Remove Subscription
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

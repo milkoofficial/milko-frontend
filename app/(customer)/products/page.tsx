@@ -49,8 +49,10 @@ export default function ProductsPage() {
                 className={styles.productImage}
               />
             )}
+            <div className={styles.productCategory}>
+              {(product as any).category || 'Dairy'}
+            </div>
             <h2 className={styles.productName}>{product.name}</h2>
-            {product.description && <p className={styles.productDescription}>{product.description}</p>}
             <p className={styles.productPrice}>
               ₹{product.pricePerLitre} <span className={styles.priceUnit}>per litre</span>
             </p>

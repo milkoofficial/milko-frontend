@@ -326,7 +326,12 @@
   .dashboardButton,
   .logoutButton,
   .deliverTo,
-  .userActions {
+  .userActions,
+  .userDropdown:not(.userDropdownMobile) {
+    display: none !important;
+  }
+  
+  .userButton {
     display: none !important;
   }
 }
@@ -487,6 +492,27 @@
   border-color: #d0d0d0;
 }
 
+.userButtonIcon {
+  display: none;
+  width: 21px;
+  height: 21px;
+}
+
+.userButton span {
+  display: inline;
+}
+
+.userButton .dropdownArrow {
+  display: inline-block;
+}
+
+@media (max-width: 767px) {
+  .userButton,
+  .userButtonIcon {
+    display: none !important;
+  }
+}
+
 .dropdownArrow {
   width: 16px;
   height: 16px;
@@ -637,12 +663,29 @@
   .rightButtons {
     gap: 0;
   }
+
+  /* Delivery icon color based on availability */
+  .deliveryIconAvailable .buttonIcon {
+    color: #10b981;
+  }
+
+  .deliveryIconUnavailable .buttonIcon {
+    color: #ef4444;
+  }
 }
 
 /* Cart Icon Wrapper */
 .cartIconWrapper {
   position: relative;
   display: inline-block;
+}
+
+@media (max-width: 768px) {
+  .cartIconWrapper {
+
+    margin-bottom: -3.8px;
+  }
+
 }
 
 /* Cart Badge */

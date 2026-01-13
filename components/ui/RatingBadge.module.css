@@ -1,9 +1,9 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  color: #ffffff;
-  font-weight: 800;
+  gap: 0.35rem;
+  background: transparent;
+  font-weight: 600;
   line-height: 1;
   letter-spacing: -0.2px;
   white-space: nowrap;
@@ -11,41 +11,59 @@
 }
 
 .sm {
-  font-size: 0.8rem;
-  padding: 0.22rem 0.4rem;
-  border-radius: 3px;
+  font-size: 0.85rem;
 }
 
 .md {
-  font-size: 0.9rem;
-  padding: 0.26rem 0.5rem;
-  border-radius: 3px;
+  font-size: 0.95rem;
 }
 
 .star {
-  width: 0.95em;
-  height: 0.95em;
+  width: 36px;
+  height: 13px;
   flex-shrink: 0;
   display: block;
-  /* SVGs often render slightly lower than text; nudge up for perfect optical alignment */
-  transform: translateY(-0.06em);
+  color: #10b981;
+  margin-top: -3px;
+  margin-right: -13px;
 }
 
-/* Color buckets (requested) */
-.red {
-  background: #d32f2f;
+.ratingValue {
+  color: #10b981;
+  font-weight: 600;
 }
 
-.orange {
-  background: #f57c00;
+/* Color buckets - now only for star color */
+.red .star {
+  color: #d32f2f;
 }
 
-.lightGreen {
-  background: #66bb6a;
+.red .ratingValue {
+  color: #d32f2f;
 }
 
-.darkGreen {
-  background: #1b5e20;
+.orange .star {
+  color: #f57c00;
+}
+
+.orange .ratingValue {
+  color: #f57c00;
+}
+
+.lightGreen .star {
+  color: #10b981;
+}
+
+.lightGreen .ratingValue {
+  color: #10b981;
+}
+
+.darkGreen .star {
+  color: #059669;
+}
+
+.darkGreen .ratingValue {
+  color: #059669;
 }
 
 

@@ -599,6 +599,36 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
               </div>
             </div>
 
+            {/* Stock Status */}
+            {(() => {
+              const hasVariations = variations && variations.length > 0;
+              const isInStock = hasVariations 
+                ? variations.some(v => v.isAvailable)
+                : displayProduct.isActive;
+              
+              return (
+                <div className={`${styles.stockStatus} ${isInStock ? styles.inStock : styles.outOfStock}`}>
+                  {isInStock ? (
+                    <>
+                      <svg className={styles.stockIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M8 12L11 15L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span>In Stock</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className={styles.stockIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M15 9L9 15M9 9L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                      <span>Out of Stock</span>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Qty + Actions (before description) */}
             <div className={styles.purchaseSection}>
               <div className={styles.qtyRow}>
