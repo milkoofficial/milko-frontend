@@ -40,6 +40,7 @@ export const getApiBaseUrl = (): string => {
 
 /**
  * Get the appropriate redirect path after login based on domain and role
+ * SECURITY: Always verify role is actually 'admin' before redirecting to /admin
  */
 export const getPostLoginRedirect = (role: 'admin' | 'customer' | string): string => {
   const hostname = getHostname();
@@ -48,16 +49,22 @@ export const getPostLoginRedirect = (role: 'admin' | 'customer' | string): strin
   // Normalize role to lowercase for comparison
   const normalizedRole = role?.toLowerCase() || 'customer';
   
+  // SECURITY: Only allow admin redirect if role is explicitly 'admin'
+  // Default to 'customer' if role is undefined, null, or anything else
+  const isAdmin = normalizedRole === 'admin';
+  
   if (isAdminDomain()) {
-    return '/admin';
+    // On admin domain, only allow admin users
+    return isAdmin ? '/admin' : '/dashboard';
   }
   
-  if (normalizedRole === 'admin' && !isAdminDomain()) {
+  if (isAdmin && !isAdminDomain()) {
     // Admin logged in on customer domain - redirect to /admin on same domain
     // No subdomain redirect needed, use same domain
     return '/admin';
   }
   
+  // Default: redirect customers to dashboard
   return '/dashboard';
 };
 

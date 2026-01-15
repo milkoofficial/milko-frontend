@@ -29,7 +29,11 @@ npm install
 cp .env.example .env.local
 ```
 
-3. Update `.env.local` with your configuration
+3. Update `.env.local` with your configuration:
+   - `NEXT_PUBLIC_API_BASE_URL` - Your backend API URL
+   - `NEXT_PUBLIC_ADMIN_PANEL_PASSWORD` - **REQUIRED**: Set a strong password for admin panel access
+     - This is an additional security layer - even users with admin role must enter this password
+     - Default: `Admin@123!` (change this in production!)
 
 4. Run development server:
 ```bash

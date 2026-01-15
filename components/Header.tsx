@@ -86,6 +86,12 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
               </svg>
               Subscriptions
             </Link>
+            <Link href="/reviews" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+              <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Reviews
+            </Link>
             {isAdmin && (
               <Link href="/admin" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
                 <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -153,6 +159,12 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
               <path d="M3 16H21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             Subscriptions
+          </Link>
+          <Link href="/reviews" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
+            <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Reviews
           </Link>
           {isAdmin && (
             <Link href="/admin" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
@@ -402,9 +414,84 @@ export default function Header() {
         }
       >
         {/* First Row: Logo and Icons */}
-        <div className={`${styles.headerRow} ${isScrolled ? styles.headerRowHidden : ''}`}>
-          {/* Logo */}
-          <Link href="/" className={styles.logo}>
+        <div className={`${styles.headerRow} ${isScrolled ? styles.headerRowScrolled : ''}`}>
+          {/* Mobile: Show search bar in headerRow when scrolled */}
+          {!isAuthPage && isScrolled && (
+            <form onSubmit={handleSearch} className={styles.searchFormMobileSticky}>
+              {/* Search Icon */}
+              {!isSearching && (
+                <div className={styles.searchIcon}>
+                  <svg 
+                    viewBox="0 -0.5 25 25" 
+                    fill="none" 
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                    <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                    <g id="SVGRepo_iconCarrier">
+                      <path 
+                        fillRule="evenodd" 
+                        clipRule="evenodd" 
+                        d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
+                        stroke="#000000" 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      ></path>
+                      <path 
+                        d="M15.989 15.4905L19.5 19.0015" 
+                        stroke="#000000" 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      ></path>
+                    </g>
+                  </svg>
+                </div>
+              )}
+              <input
+                type="text"
+                placeholder="Search Dairy products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={styles.searchInput}
+                disabled={isSearching}
+              />
+              {isSearching && (
+                <div className={styles.searchSpinner}>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={styles.spinnerIcon}
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="#000000"
+                      strokeWidth="2"
+                      strokeOpacity="0.2"
+                      fill="none"
+                    />
+                    <path
+                      d="M12 2C6.477 2 2 6.477 2 12"
+                      stroke="#000000"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      fill="none"
+                      strokeDasharray="20 40"
+                    />
+                  </svg>
+                </div>
+              )}
+            </form>
+          )}
+
+          {/* Logo - Hide on mobile when scrolled */}
+          <Link href="/" className={`${styles.logo} ${isScrolled ? styles.logoHiddenMobile : ''}`}>
             {isLoading ? (
               <div className={`${styles.logoShimmer} ${styles.shimmer}`}></div>
             ) : (
@@ -711,9 +798,9 @@ export default function Header() {
           ) : null}
         </div>
 
-      {/* Second Row: Search Bar - Mobile Only */}
+      {/* Second Row: Search Bar - Mobile Only (Hide when scrolled, search moves to headerRow) */}
       {!isAuthPage ? (
-        <div className={`${styles.searchRow} ${isScrolled ? styles.searchRowSticky : ''}`}>
+        <div className={`${styles.searchRow} ${isScrolled ? styles.searchRowHidden : ''}`}>
           {isLoading ? (
             <div className={`${styles.searchShimmer} ${styles.shimmer}`}></div>
           ) : (

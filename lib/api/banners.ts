@@ -7,6 +7,7 @@ export interface Banner {
   description?: string;
   imageUrl: string;
   imagePublicId?: string;
+  link?: string; // Optional URL - if provided, banner becomes clickable
   orderIndex: number;
   isActive: boolean;
   createdAt: string;

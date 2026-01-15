@@ -1,0 +1,441 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  min-height: calc(100vh - 200px);
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem;
+  font-size: 1.1rem;
+  color: #666;
+}
+
+/* Progress Bar */
+.progressBar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 3rem;
+  padding: 0 1rem;
+}
+
+.progressStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  max-width: 200px;
+  position: relative;
+}
+
+.progressStep::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 60%;
+  width: 80%;
+  height: 2px;
+  background: #e0e0e0;
+  z-index: 0;
+}
+
+.progressStep:last-child::after {
+  display: none;
+}
+
+.progressStepActive .stepNumber {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+
+.progressStepCompleted .stepNumber {
+  background: #4caf50;
+  color: #fff;
+  border-color: #4caf50;
+}
+
+.progressStepCompleted::after {
+  background: #4caf50;
+}
+
+.stepNumber {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #e0e0e0;
+  background: #fff;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+.stepLabel {
+  font-size: 0.875rem;
+  color: #666;
+  text-align: center;
+  font-weight: 500;
+}
+
+.progressStepActive .stepLabel {
+  color: #000;
+  font-weight: 600;
+}
+
+/* Checkout Content */
+.checkoutContent {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+@media (max-width: 968px) {
+  .checkoutContent {
+    grid-template-columns: 1fr;
+  }
+  
+  .summaryColumn {
+    order: -1;
+  }
+}
+
+/* Steps Column */
+.stepsColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.stepCard {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stepTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #000;
+}
+
+.stepDescription {
+  color: #666;
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+}
+
+/* Login Form */
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.passwordInputWrapper {
+  position: relative;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  z-index: 10;
+}
+
+.passwordToggle:hover {
+  color: #000;
+}
+
+/* Login Section (shown in Step 2 when not authenticated) */
+.loginSection {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #eee;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 2rem 0;
+  color: #999;
+  font-size: 0.875rem;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.divider span {
+  padding: 0 1rem;
+  background: white;
+}
+
+/* Address Section */
+.addressSection {
+  margin-top: 0;
+}
+
+/* Address Form */
+.addressForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.addressRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .addressRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Buttons */
+.primaryButton {
+  width: 100%;
+  padding: 1rem;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 0.5rem;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #333;
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.placeOrderButton {
+  width: 100%;
+  padding: 1.25rem;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 2rem;
+}
+
+.placeOrderButton:hover:not(:disabled) {
+  background: #333;
+}
+
+.placeOrderButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.editButton {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: #000;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.editButton:hover {
+  background: #f5f5f5;
+  border-color: #000;
+}
+
+/* Error Message */
+.errorMessage {
+  padding: 1rem;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  color: #c33;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+/* Auth Links */
+.authLinks {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.authLinks a {
+  color: #000;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.authLinks a:hover {
+  text-decoration: underline;
+}
+
+/* Order Items */
+.orderItems {
+  margin-bottom: 2rem;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #000;
+}
+
+.orderItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.orderItem:last-child {
+  border-bottom: none;
+}
+
+.orderItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.orderItemName {
+  font-weight: 500;
+  color: #000;
+}
+
+.orderItemVariation {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.orderItemQuantity {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.orderItemPrice {
+  font-weight: 600;
+  color: #000;
+}
+
+/* Delivery Address */
+.deliveryAddress {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.addressDisplay {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+  color: #333;
+}
+
+.addressDisplay p {
+  margin: 0.25rem 0;
+}
+
+/* Summary Column */
+.summaryColumn {
+  position: sticky;
+  top: 2rem;
+  height: fit-content;
+}
+
+.summaryCard {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.summaryTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #000;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.summaryRowTotal {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #000;
+}
+
+.freeDelivery {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .stepCard {
+    padding: 1.5rem;
+  }
+
+  .progressBar {
+    margin-bottom: 2rem;
+  }
+
+  .summaryColumn {
+    position: static;
+  }
+}

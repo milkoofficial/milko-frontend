@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { productsApi } from '@/lib/api';
 import { Product } from '@/types';
@@ -10,6 +11,7 @@ import Select from '@/components/ui/Select';
 import styles from './cart.module.css';
 
 export default function CartPage() {
+  const router = useRouter();
   const { items, setItemQuantity, removeItem } = useCart();
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -145,13 +147,13 @@ export default function CartPage() {
     setCouponDiscount(0);
   };
 
-  const handlePlaceOrder = () => {
+  const handleCheckout = () => {
     if (items.length === 0) {
-      alert('Please add at least one item to place an order');
+      alert('Please add at least one item to checkout');
       return;
     }
-    // TODO: Navigate to checkout/address page
-    console.log('Place order with items:', items);
+    // Navigate to checkout page using Next.js router to preserve state
+    router.push('/checkout');
   };
 
   if (items.length === 0) {
@@ -420,11 +422,11 @@ export default function CartPage() {
               <span className={styles.totalAmountValue}>₹{total.toFixed(2)}</span>
             </div>
             <button
-              onClick={handlePlaceOrder}
+              onClick={handleCheckout}
               className={styles.placeOrderButton}
               disabled={items.length === 0}
             >
-              Place order
+              Checkout
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>

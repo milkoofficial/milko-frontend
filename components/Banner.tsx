@@ -67,23 +67,39 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
   return (
     <div className={styles.bannerContainer}>
       <div className={styles.bannerWrapper}>
-        {banners.map((banner, index) => (
-          <div
-            key={banner.id}
-            className={`${styles.bannerSlide} ${index === currentSlide ? styles.active : ''}`}
-            style={{
-              backgroundImage: banner.imageUrl ? `url(${banner.imageUrl})` : 'none',
-              backgroundColor: '#f5f5f5',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          >
-            <div className={styles.bannerContent}>
-              {banner.title && <h2 className={styles.bannerTitle}>{banner.title}</h2>}
-              {banner.description && <p className={styles.bannerDescription}>{banner.description}</p>}
-            </div>
-          </div>
-        ))}
+        {banners.map((banner, index) => {
+          const BannerWrapper = banner.link ? 'a' : 'div';
+          const wrapperProps = banner.link 
+            ? { 
+                href: banner.link,
+                target: banner.link.startsWith('http') ? '_blank' : '_self',
+                rel: banner.link.startsWith('http') ? 'noopener noreferrer' : undefined,
+                style: { textDecoration: 'none', display: 'block', width: '100%', height: '100%' }
+              }
+            : {};
+          
+          return (
+            <BannerWrapper
+              key={banner.id}
+              {...wrapperProps}
+            >
+              <div
+                className={`${styles.bannerSlide} ${index === currentSlide ? styles.active : ''} ${banner.link ? styles.clickable : ''}`}
+                style={{
+                  backgroundImage: banner.imageUrl ? `url(${banner.imageUrl})` : 'none',
+                  backgroundColor: '#f5f5f5',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              >
+                <div className={styles.bannerContent}>
+                  {banner.title && <h2 className={styles.bannerTitle}>{banner.title}</h2>}
+                  {banner.description && <p className={styles.bannerDescription}>{banner.description}</p>}
+                </div>
+              </div>
+            </BannerWrapper>
+          );
+        })}
       </div>
 
       {/* Navigation Arrows */}

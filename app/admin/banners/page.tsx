@@ -17,6 +17,7 @@ export default function AdminBannersPage() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    link: '',
     orderIndex: '0',
     isActive: true,
   });
@@ -60,6 +61,7 @@ export default function AdminBannersPage() {
       const formDataToSend = new FormData();
       formDataToSend.append('title', formData.title);
       formDataToSend.append('description', formData.description);
+      formDataToSend.append('link', formData.link || '');
       formDataToSend.append('orderIndex', formData.orderIndex);
       formDataToSend.append('isActive', formData.isActive.toString());
 
@@ -79,7 +81,7 @@ export default function AdminBannersPage() {
       }
 
       // Reset form
-      setFormData({ title: '', description: '', orderIndex: '0', isActive: true });
+      setFormData({ title: '', description: '', link: '', orderIndex: '0', isActive: true });
       setImageFile(null);
       setImagePreview(null);
       setShowForm(false);
@@ -98,6 +100,7 @@ export default function AdminBannersPage() {
     setFormData({
       title: banner.title || '',
       description: banner.description || '',
+      link: banner.link || '',
       orderIndex: banner.orderIndex.toString(),
       isActive: banner.isActive,
     });
@@ -122,7 +125,7 @@ export default function AdminBannersPage() {
   const handleCancel = () => {
     setShowForm(false);
     setEditingBanner(null);
-    setFormData({ title: '', description: '', orderIndex: '0', isActive: true });
+    setFormData({ title: '', description: '', link: '', orderIndex: '0', isActive: true });
     setImageFile(null);
     setImagePreview(null);
   };
@@ -197,6 +200,22 @@ export default function AdminBannersPage() {
                 rows={3}
                 style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
               />
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                Link URL (optional)
+              </label>
+              <input
+                type="url"
+                value={formData.link}
+                onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                placeholder="https://example.com or /products"
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+              />
+              <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.875rem' }}>
+                If provided, the banner will be clickable and redirect to this URL
+              </small>
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
@@ -291,6 +310,7 @@ export default function AdminBannersPage() {
             <tr style={{ background: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Image</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Title</th>
+              <th style={{ padding: '1rem', textAlign: 'left' }}>Link</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Order</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Status</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Actions</th>
@@ -317,6 +337,21 @@ export default function AdminBannersPage() {
                       </div>
                     )}
                   </div>
+                </td>
+                <td style={{ padding: '1rem' }}>
+                  {banner.link ? (
+                    <a 
+                      href={banner.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ color: '#0070f3', textDecoration: 'none' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {banner.link.length > 30 ? `${banner.link.substring(0, 30)}...` : banner.link}
+                    </a>
+                  ) : (
+                    <span style={{ color: '#999' }}>—</span>
+                  )}
                 </td>
                 <td style={{ padding: '1rem' }}>{banner.orderIndex}</td>
                 <td style={{ padding: '1rem' }}>

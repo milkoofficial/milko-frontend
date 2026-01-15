@@ -94,21 +94,42 @@
   padding: 2rem;
 }
 
+/* ===== MOBILE ONLY STYLES (max-width: 640px) ===== */
 @media (max-width: 640px) {
   .modalBody {
     display: flex;
     flex-direction: column;
   }
+
+  /* Complete reset for mobile - no inheritance from desktop */
+  .imageSection {
+    all: unset;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+    width: 100% !important;
+    position: static !important;
+    align-self: unset !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 }
 
-/* Image Section */
+/* Image Section - Base styles only */
 .imageSection {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  position: relative;
-  align-self: start;
   flex-shrink: 0;
+}
+
+/* Desktop and Tablet only - sticky behavior */
+@media (min-width: 641px) {
+  .imageSection {
+    position: relative;
+    align-self: start;
+  }
 }
 
 .mainImage {
@@ -526,7 +547,7 @@ box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-left: -9px;
+  margin-left: -11px;
 }
 
 .starsContainer {
@@ -899,8 +920,8 @@ margin-left: -11px;
   flex: 1;
   padding: 1rem 2rem;
   background: white;
-  color: #0070f3;
-  border: 1.5px solid #0070f3;
+  color: #0b9c6b;
+  border: 1.5px solid #0b9c6b;
   border-radius: 8px;
   text-align: center;
   font-weight: 800;
@@ -914,7 +935,7 @@ margin-left: -11px;
 }
 
 .addToCartButton:hover:not(:disabled) {
-  background: #eaf5ff;
+  background: #eafff8;
 }
 
 .addToCartButton:disabled {
@@ -931,9 +952,9 @@ margin-left: -11px;
 .buyNowButton {
   flex: 1;
   padding: 1rem 2rem;
-  background: #0070f3;
+  background: #0b9c6b;
   color: white;
-  border: 1.5px solid #0070f3;
+  border: 1.5px solid #0b9c6b;
   border-radius: 8px;
   text-decoration: none;
   text-align: center;
@@ -948,8 +969,8 @@ margin-left: -11px;
 }
 
 .buyNowButton:hover:not(:disabled) {
-  background: #005bb5;
-  border-color: #005bb5;
+  background: #05855a;
+  border-color: #05855a;
 }
 
 .buyNowButton:disabled {
@@ -1043,7 +1064,8 @@ margin-left: -11px;
 }
 
 /* Responsive Design */
-@media (max-width: 968px) {
+/* ===== TABLET ONLY STYLES (641px to 968px) ===== */
+@media (min-width: 641px) and (max-width: 968px) {
   .modalBody {
     grid-template-columns: 1fr;
     gap: 1.5rem;
@@ -1058,19 +1080,8 @@ margin-left: -11px;
     height: 300px;
   }
 
-  .imageSection {
-    position: relative !important;
-    top: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    right: auto !important;
-    transform: none !important;
-    will-change: auto !important;
-  }
-
   .mainImage {
     height: 300px;
-    position: relative;
   }
 
   .relatedProductsGrid {
@@ -1078,6 +1089,7 @@ margin-left: -11px;
   }
 }
 
+/* ===== MOBILE DETAILED STYLES (max-width: 640px) ===== */
 @media (max-width: 640px) {
   .modalContent {
     max-height: 100vh;
@@ -1087,10 +1099,12 @@ margin-left: -11px;
     overflow-y: auto;
     overflow-x: hidden;
   }
+  
   .imageNavButton {
     width: 35px;
     height: 35px;
   }
+  
   .imageNavButton svg {
     width: 17px;
     height: 17px;
@@ -1105,23 +1119,25 @@ margin-left: -11px;
     overflow: visible;
   }
 
+  /* Mobile image section - completely independent from desktop */
   .imageSection {
-    position: relative !important;
-    top: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    right: auto !important;
-    transform: none !important;
-    will-change: auto !important;
-    align-self: stretch !important;
+    all: unset;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+    width: 100% !important;
+    position: static !important;
     flex-shrink: 0 !important;
-    order: 0 !important;
-    z-index: auto !important;
+    box-sizing: border-box !important;
   }
 
   .mainImage {
     height: 250px;
-    position: relative;
+    position: relative !important;
+    width: 100% !important;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f0f0f0;
   }
 
   .productTitle {
