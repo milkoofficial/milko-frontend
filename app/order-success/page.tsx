@@ -56,7 +56,7 @@ export default function OrderSuccessPage() {
         setProducts(map);
 
         // Build order items with product details
-        const items = storedItems.map((item) => {
+        const items = storedItems.map((item: { productId: string; variationId?: string; quantity: number }) => {
           const product = map[item.productId];
           if (!product) return null;
           
