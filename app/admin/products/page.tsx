@@ -75,7 +75,7 @@ export default function AdminProductsPage() {
             {products.map((product) => (
               <tr key={product.id} style={{ borderBottom: '1px solid #e0e0e0' }}>
                 <td style={{ padding: '1rem' }}>{product.name}</td>
-                <td style={{ padding: '1rem' }}>₹{product.pricePerLitre}</td>
+                <td style={{ padding: '1rem' }}>₹{product.pricePerLitre}/{product.suffixAfterPrice || 'Litres'}</td>
                 <td style={{ padding: '1rem' }}>
                   <span style={{
                     padding: '0.25rem 0.75rem',

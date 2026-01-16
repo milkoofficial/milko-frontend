@@ -606,15 +606,32 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                 ? variations.some(v => v.isAvailable)
                 : displayProduct.isActive;
               
+              // Check if product is low in stock
+              const quantity = displayProduct.quantity ?? 0;
+              const lowStockThreshold = displayProduct.lowStockThreshold ?? 10;
+              const isLowStock = quantity > 0 && quantity < lowStockThreshold;
+              
               return (
-                <div className={`${styles.stockStatus} ${isInStock ? styles.inStock : styles.outOfStock}`}>
+                <div className={`${styles.stockStatus} ${isInStock ? (isLowStock ? styles.lowStock : styles.inStock) : styles.outOfStock}`}>
                   {isInStock ? (
                     <>
-                      <svg className={styles.stockIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                        <path d="M8 12L11 15L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <span>In Stock</span>
+                      {isLowStock ? (
+                        <>
+                          <svg className={styles.stockIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                            <path d="M12 7V13M12 16V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                          </svg>
+                          <span>Low in stock</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className={styles.stockIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                            <path d="M8 12L11 15L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          <span>In Stock</span>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
@@ -915,7 +932,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                         <div className={styles.relatedPlaceholder}>🥛</div>
                       )}
                       <div className={styles.relatedProductName}>{relatedProduct.name}</div>
-                      <div className={styles.relatedProductPrice}>₹{relatedProduct.pricePerLitre}/L</div>
+                      <div className={styles.relatedProductPrice}>₹{relatedProduct.pricePerLitre}/{relatedProduct.suffixAfterPrice || 'Litres'}</div>
                     </button>
                   ))}
                 </div>

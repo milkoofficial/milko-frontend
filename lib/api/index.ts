@@ -9,5 +9,7 @@ export { bannersApi, adminBannersApi } from './banners';
 export type { Banner } from './banners';
 export { contentApi, adminContentApi } from './content';
 export type { SiteContent } from './content';
+export { getAllCategories, createCategory, updateCategory, deleteCategory } from './categories';
+export type { Category, CreateCategoryInput, UpdateCategoryInput } from './categories';
 export { apiClient } from './client';
 

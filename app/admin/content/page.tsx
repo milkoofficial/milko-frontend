@@ -15,6 +15,10 @@ const CONTENT_TYPES = [
   { type: 'reviews', label: 'Reviews Settings', icon: '⭐', path: '/reviews' },
 ];
 
+const OTHER_OPTIONS = [
+  { type: 'categories', label: 'Product Categories', icon: '🏷️', path: '/admin/categories' },
+];
+
 /**
  * Admin Content Management Page
  * Manage all site content (Terms, Privacy, About, Contact, Reviews)
@@ -59,7 +63,7 @@ export default function AdminContentPage() {
 
   return (
     <div className={styles.container}>
-      <h1 className={adminStyles.adminPageTitle}>Manage Site Content</h1>
+      <h1 className={adminStyles.adminPageTitle}>Manage Site Content & Settings</h1>
 
       <div className={styles.contentGrid}>
         {CONTENT_TYPES.map((contentType) => {
@@ -102,6 +106,27 @@ export default function AdminContentPage() {
             </div>
           );
         })}
+        {OTHER_OPTIONS.map((option) => (
+          <div key={option.type} className={styles.contentCard}>
+            <div className={styles.cardHeader}>
+              <div className={styles.cardIcon}>{option.icon}</div>
+              <div>
+                <h3 className={styles.cardTitle}>{option.label}</h3>
+                <div className={styles.cardMeta}>
+                  <span className={styles.lastUpdated}>Manage product categories</span>
+                </div>
+              </div>
+            </div>
+            <div className={styles.cardActions}>
+              <button
+                onClick={() => router.push(option.path)}
+                className={styles.editButton}
+              >
+                Manage
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

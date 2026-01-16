@@ -96,6 +96,7 @@ export const adminProductsApi = {
   addVariation: async (productId: string, variation: {
     size: string;
     priceMultiplier?: number;
+    price?: number;
     isAvailable?: boolean;
     displayOrder?: number;
   }): Promise<ProductVariation> => {

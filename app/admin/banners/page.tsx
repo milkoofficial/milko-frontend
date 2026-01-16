@@ -201,7 +201,30 @@ export default function AdminBannersPage() {
           padding: '2rem',
           marginBottom: '2rem',
         }}>
-          <h2 style={{ marginBottom: '1.5rem' }}>
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleCancel();
+            }}
+            style={{
+              color: '#0070f3',
+              textDecoration: 'none',
+              fontSize: '0.9rem',
+              fontWeight: '500',
+              display: 'inline-block',
+              marginBottom: '1rem',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.textDecoration = 'underline';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.textDecoration = 'none';
+            }}
+          >
+            ← Back to Banners
+          </a>
+          <h2 style={{ marginBottom: '1.5rem', marginTop: 0 }}>
             {editingBanner ? 'Edit Banner' : 'Add New Banner'}
           </h2>
           <form onSubmit={handleSubmit}>

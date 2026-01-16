@@ -7,6 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import AdminPasswordGate from '@/components/admin/AdminPasswordGate';
+import AdminSidebar from '@/components/AdminSidebar';
+import AdminTopBar from '@/components/AdminTopBar';
+import layoutStyles from './layout.module.css';
 
 /**
  * Admin Layout
@@ -98,9 +101,14 @@ export default function AdminLayout({
   }
 
   return (
-    <div>
-      {/* AdminHeader is now in root layout via ConditionalHeader */}
-      <main style={{ background: '#f5f5f5', minHeight: 'calc(100vh - 60px)', paddingTop: '60px' }}>{children}</main>
+    <div className={layoutStyles.adminLayout}>
+      <AdminSidebar />
+      <div className={layoutStyles.contentWrapper}>
+        <AdminTopBar />
+        <main className={layoutStyles.mainContent}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

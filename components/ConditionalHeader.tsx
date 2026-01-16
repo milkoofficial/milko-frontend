@@ -24,10 +24,11 @@ export default function ConditionalHeader() {
 
   if (isAdminRoute) {
     // Don't show admin header if password is not verified
+    // Admin routes now use sidebar instead of header
     if (!isPasswordVerified) {
       return null;
     }
-    return <AdminHeader />;
+    return null; // Admin routes use sidebar, not header
   }
 
   return <Header />;

@@ -27,6 +27,7 @@ export interface ProductVariation {
   productId: string;
   size: string; // e.g., "0.5L", "1L", "2L", "5L"
   priceMultiplier: number;
+  price?: number; // Actual price for this variation (overrides priceMultiplier if set)
   isAvailable: boolean;
   displayOrder: number;
   createdAt: string;
@@ -52,8 +53,14 @@ export interface Product {
   name: string;
   description?: string;
   pricePerLitre: number;
+  sellingPrice?: number | null;
+  compareAtPrice?: number | null;
   imageUrl?: string;
   isActive: boolean;
+  quantity?: number;
+  lowStockThreshold?: number;
+  categoryId?: string | null;
+  suffixAfterPrice?: string;
   createdAt: string;
   updatedAt: string;
   // Extended fields (when fetched with details)

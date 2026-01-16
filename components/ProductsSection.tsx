@@ -212,7 +212,7 @@ export default function ProductsSection() {
                 <div className={styles.addToCartRow}>
                   <div className={styles.priceDisplay}>
                     <span className={styles.priceAmount}>₹{product.pricePerLitre}</span>
-                    <span className={styles.priceUnit}>/litre</span>
+                    <span className={styles.priceUnit}>/{product.suffixAfterPrice || 'litre'}</span>
                   </div>
                   <button
                     className={styles.addToCartButton}
