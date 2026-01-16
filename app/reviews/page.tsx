@@ -29,9 +29,9 @@ export default function ReviewsPage() {
         // Fetch user's subscriptions (which represent purchases)
         const subscriptions = await subscriptionsApi.getAll();
         
-        // Filter only active/delivered subscriptions
+        // Filter only active subscriptions
         const activeSubscriptions = subscriptions.filter(
-          sub => sub.status === 'active' || sub.status === 'delivered'
+          sub => sub.status === 'active'
         );
 
         // Fetch product details and create purchased products list
