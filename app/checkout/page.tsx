@@ -260,7 +260,7 @@ export default function CheckoutPage() {
                   </form>
 
                   <div className={styles.authLinks}>
-                    <p>Don't have an account? <a href="/auth/signup">Sign up</a></p>
+                    <p>Don&apos;t have an account? <a href="/auth/signup">Sign up</a></p>
                   </div>
 
                   <div className={styles.divider}>

@@ -268,7 +268,7 @@ export default function ProductsSection() {
                           // Calculate positions
                           const startX = sourceRect.left + sourceRect.width / 2;
                           const startY = sourceRect.top + sourceRect.height / 2;
-                          let targetX = targetRect.left + targetRect.width / 2;
+                          const targetX = targetRect.left + targetRect.width / 2;
                           
                           // Position Y at the badge center (where the number is)
                           // The badge is positioned at top: -8px relative to cart icon
