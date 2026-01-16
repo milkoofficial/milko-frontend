@@ -7,9 +7,12 @@ export interface Banner {
   description?: string;
   imageUrl: string;
   imagePublicId?: string;
+  mobileImageUrl?: string;
+  mobileImagePublicId?: string;
   link?: string; // Optional URL - if provided, banner becomes clickable
   orderIndex: number;
   isActive: boolean;
+  adaptToFirstImage?: boolean;
   createdAt: string;
   updatedAt: string;
 }

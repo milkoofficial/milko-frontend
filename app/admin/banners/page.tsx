@@ -20,9 +20,12 @@ export default function AdminBannersPage() {
     link: '',
     orderIndex: '0',
     isActive: true,
+    adaptToFirstImage: false,
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [mobileImageFile, setMobileImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [mobileImagePreview, setMobileImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -53,6 +56,18 @@ export default function AdminBannersPage() {
     }
   };
 
+  const handleMobileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setMobileImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMobileImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -69,6 +84,12 @@ export default function AdminBannersPage() {
         formDataToSend.append('image', imageFile);
       }
 
+      if (mobileImageFile) {
+        formDataToSend.append('mobileImage', mobileImageFile);
+      }
+
+      formDataToSend.append('adaptToFirstImage', formData.adaptToFirstImage.toString());
+
       if (editingBanner) {
         await adminBannersApi.update(editingBanner.id, formDataToSend);
       } else {
@@ -81,9 +102,11 @@ export default function AdminBannersPage() {
       }
 
       // Reset form
-      setFormData({ title: '', description: '', link: '', orderIndex: '0', isActive: true });
+      setFormData({ title: '', description: '', link: '', orderIndex: '0', isActive: true, adaptToFirstImage: false });
       setImageFile(null);
+      setMobileImageFile(null);
       setImagePreview(null);
+      setMobileImagePreview(null);
       setShowForm(false);
       setEditingBanner(null);
       fetchBanners();
@@ -103,8 +126,10 @@ export default function AdminBannersPage() {
       link: banner.link || '',
       orderIndex: banner.orderIndex.toString(),
       isActive: banner.isActive,
+      adaptToFirstImage: banner.adaptToFirstImage || false,
     });
     setImagePreview(banner.imageUrl);
+    setMobileImagePreview(banner.mobileImageUrl || null);
     setShowForm(true);
   };
 
@@ -125,9 +150,11 @@ export default function AdminBannersPage() {
   const handleCancel = () => {
     setShowForm(false);
     setEditingBanner(null);
-    setFormData({ title: '', description: '', link: '', orderIndex: '0', isActive: true });
+    setFormData({ title: '', description: '', link: '', orderIndex: '0', isActive: true, adaptToFirstImage: false });
     setImageFile(null);
+    setMobileImageFile(null);
     setImagePreview(null);
+    setMobileImagePreview(null);
   };
 
   if (loading) {
@@ -220,7 +247,7 @@ export default function AdminBannersPage() {
 
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Image {!editingBanner && '*'}
+                Desktop Image {!editingBanner && '*'}
               </label>
               <input
                 type="file"
@@ -233,11 +260,38 @@ export default function AdminBannersPage() {
                 <div style={{ marginTop: '1rem' }}>
                   <img
                     src={imagePreview}
-                    alt="Preview"
+                    alt="Desktop Preview"
                     style={{ maxWidth: '300px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }}
                   />
                 </div>
               )}
+              <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.875rem' }}>
+                Shown on desktop devices (screens wider than 768px)
+              </small>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                Mobile Image (optional)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleMobileImageChange}
+                style={{ width: '100%', padding: '0.5rem' }}
+              />
+              {mobileImagePreview && (
+                <div style={{ marginTop: '1rem' }}>
+                  <img
+                    src={mobileImagePreview}
+                    alt="Mobile Preview"
+                    style={{ maxWidth: '300px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }}
+                  />
+                </div>
+              )}
+              <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.875rem' }}>
+                Shown on mobile devices (screens 768px and below). If not provided, desktop image will be used.
+              </small>
             </div>
 
             <div style={{ marginBottom: '1rem' }}>
@@ -252,7 +306,7 @@ export default function AdminBannersPage() {
               />
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <input
                   type="checkbox"
@@ -261,6 +315,20 @@ export default function AdminBannersPage() {
                 />
                 Active
               </label>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="checkbox"
+                  checked={formData.adaptToFirstImage}
+                  onChange={(e) => setFormData({ ...formData, adaptToFirstImage: e.target.checked })}
+                />
+                Adapt to first image
+              </label>
+              <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.875rem', marginLeft: '1.5rem' }}>
+                If enabled, the banner container will adapt its height to match the first image's aspect ratio
+              </small>
             </div>
 
             <div style={{ display: 'flex', gap: '1rem' }}>
@@ -308,7 +376,8 @@ export default function AdminBannersPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>Image</th>
+              <th style={{ padding: '1rem', textAlign: 'left' }}>Desktop Image</th>
+              <th style={{ padding: '1rem', textAlign: 'left' }}>Mobile Image</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Title</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Link</th>
               <th style={{ padding: '1rem', textAlign: 'left' }}>Order</th>
@@ -325,6 +394,17 @@ export default function AdminBannersPage() {
                     alt={banner.title || 'Banner'}
                     style={{ width: '150px', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
                   />
+                </td>
+                <td style={{ padding: '1rem' }}>
+                  {banner.mobileImageUrl ? (
+                    <img
+                      src={banner.mobileImageUrl}
+                      alt={`${banner.title || 'Banner'} (Mobile)`}
+                      style={{ width: '150px', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
+                    />
+                  ) : (
+                    <span style={{ color: '#999', fontSize: '0.875rem' }}>—</span>
+                  )}
                 </td>
                 <td style={{ padding: '1rem' }}>
                   <div>

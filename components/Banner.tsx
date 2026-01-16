@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { bannersApi, Banner as BannerType } from '@/lib/api';
 import styles from './Banner.module.css';
 
@@ -12,11 +12,15 @@ interface BannerProps {
  * Banner Component
  * Sliding banner/carousel with auto-play functionality
  * Fetches banners from API
+ * Supports separate mobile/desktop images and adaptive height
  */
 export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
   const [banners, setBanners] = useState<BannerType[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [containerHeight, setContainerHeight] = useState<number | null>(null);
+  const firstImageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -32,6 +36,42 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
 
     fetchBanners();
   }, []);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Adapt to first image height if enabled
+  useEffect(() => {
+    if (banners.length === 0 || !firstImageRef.current) return;
+    
+    const firstBanner = banners[0];
+    if (firstBanner.adaptToFirstImage) {
+      const img = new Image();
+      const imageUrl = isMobile && firstBanner.mobileImageUrl 
+        ? firstBanner.mobileImageUrl 
+        : firstBanner.imageUrl;
+      
+      img.onload = () => {
+        // Calculate height based on image aspect ratio
+        const aspectRatio = img.height / img.width;
+        const containerWidth = firstImageRef.current?.parentElement?.clientWidth || window.innerWidth;
+        const calculatedHeight = containerWidth * aspectRatio;
+        setContainerHeight(calculatedHeight);
+      };
+      
+      img.src = imageUrl;
+    } else {
+      setContainerHeight(null);
+    }
+  }, [banners, isMobile]);
 
   useEffect(() => {
     if (banners.length === 0) return;
@@ -64,8 +104,19 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
     return null;
   }
 
+  // Determine which image to show based on device
+  const getImageUrl = (banner: BannerType) => {
+    if (isMobile && banner.mobileImageUrl) {
+      return banner.mobileImageUrl;
+    }
+    return banner.imageUrl;
+  };
+
   return (
-    <div className={styles.bannerContainer}>
+    <div 
+      className={styles.bannerContainer}
+      style={containerHeight ? { height: `${containerHeight}px` } : undefined}
+    >
       <div className={styles.bannerWrapper}>
         {banners.map((banner, index) => {
           const BannerWrapper = banner.link ? 'a' : 'div';
@@ -78,15 +129,19 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
               }
             : {};
           
+          const imageUrl = getImageUrl(banner);
+          const isFirstSlide = index === 0;
+          
           return (
             <BannerWrapper
               key={banner.id}
               {...wrapperProps}
             >
               <div
+                ref={isFirstSlide ? firstImageRef : null}
                 className={`${styles.bannerSlide} ${index === currentSlide ? styles.active : ''} ${banner.link ? styles.clickable : ''}`}
                 style={{
-                  backgroundImage: banner.imageUrl ? `url(${banner.imageUrl})` : 'none',
+                  backgroundImage: imageUrl ? `url(${imageUrl})` : 'none',
                   backgroundColor: '#f5f5f5',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',

@@ -1,7 +1,24 @@
 // API Base URL - uses environment variable
 // Production: https://milko-backend.onrender.com
 // Development: http://localhost:3001
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://milko-backend.onrender.com';
+function getApiBaseUrl(): string {
+  // First, check environment variable
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+  
+  // Auto-detect localhost in browser
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:3001';
+    }
+  }
+  
+  // Default to production
+  return 'https://milko-backend.onrender.com';
+}
+
+export const API_BASE_URL = getApiBaseUrl();
 
 // API Endpoints
 export const API_ENDPOINTS = {
