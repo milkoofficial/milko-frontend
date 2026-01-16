@@ -327,7 +327,7 @@ export default function AdminBannersPage() {
                 Adapt to first image
               </label>
               <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.875rem', marginLeft: '1.5rem' }}>
-                If enabled, the banner container will adapt its height to match the first image's aspect ratio
+                If enabled, the banner container will adapt its height to match the first image&apos;s aspect ratio
               </small>
             </div>
 
