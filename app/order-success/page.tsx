@@ -37,7 +37,7 @@ export default function OrderSuccessPage() {
         }
 
         // Load product details
-        const unique = Array.from(new Set(storedItems.map((i) => i.productId)));
+        const unique = Array.from(new Set(storedItems.map((i: { productId: string }) => i.productId)));
         const entries = await Promise.all(
           unique.map(async (id) => {
             try {
