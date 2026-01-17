@@ -85,6 +85,9 @@ export interface Subscription {
   razorpaySubscriptionId?: string;
   createdAt: string;
   updatedAt: string;
+  // Extended fields from joins (for admin view)
+  userName?: string;
+  userEmail?: string;
 }
 
 // Delivery Schedule Types

@@ -46,8 +46,8 @@ export default function AdminSubscriptionsPage() {
         (sub) =>
           (sub.product?.name || '').toLowerCase().includes(q) ||
           sub.userId.toString().includes(q) ||
-          (sub.user?.name || '').toLowerCase().includes(q) ||
-          (sub.user?.email || '').toLowerCase().includes(q)
+          (sub.userName || '').toLowerCase().includes(q) ||
+          (sub.userEmail || '').toLowerCase().includes(q)
       );
     }
 
@@ -64,8 +64,8 @@ export default function AdminSubscriptionsPage() {
         return aName.localeCompare(bName);
       }
       if (sort === 'customerAsc') {
-        const aName = (a.user?.name || a.user?.email || '').toLowerCase();
-        const bName = (b.user?.name || b.user?.email || '').toLowerCase();
+        const aName = (a.userName || a.userEmail || '').toLowerCase();
+        const bName = (b.userName || b.userEmail || '').toLowerCase();
         return aName.localeCompare(bName);
       }
       // createdDesc
@@ -273,10 +273,10 @@ export default function AdminSubscriptionsPage() {
                     <td>
                       <div className={styles.customerCell}>
                         <div className={styles.customerName}>
-                          {subscription.user?.name || subscription.user?.email || `User ID: ${subscription.userId}`}
+                          {subscription.userName || subscription.userEmail || `User ID: ${subscription.userId}`}
                         </div>
-                        {subscription.user?.email && subscription.user?.name && (
-                          <div className={styles.customerEmail}>{subscription.user.email}</div>
+                        {subscription.userEmail && subscription.userName && (
+                          <div className={styles.customerEmail}>{subscription.userEmail}</div>
                         )}
                       </div>
                     </td>
