@@ -250,7 +250,7 @@
 /* Purchase section (qty + buttons) */
 .purchaseSection {
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 0px solid #e5e5e5;
 }
 
 .qtyRow {
@@ -1036,13 +1036,13 @@ margin-left: -11px;
 
 /* Membership Section */
 .membershipSection {
-  margin-top: 1.5rem;
+  margin-top: -24px;
   padding: 1.5rem;
-  background: #f8f9fa;
+  background: #ffffff;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #0b9c6b;
+  box-shadow: 0 1px 1px 0 rgb(31 255 141 / 20%);
 }
-
 .membershipHeader {
   display: flex;
   justify-content: space-between;
@@ -1053,14 +1053,14 @@ margin-left: -11px;
 .membershipTitle {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #111827;
+  color: #0b9c6b;
   margin: 0 0 0.5rem 0;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 .membershipDescription {
   font-size: 0.9rem;
-  color: #6b7280;
+  color: #0b9c6b;
   line-height: 1.5;
   margin: 0;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
@@ -1069,28 +1069,29 @@ margin-left: -11px;
 .membershipMoreButton {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #0070f3;
-  color: white;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  background: #defff100;
+  color: #0b9c6b;
   border: none;
   border-radius: 8px;
-  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background .02s;
   flex-shrink: 0;
-  font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  border: 1px solid #0b9c6b;
+  box-shadow: 0 1px 1px 0 rgb(0 119 59 / 53%);
 }
 
 .membershipMoreButton:hover {
-  background: #005bb5;
+  background: #c3ffe069;
 }
 
 .membershipChevron {
   width: 16px;
   height: 16px;
   transition: transform 0.3s ease;
+  margin-right: 0.5rem;
 }
 
 .membershipForm {
@@ -1185,7 +1186,7 @@ margin-left: -11px;
 }
 
 .membershipSubscribeButton:hover {
-  background: #333;
+  background: #00702b;
 }
 
 @media (max-width: 640px) {
