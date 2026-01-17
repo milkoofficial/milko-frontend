@@ -24,10 +24,10 @@ export interface CreateCouponInput {
   discountType: 'percentage' | 'fixed';
   discountValue: number;
   minPurchaseAmount?: number;
-  maxDiscountAmount?: number;
-  usageLimit?: number;
+  maxDiscountAmount?: number | null;
+  usageLimit?: number | null;
   validFrom?: string;
-  validUntil?: string;
+  validUntil?: string | null;
   isActive?: boolean;
 }
 
