@@ -117,6 +117,19 @@ export default function ProductsSection() {
     return reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   };
 
+  const getDisplayPrice = (p: Product) => {
+    return (p.sellingPrice !== null && p.sellingPrice !== undefined) ? p.sellingPrice : p.pricePerLitre;
+  };
+
+  const getDiscountOff = (p: Product) => {
+    const selling = getDisplayPrice(p);
+    const compare = p.compareAtPrice;
+    if (compare === null || compare === undefined) return null;
+    if (typeof selling !== 'number' || typeof compare !== 'number') return null;
+    const off = compare - selling;
+    return off > 0 ? off : null;
+  };
+
   // Render shimmer skeletons while loading
   if (loading) {
     return (
@@ -201,17 +214,16 @@ export default function ProductsSection() {
                   </div>
                 </div>
                 {(() => {
-                  const originalPrice = Math.round(product.pricePerLitre * 1.15);
-                  const discount = originalPrice - product.pricePerLitre;
-                  return discount > 0 ? (
+                  const off = getDiscountOff(product);
+                  return off ? (
                     <div className={styles.discountOff}>
-                      ₹ {discount.toFixed(1)} OFF
+                      ₹ {off.toFixed(0)} OFF
                     </div>
                   ) : null;
                 })()}
                 <div className={styles.addToCartRow}>
                   <div className={styles.priceDisplay}>
-                    <span className={styles.priceAmount}>₹{product.pricePerLitre}</span>
+                    <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
                     <span className={styles.priceUnit}>/{product.suffixAfterPrice || 'litre'}</span>
                   </div>
                   <button

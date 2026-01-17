@@ -142,6 +142,17 @@ export default function AdminCreateProductPage() {
       return;
     }
 
+    // Validate discount pricing
+    if (sellingPrice && compareAtPrice) {
+      const selling = parseFloat(sellingPrice);
+      const compare = parseFloat(compareAtPrice);
+      if (Number.isFinite(selling) && Number.isFinite(compare) && selling > compare) {
+        setError('Selling Price cannot be greater than Compare At Price');
+        setLoading(false);
+        return;
+      }
+    }
+
     // If variations exist, at least one variation is required
     if (variations.length > 0 && variations.some(v => !v.size || !v.price)) {
       setError('All variations must have both size and price');

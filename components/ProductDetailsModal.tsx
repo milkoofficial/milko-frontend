@@ -46,6 +46,8 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const [mouseStart, setMouseStart] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const mainImageRef = useRef<HTMLDivElement>(null);
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
 
   // Load pincode from localStorage when modal opens and check availability
   useEffect(() => {
@@ -170,6 +172,8 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     if (isOpen) {
       setQuantity(1);
       setSelectedVariationId(null);
+      setIsZoomOpen(false);
+      setZoomScale(1);
       // Fetch product details with images, variations, and reviews
       const fetchDetails = async () => {
         setLoadingDetails(true);
@@ -189,120 +193,50 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
         }
       };
 
-      // Fetch related products
-      const fetchRelated = async () => {
-        setLoadingRelated(true);
-        try {
-          const products = await productsApi.getAll();
-          // Get other products excluding current one
-          const related = products.filter(p => p.id !== product.id).slice(0, 4);
-          // If no related products from API, use demo products
-          if (related.length === 0) {
-            const demoRelated: Product[] = [
-              {
-                id: 'demo-1',
-                name: 'Buffalo Milk',
-                description: 'Rich and creamy buffalo milk',
-                pricePerLitre: 70,
-                isActive: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-              {
-                id: 'demo-2',
-                name: 'Toned Milk',
-                description: 'Light and healthy toned milk',
-                pricePerLitre: 55,
-                isActive: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-              {
-                id: 'demo-3',
-                name: 'Full Cream Milk',
-                description: 'Premium full cream milk',
-                pricePerLitre: 65,
-                isActive: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-              {
-                id: 'demo-4',
-                name: 'Organic Milk',
-                description: 'Pure organic farm fresh milk',
-                pricePerLitre: 80,
-                isActive: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-            ];
-            setRelatedProducts(demoRelated);
-          } else {
-            setRelatedProducts(related);
-          }
-        } catch (error) {
-          console.error('Failed to fetch related products:', error);
-          // Use demo products on error
-          const demoRelated: Product[] = [
-            {
-              id: 'demo-1',
-              name: 'Buffalo Milk',
-              description: 'Rich and creamy buffalo milk',
-              pricePerLitre: 70,
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: 'demo-2',
-              name: 'Toned Milk',
-              description: 'Light and healthy toned milk',
-              pricePerLitre: 55,
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: 'demo-3',
-              name: 'Full Cream Milk',
-              description: 'Premium full cream milk',
-              pricePerLitre: 65,
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              id: 'demo-4',
-              name: 'Organic Milk',
-              description: 'Pure organic farm fresh milk',
-              pricePerLitre: 80,
-              isActive: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          ];
-          setRelatedProducts(demoRelated);
-        } finally {
-          setLoadingRelated(false);
-        }
-      };
-
       fetchDetails();
-      fetchRelated();
     }
   }, [isOpen, product.id]);
 
   // Use product details if available, otherwise fallback to basic product
   const displayProduct = productDetails || product;
+
+  const effectiveCategoryId = displayProduct.categoryId ?? null;
+
+  // Related products should be same category only (or none)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!effectiveCategoryId) {
+      setRelatedProducts([]);
+      setLoadingRelated(false);
+      return;
+    }
+
+    const fetchRelated = async () => {
+      setLoadingRelated(true);
+      try {
+        const all = await productsApi.getAll();
+        const related = all
+          .filter((p) => p.id !== product.id)
+          .filter((p) => (p.categoryId ?? null) === effectiveCategoryId)
+          .slice(0, 4);
+        setRelatedProducts(related);
+      } catch (error) {
+        console.error('Failed to fetch related products:', error);
+        setRelatedProducts([]);
+      } finally {
+        setLoadingRelated(false);
+      }
+    };
+
+    fetchRelated();
+  }, [isOpen, product.id, effectiveCategoryId]);
   
   // Get images from product details or fallback to single imageUrl
   const productImages = displayProduct.images && displayProduct.images.length > 0
     ? displayProduct.images.map(img => img.imageUrl)
     : (product.imageUrl ? [product.imageUrl] : []);
 
-  // Demo emoji "images" for products without real images (so you can verify collage layout)
-  const demoEmojiImages = ['🥛', '🐮', '🌿', '🚚'].map((e) => `emoji:${e}`);
-  const collageItems = productImages.length > 0 ? productImages : demoEmojiImages;
+  const collageItems = productImages;
 
   // Swipe/drag handlers
   const minSwipeDistance = 50;
@@ -398,78 +332,29 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const selectedVariation =
     availableVariations.find((v) => v.id === selectedVariationId) || availableVariations[0] || null;
 
-  // Get reviews from product details or use demo reviews
-  const demoReviews: ProductReview[] = [
-    {
-      id: 'demo-review-1',
-      productId: displayProduct.id,
-      reviewerName: 'Rajesh Kumar',
-      rating: 5,
-      comment: 'Excellent quality milk! Fresh and creamy. Highly recommended for daily use.',
-      isApproved: true,
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'demo-review-2',
-      productId: displayProduct.id,
-      reviewerName: 'Priya Sharma',
-      rating: 5,
-      comment: 'Best milk delivery service in town. Always on time and the milk is so fresh!',
-      isApproved: true,
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'demo-review-3',
-      productId: displayProduct.id,
-      reviewerName: 'Amit Patel',
-      rating: 4,
-      comment: 'Good quality milk, consistent delivery. Would love to see more variety.',
-      isApproved: true,
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'demo-review-4',
-      productId: displayProduct.id,
-      reviewerName: 'Sneha Reddy',
-      rating: 5,
-      comment: 'Perfect for my family! The milk tastes so natural and pure. Thank you!',
-      isApproved: true,
-      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'demo-review-5',
-      productId: displayProduct.id,
-      reviewerName: 'Vikram Singh',
-      rating: 4,
-      comment: 'Great service and quality. The subscription model is very convenient.',
-      isApproved: true,
-      createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-      updatedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
-  const reviews = displayProduct.reviews && displayProduct.reviews.length > 0 
-    ? displayProduct.reviews 
-    : demoReviews;
+  // Reviews should only show real, approved customer reviews
+  const reviews = (displayProduct.reviews || []).filter((r: ProductReview) => r.isApproved);
 
   // Calculate average rating
   const averageRating = reviews.length > 0
     ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-    : 5; // Default to 5 if no reviews
+    : 0;
 
   const safeQty = Math.max(1, Math.min(99, quantity));
-  const descriptionHtml = toSafeHtml(
-    displayProduct.description ||
-      'Demo description text for layout testing. Freshly sourced every day, quality checked, and delivered chilled to your doorstep.'
-  );
+  const descriptionHtml = toSafeHtml(displayProduct.description || '');
 
   const unitMultiplier = selectedVariation?.priceMultiplier ?? 1;
-  const unitLabel = selectedVariation?.size ?? 'litre';
-  const unitPrice = displayProduct.pricePerLitre * unitMultiplier;
-  const originalUnitPrice = Math.round(unitPrice * 1.15);
+  const unitLabel = selectedVariation?.size ?? (displayProduct.suffixAfterPrice || 'litre');
+  const baseSelling = (displayProduct.sellingPrice !== null && displayProduct.sellingPrice !== undefined)
+    ? displayProduct.sellingPrice
+    : displayProduct.pricePerLitre;
+  const baseCompare = (displayProduct.compareAtPrice !== null && displayProduct.compareAtPrice !== undefined)
+    ? displayProduct.compareAtPrice
+    : null;
+
+  const unitPrice = selectedVariation?.price ?? (baseSelling * unitMultiplier);
+  const originalUnitPrice = baseCompare !== null ? (baseCompare * unitMultiplier) : null;
+  const unitOff = originalUnitPrice !== null ? (originalUnitPrice - unitPrice) : 0;
 
   if (!isOpen) return null;
 
@@ -513,7 +398,14 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
               onMouseMove={onMouseMove}
               onMouseUp={onMouseUp}
               onMouseLeave={onMouseLeave}
-              style={{ cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
+              onClick={() => {
+                if (isDragging) return;
+                const current = collageItems[selectedImageIndex];
+                if (!current || current.startsWith('emoji:')) return;
+                setIsZoomOpen(true);
+                setZoomScale(1);
+              }}
+              style={{ cursor: isDragging ? 'grabbing' : 'zoom-in', userSelect: 'none' }}
             >
               {collageItems[selectedImageIndex]?.startsWith('emoji:') ? (
                 <div className={styles.emojiMain} aria-hidden="true">
@@ -580,25 +472,31 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
             {/* Product Title & Rating */}
             <div className={styles.productHeader}>
               <h1 className={styles.productTitle}>{displayProduct.name}</h1>
-              <div className={styles.productRating}>
-                <RatingBadge rating={averageRating} size="md" />
-                <span className={styles.reviewCount}>({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</span>
-              </div>
+              {reviews.length > 0 && (
+                <div className={styles.productRating}>
+                  <RatingBadge rating={averageRating} size="md" />
+                  <span className={styles.reviewCount}>({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</span>
+                </div>
+              )}
             </div>
 
             {/* Price Section */}
             <div className={styles.priceSection}>
               <div className={styles.priceContainer}>
-                <div className={styles.originalPrice}>
-                  ₹{originalUnitPrice} <span className={styles.priceUnit}>/{unitLabel}</span>
-                </div>
+                {originalUnitPrice !== null && unitOff > 0 && (
+                  <div className={styles.originalPrice}>
+                    ₹{originalUnitPrice.toFixed(0)} <span className={styles.priceUnit}>/{unitLabel}</span>
+                  </div>
+                )}
                 <div className={styles.currentPrice}>
-                  ₹{unitPrice} <span className={styles.priceUnit}>/{unitLabel}</span>
+                  ₹{unitPrice.toFixed(0)} <span className={styles.priceUnit}>/{unitLabel}</span>
                 </div>
               </div>
-              <div className={styles.discountBadge}>
-                15% OFF
-              </div>
+              {originalUnitPrice !== null && unitOff > 0 && (
+                <div className={styles.discountBadge}>
+                  ₹{unitOff.toFixed(0)} OFF
+                </div>
+              )}
             </div>
 
             {/* Stock Status */}
@@ -766,7 +664,9 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                   <span className={styles.amountValue}>₹{(unitPrice * safeQty).toFixed(2)}</span>
                   {safeQty > 0 && (
                     <span className={styles.amountSavings}>
-                      You will save ₹{((originalUnitPrice - unitPrice) * safeQty).toFixed(2)}
+                      {originalUnitPrice !== null && unitOff > 0
+                        ? `You will save ₹${(unitOff * safeQty).toFixed(2)}`
+                        : ''}
                     </span>
                   )}
                 </div>
@@ -946,6 +846,64 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
         </div>
         )}
       </div>
+
+      {/* Zoom overlay */}
+      {isZoomOpen && collageItems[selectedImageIndex] && (
+        <div
+          className={styles.zoomOverlay}
+          onClick={() => setIsZoomOpen(false)}
+          role="dialog"
+          aria-label="Image zoom"
+        >
+          <div className={styles.zoomContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.zoomTopBar}>
+              <div className={styles.zoomControls}>
+                <button
+                  type="button"
+                  className={styles.zoomButton}
+                  onClick={() => setZoomScale((s) => Math.max(1, parseFloat((s - 0.25).toFixed(2))))}
+                  aria-label="Zoom out"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  className={styles.zoomButton}
+                  onClick={() => setZoomScale(1)}
+                  aria-label="Reset zoom"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className={styles.zoomButton}
+                  onClick={() => setZoomScale((s) => Math.min(3, parseFloat((s + 0.25).toFixed(2))))}
+                  aria-label="Zoom in"
+                >
+                  +
+                </button>
+              </div>
+              <button
+                type="button"
+                className={styles.zoomClose}
+                onClick={() => setIsZoomOpen(false)}
+                aria-label="Close zoom"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className={styles.zoomImageWrap}>
+              <img
+                src={collageItems[selectedImageIndex]}
+                alt={displayProduct.name}
+                className={styles.zoomImage}
+                style={{ transform: `scale(${zoomScale})` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

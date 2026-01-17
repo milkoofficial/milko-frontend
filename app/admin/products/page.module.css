@@ -159,9 +159,12 @@
 }
 
 .dropdownHint {
-  font-weight: 700;
-  color: #64748b;
-  font-size: 0.85rem;
+    font-weight: 700;
+    color: #004e85;
+    font-size: .85rem;
+    background: #cfe4ff;
+    border-radius: 5px;
+    padding: 3px 6px;
 }
 
 .panel {
@@ -273,9 +276,8 @@
 }
 
 .badgeActive {
-  background: #ecfdf5;
-  color: #065f46;
-  border-color: #a7f3d0;
+    background: #b6ffdd;
+    color: #007957;
 }
 
 .badgeInactive {
@@ -285,9 +287,9 @@
 }
 
 .badgeLowStock {
-  background: #fff7ed;
+  background: #ffe5c5;
   color: #9a3412;
-  border-color: #fed7aa;
+ 
   margin-left: 0.5rem;
 }
 

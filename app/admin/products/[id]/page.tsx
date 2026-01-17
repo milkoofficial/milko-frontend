@@ -13,6 +13,8 @@ import { useToast } from '@/contexts/ToastContext';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import { sanitizeHtml } from '@/lib/utils/sanitizeHtml';
 
+type AdminProductImage = ProductImage & { isMain?: boolean };
+
 /**
  * Admin Product Edit Page
  * Edit product details, images, variations, and reviews
@@ -51,7 +53,7 @@ export default function AdminProductEditPage() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   // Images
-  const [images, setImages] = useState<ProductImage[]>([]);
+  const [images, setImages] = useState<AdminProductImage[]>([]);
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
 
   // Variations
@@ -77,7 +79,26 @@ export default function AdminProductEditPage() {
         setCategoryId(data.categoryId ?? '');
         setSuffixAfterPrice(data.suffixAfterPrice || 'Litres');
         setIsActive(data.isActive);
-        setImages(data.images || []);
+
+        // On create, the first image is stored on the product row (data.imageUrl).
+        // Additional images are stored in product_images (data.images).
+        // Show both on the edit page.
+        const dbImages: AdminProductImage[] = (data.images || []) as AdminProductImage[];
+        const mainImageUrl = data.imageUrl;
+        const combinedImages = [...dbImages];
+        if (mainImageUrl && !combinedImages.some(img => img.imageUrl === mainImageUrl)) {
+          combinedImages.unshift({
+            id: 'main',
+            productId: data.id,
+            imageUrl: mainImageUrl,
+            displayOrder: -1,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+            isMain: true,
+          });
+        }
+        setImages(combinedImages);
+
         setVariations(data.variations || []);
         setReviews(data.reviews || []);
       } catch (error) {
@@ -110,6 +131,15 @@ export default function AdminProductEditPage() {
   const handleSaveProduct = async () => {
     setSaving(true);
     try {
+      if (sellingPrice && compareAtPrice) {
+        const selling = parseFloat(sellingPrice);
+        const compare = parseFloat(compareAtPrice);
+        if (Number.isFinite(selling) && Number.isFinite(compare) && selling > compare) {
+          showToast('Selling Price cannot be greater than Compare At Price', 'error');
+          return;
+        }
+      }
+
       await adminProductsApi.update(productId, {
         name,
         description: sanitizeHtml(description),
@@ -136,7 +166,7 @@ export default function AdminProductEditPage() {
 
     try {
       const image = await adminProductsApi.addImage(productId, newImageFile, images.length);
-      setImages([...images, image]);
+      setImages([...images, image as AdminProductImage]);
       setNewImageFile(null);
       // Reset file input
       const fileInput = document.getElementById('imageInput') as HTMLInputElement;
@@ -148,6 +178,7 @@ export default function AdminProductEditPage() {
   };
 
   const handleDeleteImage = async (imageId: string) => {
+    if (imageId === 'main') return; // main image isn't stored in product_images
     if (!confirm('Are you sure you want to delete this image?')) return;
 
     try {
@@ -445,6 +476,11 @@ export default function AdminProductEditPage() {
             <div className={styles.imageGrid}>
               {images.map((image) => (
                 <div key={image.id} className={styles.imageCard}>
+                  {image.isMain && (
+                    <div className={`${styles.imageBadge} ${styles.imageBadgeMain}`}>
+                      Main
+                    </div>
+                  )}
                   <Image
                     src={image.imageUrl}
                     alt="Product image"
@@ -452,12 +488,14 @@ export default function AdminProductEditPage() {
                     height={200}
                     style={{ objectFit: 'cover', borderRadius: '8px' }}
                   />
-                  <button
-                    onClick={() => handleDeleteImage(image.id)}
-                    className={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
+                  {!image.isMain && (
+                    <button
+                      onClick={() => handleDeleteImage(image.id)}
+                      className={styles.deleteButton}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
