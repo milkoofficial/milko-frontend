@@ -49,6 +49,7 @@ export default function AdminProductEditPage() {
   const [categoryId, setCategoryId] = useState('');
   const [suffixAfterPrice, setSuffixAfterPrice] = useState('Litres');
   const [isActive, setIsActive] = useState(true);
+  const [isMembershipEligible, setIsMembershipEligible] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
   // Images
@@ -75,6 +76,7 @@ export default function AdminProductEditPage() {
         setCategoryId(data.categoryId ?? '');
         setSuffixAfterPrice(data.suffixAfterPrice || 'Litres');
         setIsActive(data.isActive);
+        setIsMembershipEligible(data.isMembershipEligible || false);
 
         // On create, the first image is stored on the product row (data.imageUrl).
         // Additional images are stored in product_images (data.images).
@@ -145,6 +147,7 @@ export default function AdminProductEditPage() {
         categoryId: categoryId || null,
         suffixAfterPrice: suffixAfterPrice || 'Litres',
         isActive,
+        isMembershipEligible,
       };
 
       // Since "Price per Litre" is no longer an admin-editable field, keep it unchanged unless
@@ -326,15 +329,15 @@ export default function AdminProductEditPage() {
                     onChange={(e) => setSellingPrice(e.target.value)}
                     className={styles.input}
                     placeholder="Optional"
-                  />
-                </div>
+              />
+            </div>
               </div>
               <div style={{ flex: 1 }}>
-                <div className={styles.formGroup}>
+            <div className={styles.formGroup}>
                   <label>Compare At Price (₹)</label>
-                  <input
-                    type="number"
-                    step="0.01"
+              <input
+                type="number"
+                step="0.01"
                     value={compareAtPrice}
                     onChange={(e) => setCompareAtPrice(e.target.value)}
                     className={styles.input}
@@ -364,8 +367,8 @@ export default function AdminProductEditPage() {
                     min="0"
                     value={lowStockThreshold}
                     onChange={(e) => setLowStockThreshold(e.target.value)}
-                    className={styles.input}
-                  />
+                className={styles.input}
+              />
                 </div>
               </div>
             </div>
@@ -410,6 +413,16 @@ export default function AdminProductEditPage() {
                 Active (visible to customers)
               </label>
             </div>
+            <div className={styles.formGroup}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={isMembershipEligible}
+                  onChange={(e) => setIsMembershipEligible(e.target.checked)}
+                />
+                Eligible for Membership (show in membership section)
+              </label>
+            </div>
             <button
               onClick={handleSaveProduct}
               disabled={saving}
@@ -440,12 +453,12 @@ export default function AdminProductEditPage() {
                     style={{ objectFit: 'cover', borderRadius: '8px' }}
                   />
                   {!image.isMain && (
-                    <button
-                      onClick={() => handleDeleteImage(image.id)}
-                      className={styles.deleteButton}
-                    >
-                      Delete
-                    </button>
+                  <button
+                    onClick={() => handleDeleteImage(image.id)}
+                    className={styles.deleteButton}
+                  >
+                    Delete
+                  </button>
                   )}
                 </div>
               ))}

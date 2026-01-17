@@ -205,12 +205,12 @@ export default function ProductsSection() {
                   <div className={styles.productRating}>
                     {(product.reviews?.length ?? 0) > 0 ? (
                       <>
-                        <RatingBadge rating={getAverageRating(product)} size="sm" />
-                        <span className={styles.reviewCount}>
+                    <RatingBadge rating={getAverageRating(product)} size="sm" />
+                      <span className={styles.reviewCount}>
                           ({(product.reviews?.length ?? 0) >= 1000
                             ? `${((product.reviews?.length ?? 0) / 1000).toFixed(1)}k`
                             : (product.reviews?.length ?? 0)})
-                        </span>
+                      </span>
                       </>
                     ) : (
                       <>

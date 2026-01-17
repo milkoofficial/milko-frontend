@@ -83,8 +83,17 @@ export default function MembershipSection() {
         const data = await productsApi.getAll();
         clearTimeout(timeoutId);
         if (data && data.length > 0) {
-          setProducts(data);
-          setSelectedProduct(data[0].id);
+          // Filter to only show membership-eligible products
+          const eligibleProducts = data.filter(p => p.isMembershipEligible === true);
+          if (eligibleProducts.length > 0) {
+            setProducts(eligibleProducts);
+            setSelectedProduct(eligibleProducts[0].id);
+          } else {
+            // If no eligible products, show all active products as fallback
+            const activeProducts = data.filter(p => p.isActive);
+            setProducts(activeProducts.length > 0 ? activeProducts : data);
+            setSelectedProduct(activeProducts.length > 0 ? activeProducts[0].id : data[0].id);
+          }
         } else {
           setProducts(fallbackProducts);
           setSelectedProduct(fallbackProducts[0].id);

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { productsApi } from '@/lib/api';
+import { productsApi, couponsApi, Coupon } from '@/lib/api';
 import { Product } from '@/types';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 import styles from './checkout.module.css';
@@ -40,6 +40,15 @@ export default function CheckoutPage() {
     phone: '',
   });
   const [addressError, setAddressError] = useState('');
+
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponValidation, setCouponValidation] = useState<{
+    status: 'idle' | 'valid' | 'invalid';
+    message: string;
+    coupon: Coupon | null;
+  }>({ status: 'idle', message: '', coupon: null });
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   // Load products
   useEffect(() => {
@@ -148,12 +157,76 @@ export default function CheckoutPage() {
     const p = products[it.productId];
     if (!p) return sum;
     const v = it.variationId ? (p.variations || []).find((x) => x.id === it.variationId) : null;
+    const basePrice = (p.sellingPrice !== null && p.sellingPrice !== undefined) 
+      ? p.sellingPrice 
+      : p.pricePerLitre;
     const mult = v?.priceMultiplier ?? 1;
-    return sum + p.pricePerLitre * mult * it.quantity;
+    const unitPrice = v?.price ?? (basePrice * mult);
+    return sum + unitPrice * it.quantity;
   }, 0);
 
+  // Calculate discount
+  const calculateDiscount = (): number => {
+    if (couponValidation.status !== 'valid' || !couponValidation.coupon) {
+      return 0;
+    }
+
+    const coupon = couponValidation.coupon;
+    let discount = 0;
+
+    if (coupon.discountType === 'percentage') {
+      discount = (subtotal * coupon.discountValue) / 100;
+      // Apply max discount cap if set
+      if (coupon.maxDiscountAmount && discount > coupon.maxDiscountAmount) {
+        discount = coupon.maxDiscountAmount;
+      }
+    } else {
+      // Fixed amount
+      discount = coupon.discountValue;
+    }
+
+    // Ensure discount doesn't exceed subtotal
+    return Math.min(discount, subtotal);
+  };
+
+  const discount = calculateDiscount();
   const deliveryCharges = 0; // Free delivery
-  const total = subtotal + deliveryCharges;
+  const total = subtotal - discount + deliveryCharges;
+
+  // Validate coupon code
+  const handleValidateCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponValidation({ status: 'idle', message: '', coupon: null });
+      return;
+    }
+
+    setValidatingCoupon(true);
+    setCouponValidation({ status: 'idle', message: '', coupon: null });
+
+    try {
+      const coupon = await couponsApi.validate(couponCode.trim().toUpperCase(), subtotal);
+      setCouponValidation({
+        status: 'valid',
+        message: `${couponCode.trim().toUpperCase()} code is valid`,
+        coupon,
+      });
+    } catch (error: any) {
+      setCouponValidation({
+        status: 'invalid',
+        message: `${couponCode.trim().toUpperCase()} code is invalid`,
+        coupon: null,
+      });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  // Clear coupon when code changes
+  useEffect(() => {
+    if (!couponCode.trim()) {
+      setCouponValidation({ status: 'idle', message: '', coupon: null });
+    }
+  }, [couponCode]);
 
   // Handle place order
   const handlePlaceOrder = async () => {
@@ -359,8 +432,11 @@ export default function CheckoutPage() {
                 {items.map((it) => {
                   const p = products[it.productId];
                   const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
+                  const basePrice = p && (p.sellingPrice !== null && p.sellingPrice !== undefined)
+                    ? p.sellingPrice
+                    : (p ? p.pricePerLitre : 0);
                   const mult = v?.priceMultiplier ?? 1;
-                  const price = p ? p.pricePerLitre * mult : 0;
+                  const price = p ? (v?.price ?? (basePrice * mult)) : 0;
                   const itemTotal = price * it.quantity;
 
                   return (
@@ -412,10 +488,56 @@ export default function CheckoutPage() {
           <div className={styles.summaryCard}>
             <h3 className={styles.summaryTitle}>Order Summary</h3>
             
+            {/* Coupon Code Section */}
+            <div className={styles.couponSection}>
+              <label className={styles.couponLabel}>Coupon Code</label>
+              <div className={styles.couponInputWrapper}>
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  onBlur={handleValidateCoupon}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleValidateCoupon();
+                    }
+                  }}
+                  placeholder="Enter coupon code"
+                  className={styles.couponInput}
+                  disabled={validatingCoupon}
+                />
+                <button
+                  type="button"
+                  onClick={handleValidateCoupon}
+                  className={styles.couponButton}
+                  disabled={validatingCoupon || !couponCode.trim()}
+                >
+                  {validatingCoupon ? '...' : 'Apply'}
+                </button>
+              </div>
+              {couponValidation.message && (
+                <div className={`${styles.couponMessage} ${
+                  couponValidation.status === 'valid' 
+                    ? styles.couponMessageValid 
+                    : styles.couponMessageInvalid
+                }`}>
+                  {couponValidation.message}
+                </div>
+              )}
+            </div>
+            
             <div className={styles.summaryRow}>
               <span>Subtotal</span>
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
+            
+            {discount > 0 && (
+              <div className={`${styles.summaryRow} ${styles.summaryRowDiscount}`}>
+                <span>Discount ({couponValidation.coupon?.code})</span>
+                <span className={styles.discountAmount}>-₹{discount.toFixed(2)}</span>
+              </div>
+            )}
             
             <div className={styles.summaryRow}>
               <span>Delivery Charges</span>

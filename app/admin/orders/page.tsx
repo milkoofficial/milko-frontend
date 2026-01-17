@@ -64,13 +64,13 @@ export default function AdminOrdersPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Order#</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Date ordered</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Customer</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Amount</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Payment status</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Items</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Delivery status</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Order#</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Date ordered</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Customer</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Amount</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Payment status</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Items</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Delivery status</th>
             </tr>
           </thead>
           <tbody>

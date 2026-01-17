@@ -57,6 +57,7 @@ export interface Product {
   compareAtPrice?: number | null;
   imageUrl?: string;
   isActive: boolean;
+  isMembershipEligible?: boolean;
   quantity?: number;
   lowStockThreshold?: number;
   categoryId?: string | null;

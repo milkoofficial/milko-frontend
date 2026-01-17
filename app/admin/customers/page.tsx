@@ -68,11 +68,11 @@ export default function AdminCustomersPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f5f5f5' }}>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Customer</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Email</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Orders</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Amount Spent</th>
-              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0' }}>Location</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Customer</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Email</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Orders</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Amount Spent</th>
+              <th style={{ padding: '1rem', textAlign: 'left', borderBottom: '1px solid #e0e0e0', fontSize: '0.85rem', letterSpacing: '0.02em', color: '#475569', fontWeight: 700 }}>Location</th>
             </tr>
           </thead>
           <tbody>

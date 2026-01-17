@@ -18,6 +18,7 @@ const CONTENT_TYPES = [
 
 const OTHER_OPTIONS = [
   { type: 'categories', label: 'Product Categories', path: '/admin/categories' },
+  { type: 'coupons', label: 'Coupons', path: '/admin/coupons' },
 ];
 
 function Icon({ name }: { name: string }) {
@@ -79,6 +80,13 @@ function Icon({ name }: { name: string }) {
         <svg viewBox="0 0 24 24" {...common}>
           <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
           <path d="M7 16v2a2 2 0 0 0 2 2h9" />
+        </svg>
+      );
+    case 'coupons':
+      return (
+        <svg viewBox="0 0 24 24" {...common}>
+          <path d="M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" />
+          <path d="M7 8h10M7 12h10M7 16h6" />
         </svg>
       );
     default:

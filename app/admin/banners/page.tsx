@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { adminBannersApi, Banner } from '@/lib/api';
 import LoadingSpinner, { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import adminStyles from '../admin-styles.module.css';
+import styles from './page.module.css';
+import { useToast } from '@/contexts/ToastContext';
 
 /**
  * Admin Banners Page
@@ -27,6 +29,10 @@ export default function AdminBannersPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [mobileImagePreview, setMobileImagePreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [sort, setSort] = useState<'orderAsc' | 'orderDesc' | 'titleAsc' | 'updatedDesc'>('orderAsc');
+  const { showToast } = useToast();
 
   useEffect(() => {
     fetchBanners();
@@ -38,7 +44,7 @@ export default function AdminBannersPage() {
       setBanners(data);
     } catch (error) {
       console.error('Failed to fetch banners:', error);
-      alert('Failed to load banners');
+      showToast('Failed to load banners', 'error');
     } finally {
       setLoading(false);
     }
@@ -79,6 +85,7 @@ export default function AdminBannersPage() {
       formDataToSend.append('link', formData.link || '');
       formDataToSend.append('orderIndex', formData.orderIndex);
       formDataToSend.append('isActive', formData.isActive.toString());
+      formDataToSend.append('adaptToFirstImage', formData.adaptToFirstImage.toString());
 
       if (imageFile) {
         formDataToSend.append('image', imageFile);
@@ -88,17 +95,17 @@ export default function AdminBannersPage() {
         formDataToSend.append('mobileImage', mobileImageFile);
       }
 
-      formDataToSend.append('adaptToFirstImage', formData.adaptToFirstImage.toString());
-
       if (editingBanner) {
         await adminBannersApi.update(editingBanner.id, formDataToSend);
+        showToast('Banner updated successfully', 'success');
       } else {
         if (!imageFile) {
-          alert('Image is required');
+          showToast('Desktop image is required', 'error');
           setSubmitting(false);
           return;
         }
         await adminBannersApi.create(formDataToSend);
+        showToast('Banner created successfully', 'success');
       }
 
       // Reset form
@@ -112,7 +119,7 @@ export default function AdminBannersPage() {
       fetchBanners();
     } catch (error: any) {
       console.error('Failed to save banner:', error);
-      alert(error.message || 'Failed to save banner');
+      showToast(error.message || 'Failed to save banner', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -140,10 +147,11 @@ export default function AdminBannersPage() {
 
     try {
       await adminBannersApi.delete(id);
+      showToast('Banner deleted successfully', 'success');
       fetchBanners();
     } catch (error) {
       console.error('Failed to delete banner:', error);
-      alert('Failed to delete banner');
+      showToast('Failed to delete banner', 'error');
     }
   };
 
@@ -156,6 +164,30 @@ export default function AdminBannersPage() {
     setImagePreview(null);
     setMobileImagePreview(null);
   };
+
+  const filtered = useMemo(() => {
+    return banners
+      .filter((b) => {
+        const q = query.trim().toLowerCase();
+        if (!q) return true;
+        return (
+          (b.title || '').toLowerCase().includes(q) ||
+          (b.description || '').toLowerCase().includes(q) ||
+          (b.link || '').toLowerCase().includes(q)
+        );
+      })
+      .filter((b) => {
+        if (statusFilter === 'all') return true;
+        return statusFilter === 'active' ? b.isActive : !b.isActive;
+      })
+      .sort((a, b) => {
+        if (sort === 'orderAsc') return a.orderIndex - b.orderIndex;
+        if (sort === 'orderDesc') return b.orderIndex - a.orderIndex;
+        if (sort === 'titleAsc') return (a.title || '').localeCompare(b.title || '');
+        // updatedDesc default
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+  }, [banners, query, statusFilter, sort]);
 
   if (loading) {
     return (
@@ -172,201 +204,296 @@ export default function AdminBannersPage() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 className={adminStyles.adminPageTitle}>Manage Banners</h1>
-        {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: '#0070f3',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '1rem',
-            }}
-          >
-            Add New Banner
-          </button>
-        )}
-      </div>
+    <div className={styles.container}>
+      {!showForm && (
+        <>
+          <div className={styles.headerRow}>
+            <div>
+              <h1 className={adminStyles.adminPageTitle}>Banners</h1>
+              <div className={styles.subtitle}>
+                {filtered.length} banner{filtered.length !== 1 ? 's' : ''} shown
+                {banners.length !== filtered.length ? ` (filtered from ${banners.length})` : ''}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowForm(true)}
+              className={adminStyles.adminButton}
+            >
+              Add Banner
+            </button>
+          </div>
+
+          <div className={styles.toolbar}>
+            <div className={styles.searchWrap}>
+              <span className={styles.searchIcon} aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M20 20l-3.5-3.5" />
+                </svg>
+              </span>
+              <input
+                className={styles.searchInput}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by title, description, or link…"
+              />
+            </div>
+
+            <CustomSelect<'all' | 'active' | 'inactive'>
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { value: 'all', label: 'All statuses' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+            />
+
+            <CustomSelect<'orderAsc' | 'orderDesc' | 'titleAsc' | 'updatedDesc'>
+              value={sort}
+              onChange={setSort}
+              options={[
+                { value: 'orderAsc', label: 'Sort: Order (low → high)' },
+                { value: 'orderDesc', label: 'Sort: Order (high → low)' },
+                { value: 'titleAsc', label: 'Sort: Title (A → Z)' },
+                { value: 'updatedDesc', label: 'Sort: Recently updated' },
+              ]}
+            />
+          </div>
+
+          <div className={styles.panel}>
+            {filtered.length === 0 ? (
+              <div className={styles.emptyState}>
+                No banners found. Try clearing filters or create a new banner.
+              </div>
+            ) : (
+              <table className={styles.table}>
+                <thead className={styles.thead}>
+                  <tr>
+                    <th className={styles.th}>Banner</th>
+                    <th className={styles.th}>Link</th>
+                    <th className={styles.th}>Order</th>
+                    <th className={styles.th}>Status</th>
+                    <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((banner) => (
+                    <tr key={banner.id} className={styles.row}>
+                      <td className={styles.td}>
+                        <div className={styles.bannerCell}>
+                          <div className={styles.thumb}>
+                            {banner.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={banner.imageUrl} alt={banner.title || 'Banner'} />
+                            ) : (
+                              <span style={{ color: '#64748b', fontSize: '0.75rem' }}>No image</span>
+                            )}
+                          </div>
+                          <div>
+                            <div className={styles.bannerName}>{banner.title || '(No title)'}</div>
+                            {banner.description && (
+                              <div className={styles.bannerMeta}>{banner.description}</div>
+                            )}
+                            {banner.mobileImageUrl && (
+                              <div className={styles.bannerMeta} style={{ marginTop: '0.25rem' }}>
+                                📱 Has mobile image
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className={styles.td}>
+                        {banner.link ? (
+                          <a 
+                            href={banner.link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className={styles.linkUrl}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {banner.link.length > 30 ? `${banner.link.substring(0, 30)}...` : banner.link}
+                          </a>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+                      <td className={styles.td}>
+                        <span style={{ fontWeight: 700, color: '#0f172a' }}>{banner.orderIndex}</span>
+                      </td>
+                      <td className={styles.td}>
+                        <span className={`${styles.badge} ${banner.isActive ? styles.badgeActive : styles.badgeInactive}`}>
+                          {banner.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className={styles.td}>
+                        <div className={styles.actions}>
+                          <button
+                            onClick={() => handleEdit(banner)}
+                            className={styles.linkButton}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(banner.id)}
+                            className={`${styles.linkButton} ${styles.deleteButton}`}
+                            aria-label="Delete banner"
+                            title="Delete banner"
+                          >
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              <line x1="10" y1="11" x2="10" y2="17" />
+                              <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
 
       {showForm && (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e0e0e0',
-          borderRadius: '8px',
-          padding: '2rem',
-          marginBottom: '2rem',
-        }}>
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              handleCancel();
-            }}
-            style={{
-              color: '#0070f3',
-              textDecoration: 'none',
-              fontSize: '0.9rem',
-              fontWeight: '500',
-              display: 'inline-block',
-              marginBottom: '1rem',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.textDecoration = 'underline';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.textDecoration = 'none';
-            }}
-          >
-            ← Back to Banners
-          </a>
-          <h2 style={{ marginBottom: '1.5rem', marginTop: 0 }}>
-            {editingBanner ? 'Edit Banner' : 'Add New Banner'}
-          </h2>
+        <div className={styles.formPanel}>
+          <div className={styles.formHeader}>
+            <h2 className={styles.formTitle}>
+              {editingBanner ? 'Edit Banner' : 'Add New Banner'}
+            </h2>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                handleCancel();
+              }}
+              className={styles.backLink}
+            >
+              ← Back to Banners
+            </a>
+          </div>
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Title (optional)
-              </label>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Title (optional)</label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                className={styles.input}
+                placeholder="Banner title"
               />
             </div>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Description (optional)
-              </label>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Description (optional)</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                className={styles.textarea}
+                placeholder="Banner description"
               />
             </div>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Link URL (optional)
-              </label>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Link URL (optional)</label>
               <input
                 type="url"
                 value={formData.link}
                 onChange={(e) => setFormData({ ...formData, link: e.target.value })}
                 placeholder="https://example.com or /products"
-                style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                className={styles.input}
               />
-              <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.875rem' }}>
+              <div className={styles.helpText}>
                 If provided, the banner will be clickable and redirect to this URL
-              </small>
+              </div>
             </div>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Desktop Image {!editingBanner && '*'}
-              </label>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Desktop Image {!editingBanner && '*'}</label>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
                 required={!editingBanner}
-                style={{ width: '100%', padding: '0.5rem' }}
+                className={styles.input}
+                style={{ padding: '0.5rem' }}
               />
               {imagePreview && (
-                <div style={{ marginTop: '1rem' }}>
-                  <img
-                    src={imagePreview}
-                    alt="Desktop Preview"
-                    style={{ maxWidth: '300px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }}
-                  />
+                <div className={styles.imagePreview}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imagePreview} alt="Desktop Preview" />
                 </div>
               )}
-              <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.875rem' }}>
+              <div className={styles.helpText}>
                 Shown on desktop devices (screens wider than 768px)
-              </small>
+              </div>
             </div>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Mobile Image (optional)
-              </label>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Mobile Image (optional)</label>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleMobileImageChange}
-                style={{ width: '100%', padding: '0.5rem' }}
+                className={styles.input}
+                style={{ padding: '0.5rem' }}
               />
               {mobileImagePreview && (
-                <div style={{ marginTop: '1rem' }}>
-                  <img
-                    src={mobileImagePreview}
-                    alt="Mobile Preview"
-                    style={{ maxWidth: '300px', maxHeight: '200px', borderRadius: '4px', border: '1px solid #ddd' }}
-                  />
+                <div className={styles.imagePreview}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={mobileImagePreview} alt="Mobile Preview" />
                 </div>
               )}
-              <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.875rem' }}>
+              <div className={styles.helpText}>
                 Shown on mobile devices (screens 768px and below). If not provided, desktop image will be used.
-              </small>
+              </div>
             </div>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Order Index (lower numbers appear first)
-              </label>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Order Index (lower numbers appear first)</label>
               <input
                 type="number"
                 value={formData.orderIndex}
                 onChange={(e) => setFormData({ ...formData, orderIndex: e.target.value })}
-                style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                className={styles.input}
               />
             </div>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className={styles.formGroup}>
+              <label className={styles.checkboxLabel}>
                 <input
                   type="checkbox"
                   checked={formData.isActive}
                   onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className={styles.checkbox}
                 />
                 Active
               </label>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className={styles.formGroup}>
+              <label className={styles.checkboxLabel}>
                 <input
                   type="checkbox"
                   checked={formData.adaptToFirstImage}
                   onChange={(e) => setFormData({ ...formData, adaptToFirstImage: e.target.checked })}
+                  className={styles.checkbox}
                 />
                 Adapt to first image
               </label>
-              <small style={{ display: 'block', marginTop: '0.25rem', color: '#666', fontSize: '0.875rem', marginLeft: '1.5rem' }}>
+              <div className={styles.helpText} style={{ marginLeft: '1.5rem' }}>
                 If enabled, the banner container will adapt its height to match the first image&apos;s aspect ratio
-              </small>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
+            <div className={styles.formActions}>
               <button
                 type="submit"
                 disabled={submitting}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: submitting ? '#ccc' : '#0070f3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: submitting ? 'not-allowed' : 'pointer',
-                  fontSize: '1rem',
-                }}
+                className={styles.saveButton}
               >
                 {submitting ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -378,15 +505,7 @@ export default function AdminBannersPage() {
               <button
                 type="button"
                 onClick={handleCancel}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  background: '#f5f5f5',
-                  color: '#000',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '1rem',
-                }}
+                className={styles.cancelButton}
               >
                 Cancel
               </button>
@@ -394,125 +513,82 @@ export default function AdminBannersPage() {
           </form>
         </div>
       )}
-
-      <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '8px', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>Desktop Image</th>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>Mobile Image</th>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>Title</th>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>Link</th>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>Order</th>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>Status</th>
-              <th style={{ padding: '1rem', textAlign: 'left' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {banners.map((banner) => (
-              <tr key={banner.id} style={{ borderBottom: '1px solid #e0e0e0' }}>
-                <td style={{ padding: '1rem' }}>
-                  <img
-                    src={banner.imageUrl}
-                    alt={banner.title || 'Banner'}
-                    style={{ width: '150px', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
-                  />
-                </td>
-                <td style={{ padding: '1rem' }}>
-                  {banner.mobileImageUrl ? (
-                    <img
-                      src={banner.mobileImageUrl}
-                      alt={`${banner.title || 'Banner'} (Mobile)`}
-                      style={{ width: '150px', height: '100px', objectFit: 'cover', borderRadius: '4px' }}
-                    />
-                  ) : (
-                    <span style={{ color: '#999', fontSize: '0.875rem' }}>—</span>
-                  )}
-                </td>
-                <td style={{ padding: '1rem' }}>
-                  <div>
-                    <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                      {banner.title || '(No title)'}
-                    </div>
-                    {banner.description && (
-                      <div style={{ fontSize: '0.875rem', color: '#666' }}>
-                        {banner.description}
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td style={{ padding: '1rem' }}>
-                  {banner.link ? (
-                    <a 
-                      href={banner.link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      style={{ color: '#0070f3', textDecoration: 'none' }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {banner.link.length > 30 ? `${banner.link.substring(0, 30)}...` : banner.link}
-                    </a>
-                  ) : (
-                    <span style={{ color: '#999' }}>—</span>
-                  )}
-                </td>
-                <td style={{ padding: '1rem' }}>{banner.orderIndex}</td>
-                <td style={{ padding: '1rem' }}>
-                  <span style={{
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '12px',
-                    background: banner.isActive ? '#d4edda' : '#f8d7da',
-                    color: banner.isActive ? '#155724' : '#721c24',
-                    fontSize: '0.875rem'
-                  }}>
-                    {banner.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      onClick={() => handleEdit(banner)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        background: '#0070f3',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(banner.id)}
-                      style={{
-                        padding: '0.5rem 1rem',
-                        background: '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {banners.length === 0 && (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
-            No banners yet. Add your first banner to get started.
-          </div>
-        )}
-      </div>
     </div>
   );
 }
 
+function CustomSelect<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (next: T) => void;
+  options: Array<{ value: T; label: string }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
 
+  const selected = options.find((o) => o.value === value) || options[0];
 
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (e.target instanceof Node && !ref.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  return (
+    <div className={styles.selectWrap} ref={ref}>
+      <button
+        type="button"
+        className={styles.selectButton}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className={styles.selectValue}>{selected?.label}</span>
+        <span className={styles.selectChevron} aria-hidden="true">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M5.5 7.5L10 12l4.5-4.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </button>
+
+      {open && (
+        <div className={styles.dropdown} role="listbox" aria-label="Select option">
+          {options.map((opt) => {
+            const isActive = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={isActive}
+                className={`${styles.dropdownItem} ${isActive ? styles.dropdownItemActive : ''}`}
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+              >
+                <span>{opt.label}</span>
+                {isActive ? <span style={{ fontWeight: 700, color: '#004e85', fontSize: '.85rem', background: '#cfe4ff', borderRadius: '5px', padding: '3px 6px' }}>Selected</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

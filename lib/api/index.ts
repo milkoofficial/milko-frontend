@@ -11,5 +11,7 @@ export { contentApi, adminContentApi } from './content';
 export type { SiteContent } from './content';
 export { getAllCategories, createCategory, updateCategory, deleteCategory } from './categories';
 export type { Category, CreateCategoryInput, UpdateCategoryInput } from './categories';
+export { couponsApi, adminCouponsApi } from './coupons';
+export type { Coupon, CreateCouponInput, UpdateCouponInput } from './coupons';
 export { apiClient } from './client';
 

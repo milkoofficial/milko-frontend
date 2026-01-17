@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { adminContentApi, SiteContent } from '@/lib/api';
 import LoadingSpinner, { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 import adminStyles from '../../admin-styles.module.css';
 import styles from './edit.module.css';
 
@@ -34,7 +35,8 @@ export default function AdminContentEditPage() {
   const [contentText, setContentText] = useState('');
   const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [isActive, setIsActive] = useState(true);
-  const [serviceablePincode, setServiceablePincode] = useState('');
+  const [serviceablePincodes, setServiceablePincodes] = useState<string[]>([]);
+  const [newPincodeInput, setNewPincodeInput] = useState('');
 
   useEffect(() => {
     fetchContent();
@@ -50,7 +52,15 @@ export default function AdminContentEditPage() {
       setMetadata(data.metadata || {});
       setIsActive(data.isActive);
       if (contentType === 'pincodes') {
-        setServiceablePincode((data.metadata?.serviceablePincode as string) || '');
+        // Support both array and single string format for backward compatibility
+        const meta = data.metadata || {};
+        if (Array.isArray(meta.serviceablePincodes)) {
+          setServiceablePincodes(meta.serviceablePincodes);
+        } else if (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()) {
+          setServiceablePincodes([meta.serviceablePincode.trim()]);
+        } else {
+          setServiceablePincodes([]);
+        }
       }
     } catch (error: any) {
       console.error('Failed to fetch content:', error);
@@ -60,8 +70,8 @@ export default function AdminContentEditPage() {
         setContent(null);
         setTitle('Pincode Settings');
         setContentText('Delivery pincode settings');
-        setMetadata({ serviceablePincode: '' });
-        setServiceablePincode('');
+        setMetadata({ serviceablePincodes: [] });
+        setServiceablePincodes([]);
         setIsActive(true);
       } else {
         setError(error.message || 'Failed to load content');
@@ -96,17 +106,16 @@ export default function AdminContentEditPage() {
         };
       }
 
-      // Handle pincodes (single serviceable pincode)
+      // Handle pincodes (multiple serviceable pincodes)
       if (contentType === 'pincodes') {
-        const cleaned = (serviceablePincode || '').trim();
-        const isEmpty = cleaned.length === 0;
-        const isValid = /^\d{6}$/.test(cleaned);
-        if (!isEmpty && !isValid) {
-          setError('Please enter a valid 6-digit pincode (or leave empty to allow all).');
+        // Validate all pincodes are 6 digits
+        const invalidPincodes = serviceablePincodes.filter(pin => !/^\d{6}$/.test(pin));
+        if (invalidPincodes.length > 0) {
+          setError('All pincodes must be exactly 6 digits. Please check and fix invalid pincodes.');
           return;
         }
         finalMetadata = {
-          serviceablePincode: cleaned,
+          serviceablePincodes: serviceablePincodes.filter(pin => pin.trim().length > 0),
         };
       }
 
@@ -167,19 +176,21 @@ export default function AdminContentEditPage() {
       )}
 
       <form onSubmit={handleSubmit} className={styles.form}>
-        <div className={styles.formGroup}>
-          <label className={styles.label}>
-            Title *
-          </label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            className={styles.input}
-            disabled={contentType === 'contact' || contentType === 'reviews' || contentType === 'pincodes'}
-          />
-        </div>
+        {contentType !== 'pincodes' && (
+          <div className={styles.formGroup}>
+            <label className={styles.label}>
+              Title *
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              className={styles.input}
+              disabled={contentType === 'contact' || contentType === 'reviews'}
+            />
+          </div>
+        )}
 
         {contentType === 'contact' && (
           <div className={styles.formGroup}>
@@ -245,37 +256,93 @@ export default function AdminContentEditPage() {
           </div>
         )}
 
-        {contentType === 'pincodes' && (
+        {contentType === 'pincodes' ? (
           <div className={styles.formGroup}>
-            <label className={styles.label}>Serviceable Pincode (6 digits)</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={serviceablePincode}
-              onChange={(e) => setServiceablePincode(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
-              className={styles.input}
-              placeholder="e.g., 474001"
-            />
+            <label className={styles.label}>Serviceable Pincodes (6 digits each)</label>
+            
+            {/* List of added pincodes */}
+            {serviceablePincodes.length > 0 && (
+              <div className={styles.pincodeList}>
+                {serviceablePincodes.map((pincode, index) => (
+                  <div key={index} className={styles.pincodeItem}>
+                    <span className={styles.pincodeValue}>{pincode}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setServiceablePincodes(serviceablePincodes.filter((_, i) => i !== index));
+                      }}
+                      className={styles.removePincodeButton}
+                      aria-label={`Remove pincode ${pincode}`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new pincode input */}
+            <div className={styles.addPincodeRow}>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={newPincodeInput}
+                onChange={(e) => setNewPincodeInput(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+                className={styles.input}
+                placeholder="Enter 6-digit pincode (e.g., 474001)"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newPincodeInput.length === 6) {
+                    e.preventDefault();
+                    if (!serviceablePincodes.includes(newPincodeInput)) {
+                      setServiceablePincodes([...serviceablePincodes, newPincodeInput]);
+                      setNewPincodeInput('');
+                    }
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (newPincodeInput.length === 6 && !serviceablePincodes.includes(newPincodeInput)) {
+                    setServiceablePincodes([...serviceablePincodes, newPincodeInput]);
+                    setNewPincodeInput('');
+                  }
+                }}
+                disabled={newPincodeInput.length !== 6 || serviceablePincodes.includes(newPincodeInput)}
+                className={styles.addPincodeButton}
+              >
+                Add
+              </button>
+            </div>
+            
             <div className={styles.helpText}>
-              Leave empty to allow delivery for all pincodes. If set, only this exact pincode will be deliverable.
+              Add multiple pincodes where delivery is available. If no pincodes are added, delivery will be available for all pincodes.
             </div>
           </div>
+        ) : (
+          <div className={styles.formGroup}>
+            <label className={styles.label}>
+              Content {contentType === 'contact' ? '(Optional)' : '*'}
+            </label>
+            {contentType === 'contact' ? (
+              <textarea
+                value={contentText}
+                onChange={(e) => setContentText(e.target.value)}
+                rows={4}
+                className={styles.textarea}
+                placeholder="Additional contact information..."
+              />
+            ) : (
+              <RichTextEditor
+                value={contentText}
+                onChange={setContentText}
+                placeholder="Enter content here..."
+              />
+            )}
+          </div>
         )}
-
-        <div className={styles.formGroup}>
-          <label className={styles.label}>
-            Content {contentType === 'contact' ? '(Optional)' : '*'}
-          </label>
-          <textarea
-            value={contentText}
-            onChange={(e) => setContentText(e.target.value)}
-            required={contentType !== 'contact'}
-            rows={contentType === 'contact' ? 4 : 20}
-            className={styles.textarea}
-            placeholder={contentType === 'contact' ? 'Additional contact information...' : 'Enter content here...'}
-            disabled={contentType === 'pincodes'}
-          />
-        </div>
 
         <div className={styles.formActions}>
           <button

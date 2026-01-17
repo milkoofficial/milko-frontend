@@ -36,7 +36,7 @@
   background: white;
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid #ddd
 }
 
 .formGroup {
@@ -152,4 +152,87 @@
 
 .cancelButton:hover {
   background: #e5e5e5;
+}
+
+/* Pincode list styles */
+.pincodeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.1rem;
+  padding: 5px 0;
+
+  border-radius: 6px;
+ 
+}
+
+.pincodeItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.pincodeValue {
+  font-weight: 500;
+  color: #1a1a1a;
+  font-family: inter;
+}
+
+.removePincodeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: background-color 0.02s;
+}
+
+.removePincodeButton:hover {
+  background: #fee;
+}
+
+.removePincodeButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addPincodeRow {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.addPincodeRow .input {
+  flex: 1;
+}
+
+.addPincodeButton {
+  padding: 0.75rem 1.5rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.addPincodeButton:hover:not(:disabled) {
+  background: #059669;
+}
+
+.addPincodeButton:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
 }

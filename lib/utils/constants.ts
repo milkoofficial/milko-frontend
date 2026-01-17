@@ -53,6 +53,10 @@ export const API_ENDPOINTS = {
   CONTENT: {
     GET: (type: string) => `/api/content/${type}`,
   },
+  // Coupons
+  COUPONS: {
+    VALIDATE: '/api/coupons/validate',
+  },
   // Admin
   ADMIN: {
     PRODUCTS: {
@@ -95,6 +99,13 @@ export const API_ENDPOINTS = {
       GET: (type: string) => `/api/admin/content/${type}`,
       UPDATE: (type: string) => `/api/admin/content/${type}`,
       TOGGLE_STATUS: (type: string) => `/api/admin/content/${type}/status`,
+    },
+    COUPONS: {
+      LIST: '/api/admin/coupons',
+      CREATE: '/api/admin/coupons',
+      DETAIL: (id: string) => `/api/admin/coupons/${id}`,
+      UPDATE: (id: string) => `/api/admin/coupons/${id}`,
+      DELETE: (id: string) => `/api/admin/coupons/${id}`,
     },
   },
 } as const;

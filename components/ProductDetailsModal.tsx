@@ -49,6 +49,12 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const mainImageRef = useRef<HTMLDivElement>(null);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
+  
+  // Membership subscription state
+  const [showMembershipDetails, setShowMembershipDetails] = useState(false);
+  const [membershipFrequency, setMembershipFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('daily');
+  const [membershipQuantity, setMembershipQuantity] = useState('1');
+  const [membershipDuration, setMembershipDuration] = useState('30');
 
   const isDeliverable = (pin: string) => {
     const cleaned = (pin || '').trim();
@@ -57,6 +63,16 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     if (!serviceablePincodes || serviceablePincodes.length === 0) return true;
     return serviceablePincodes.includes(cleaned);
   };
+
+  // Reset membership form when modal closes or product changes
+  useEffect(() => {
+    if (!isOpen) {
+      setShowMembershipDetails(false);
+      setMembershipFrequency('daily');
+      setMembershipQuantity('1');
+      setMembershipDuration('30');
+    }
+  }, [isOpen, product.id]);
 
   // Load pincode config + saved pincode when modal opens
   useEffect(() => {
@@ -368,6 +384,11 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const unitPrice = selectedVariation?.price ?? (baseSelling * unitMultiplier);
   const originalUnitPrice = baseCompare !== null ? (baseCompare * unitMultiplier) : null;
   const unitOff = originalUnitPrice !== null ? (originalUnitPrice - unitPrice) : 0;
+  
+  // Base discount (without multiplier) to match product card display
+  const baseDiscount = baseCompare !== null && baseSelling !== null 
+    ? (baseCompare - baseSelling) 
+    : 0;
 
   if (!isOpen) return null;
 
@@ -505,9 +526,9 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                   ₹{unitPrice.toFixed(0)} <span className={styles.priceUnit}>/{unitLabel}</span>
                 </div>
               </div>
-              {originalUnitPrice !== null && unitOff > 0 && (
+              {baseCompare !== null && baseDiscount > 0 && (
                 <div className={styles.discountBadge}>
-                  ₹{unitOff.toFixed(0)} OFF
+                  ₹{baseDiscount.toFixed(0)} OFF
                 </div>
               )}
             </div>
@@ -750,6 +771,130 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                 </Link>
               </div>
             </div>
+
+            {/* Membership Subscription Section - Only show if product is membership eligible */}
+            {displayProduct.isMembershipEligible && (
+              <div className={styles.membershipSection}>
+                <div className={styles.membershipHeader}>
+                  <div>
+                    <h3 className={styles.membershipTitle}>Take a membership of this</h3>
+                    <p className={styles.membershipDescription}>
+                      Get {displayProduct.name} - Fresh, carefully handled with zero adulteration. Quality-checked before every delivery, with assured supply for members.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.membershipMoreButton}
+                    onClick={() => setShowMembershipDetails(!showMembershipDetails)}
+                  >
+                    {showMembershipDetails ? 'Less' : 'More'}
+                    <svg 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={styles.membershipChevron}
+                      style={{ transform: showMembershipDetails ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                    >
+                      <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {showMembershipDetails && (
+                  <div className={styles.membershipForm}>
+                    {/* Frequency Selection */}
+                    <div className={styles.membershipField}>
+                      <label className={styles.membershipLabel}>Frequency</label>
+                      <select
+                        value={membershipFrequency}
+                        onChange={(e) => setMembershipFrequency(e.target.value as 'daily' | 'weekly' | 'monthly' | 'quarterly')}
+                        className={styles.membershipSelect}
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                      </select>
+                    </div>
+
+                    {/* Quantity Selection */}
+                    <div className={styles.membershipField}>
+                      <label className={styles.membershipLabel}>Quantity</label>
+                      <select
+                        value={membershipQuantity}
+                        onChange={(e) => setMembershipQuantity(e.target.value)}
+                        className={styles.membershipSelect}
+                      >
+                        <option value="0.5">0.5 Liters</option>
+                        <option value="1">1 Liter</option>
+                        <option value="2">2 Liters</option>
+                        <option value="3">3 Liters</option>
+                        <option value="4">4 Liters</option>
+                        <option value="5">5 Liters</option>
+                      </select>
+                    </div>
+
+                    {/* Duration Selection */}
+                    <div className={styles.membershipField}>
+                      <label className={styles.membershipLabel}>Duration</label>
+                      <select
+                        value={membershipDuration}
+                        onChange={(e) => setMembershipDuration(e.target.value)}
+                        className={styles.membershipSelect}
+                      >
+                        <option value="7">7 Days (1 Week)</option>
+                        <option value="15">15 Days</option>
+                        <option value="30">30 Days (1 Month)</option>
+                        <option value="60">60 Days (2 Months)</option>
+                        <option value="90">90 Days (3 Months)</option>
+                        <option value="180">180 Days (6 Months)</option>
+                        <option value="365">365 Days (1 Year)</option>
+                      </select>
+                    </div>
+
+                    {/* Total Amount Display */}
+                    {(() => {
+                      const basePrice = (displayProduct.sellingPrice !== null && displayProduct.sellingPrice !== undefined)
+                        ? displayProduct.sellingPrice
+                        : displayProduct.pricePerLitre;
+                      
+                      // Calculate number of deliveries based on frequency
+                      const durationDays = parseFloat(membershipDuration);
+                      let numberOfDeliveries = 0;
+                      
+                      if (membershipFrequency === 'daily') {
+                        numberOfDeliveries = durationDays; // 1 delivery per day
+                      } else if (membershipFrequency === 'weekly') {
+                        numberOfDeliveries = Math.ceil(durationDays / 7); // 1 delivery per week
+                      } else if (membershipFrequency === 'monthly') {
+                        numberOfDeliveries = Math.ceil(durationDays / 30); // 1 delivery per month
+                      } else if (membershipFrequency === 'quarterly') {
+                        numberOfDeliveries = Math.ceil(durationDays / 90); // 1 delivery per quarter
+                      }
+                      
+                      const quantityPerDelivery = parseFloat(membershipQuantity);
+                      const totalAmount = basePrice * quantityPerDelivery * numberOfDeliveries;
+                      
+                      return (
+                        <div className={styles.membershipTotal}>
+                          <div className={styles.membershipTotalLabel}>Total Amount</div>
+                          <div className={styles.membershipTotalValue}>₹{totalAmount.toFixed(2)}</div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Subscribe Now Button */}
+                    <Link
+                      href={`/subscribe?productId=${displayProduct.id}&liters=${membershipQuantity}&days=${membershipDuration}&months=${Math.ceil(parseInt(membershipDuration) / 30)}`}
+                      className={styles.membershipSubscribeButton}
+                      onClick={() => onClose()}
+                    >
+                      Subscribe Now
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Description */}
             <div className={styles.descriptionSection}>

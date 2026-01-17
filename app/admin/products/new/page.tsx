@@ -38,6 +38,7 @@ export default function AdminCreateProductPage() {
   const [categoryId, setCategoryId] = useState('');
   const [suffixAfterPrice, setSuffixAfterPrice] = useState('Litres');
   const [isActive, setIsActive] = useState(true);
+  const [isMembershipEligible, setIsMembershipEligible] = useState(false);
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [newVariation, setNewVariation] = useState<ProductVariation>({ size: '', price: '' });
 
@@ -188,6 +189,7 @@ export default function AdminCreateProductPage() {
       }
       formData.append('suffixAfterPrice', suffixAfterPrice);
       formData.append('isActive', isActive.toString());
+      formData.append('isMembershipEligible', isMembershipEligible.toString());
       
       // Use first image as main product image
       if (imagePreviews.length > 0) {
@@ -647,6 +649,18 @@ export default function AdminCreateProductPage() {
             />
             <label htmlFor="isActive" className={styles.checkboxLabel}>
               Active (visible to customers)
+            </label>
+          </div>
+          <div className={styles.checkboxGroup}>
+            <input
+              type="checkbox"
+              id="isMembershipEligible"
+              checked={isMembershipEligible}
+              onChange={(e) => setIsMembershipEligible(e.target.checked)}
+              className={styles.checkbox}
+            />
+            <label htmlFor="isMembershipEligible" className={styles.checkboxLabel}>
+              Eligible for Membership (show in membership section)
             </label>
           </div>
         </div>
