@@ -280,10 +280,10 @@ export default function AdminCouponsPage() {
                         <td className={styles.td}>
                           <div className={styles.discountBlock}>
                             <div className={styles.discountMain}>{discountText}</div>
-                            {coupon.minPurchaseAmount > 0 && (
+                            {coupon.minPurchaseAmount != null && coupon.minPurchaseAmount > 0 && (
                               <div className={styles.discountSub}>Min: ₹{coupon.minPurchaseAmount}</div>
                             )}
-                            {coupon.maxDiscountAmount && (
+                            {coupon.maxDiscountAmount != null && (
                               <div className={styles.discountSub}>Max: ₹{coupon.maxDiscountAmount}</div>
                             )}
                           </div>
