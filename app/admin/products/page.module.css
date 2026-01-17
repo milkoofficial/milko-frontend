@@ -181,7 +181,7 @@
 }
 
 .thead {
-  background: #f8fafc;
+  background: #F7F7F7;
 }
 
 .th,
@@ -310,11 +310,11 @@
   color: #0f172a;
   font-weight: 700;
   font-size: 0.9rem;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.015s ease, border-color 0.015s ease;
 }
 
 .linkButton:hover {
-  background: #f8fafc;
+  background: #e5e5e566;
   border-color: #dbeafe;
 }
 

@@ -13,6 +13,7 @@ const CONTENT_TYPES = [
   { type: 'about', label: 'About Us', path: '/about' },
   { type: 'contact', label: 'Contact Details', path: '/contact' },
   { type: 'reviews', label: 'Reviews Settings', path: '/reviews' },
+  { type: 'pincodes', label: 'Pincodes', path: '' },
 ];
 
 const OTHER_OPTIONS = [
@@ -64,6 +65,13 @@ function Icon({ name }: { name: string }) {
       return (
         <svg viewBox="0 0 24 24" {...common}>
           <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27Z" />
+        </svg>
+      );
+    case 'pincodes':
+      return (
+        <svg viewBox="0 0 24 24" {...common}>
+          <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z" />
+          <circle cx="12" cy="10" r="2.5" />
         </svg>
       );
     case 'categories':
@@ -165,14 +173,16 @@ export default function AdminContentPage() {
                 >
                   Edit
                 </button>
-                <a
-                  href={contentType.path}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.viewButton}
-                >
-                  View
-                </a>
+                {contentType.path ? (
+                  <a
+                    href={contentType.path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.viewButton}
+                  >
+                    View
+                  </a>
+                ) : null}
               </div>
             </div>
           );

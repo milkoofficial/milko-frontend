@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { adminProductsApi } from '@/lib/api';
-import { Product, ProductImage, ProductVariation, ProductReview } from '@/types';
+import { Product, ProductImage, ProductVariation } from '@/types';
 import Image from 'next/image';
 import styles from './page.module.css';
 import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
@@ -27,7 +27,7 @@ export default function AdminProductEditPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'images' | 'variations' | 'reviews'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'images' | 'variations'>('details');
   const { showToast } = useToast();
 
   const getErrorMessage = (err: unknown) => {
@@ -42,7 +42,6 @@ export default function AdminProductEditPage() {
   // Form states
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [pricePerLitre, setPricePerLitre] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [compareAtPrice, setCompareAtPrice] = useState('');
   const [quantity, setQuantity] = useState('0');
@@ -60,9 +59,7 @@ export default function AdminProductEditPage() {
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [newVariation, setNewVariation] = useState({ size: '', price: '', isAvailable: true });
 
-  // Reviews
-  const [reviews, setReviews] = useState<ProductReview[]>([]);
-  const [newReview, setNewReview] = useState({ reviewerName: '', rating: 5, comment: '', isApproved: true });
+  // Reviews are managed by customers only (not editable in admin product editor)
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -71,7 +68,6 @@ export default function AdminProductEditPage() {
         setProduct(data);
         setName(data.name);
         setDescription(data.description || '');
-        setPricePerLitre(data.pricePerLitre.toString());
         setSellingPrice(data.sellingPrice !== null && data.sellingPrice !== undefined ? String(data.sellingPrice) : '');
         setCompareAtPrice(data.compareAtPrice !== null && data.compareAtPrice !== undefined ? String(data.compareAtPrice) : '');
         setQuantity(String(data.quantity ?? 0));
@@ -100,7 +96,6 @@ export default function AdminProductEditPage() {
         setImages(combinedImages);
 
         setVariations(data.variations || []);
-        setReviews(data.reviews || []);
       } catch (error) {
         console.error('Failed to fetch product:', error);
         showToast(getErrorMessage(error), 'error');
@@ -140,10 +135,9 @@ export default function AdminProductEditPage() {
         }
       }
 
-      await adminProductsApi.update(productId, {
+      const updates: Partial<Product> = {
         name,
         description: sanitizeHtml(description),
-        pricePerLitre: parseFloat(pricePerLitre),
         sellingPrice: sellingPrice ? parseFloat(sellingPrice) : null,
         compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
         quantity: quantity ? parseInt(quantity) : 0,
@@ -151,7 +145,15 @@ export default function AdminProductEditPage() {
         categoryId: categoryId || null,
         suffixAfterPrice: suffixAfterPrice || 'Litres',
         isActive,
-      });
+      };
+
+      // Since "Price per Litre" is no longer an admin-editable field, keep it unchanged unless
+      // a Selling Price is provided (in which case we sync pricePerLitre for legacy uses).
+      if (sellingPrice) {
+        updates.pricePerLitre = parseFloat(sellingPrice);
+      }
+
+      await adminProductsApi.update(productId, updates);
       showToast('Product updated successfully', 'success');
     } catch (error) {
       console.error('Failed to update product:', error);
@@ -230,41 +232,6 @@ export default function AdminProductEditPage() {
     }
   };
 
-  const handleAddReview = async () => {
-    if (!newReview.reviewerName || !newReview.rating) {
-      showToast('Please enter reviewer name and rating', 'error');
-      return;
-    }
-
-    try {
-      const review = await adminProductsApi.addReview(productId, {
-        reviewerName: newReview.reviewerName,
-        rating: newReview.rating,
-        comment: newReview.comment || undefined,
-        isApproved: newReview.isApproved,
-      });
-      setReviews([...reviews, review]);
-      setNewReview({ reviewerName: '', rating: 5, comment: '', isApproved: true });
-      showToast('Review added', 'success');
-    } catch (error) {
-      console.error('Failed to add review:', error);
-      showToast(getErrorMessage(error), 'error');
-    }
-  };
-
-  const handleDeleteReview = async (reviewId: string) => {
-    if (!confirm('Are you sure you want to delete this review?')) return;
-
-    try {
-      await adminProductsApi.deleteReview(productId, reviewId);
-      setReviews(reviews.filter(r => r.id !== reviewId));
-      showToast('Review deleted', 'success');
-    } catch (error) {
-      console.error('Failed to delete review:', error);
-      showToast(getErrorMessage(error), 'error');
-    }
-  };
-
   if (loading) {
     return (
       <div style={{ 
@@ -323,12 +290,6 @@ export default function AdminProductEditPage() {
         >
           Variations ({variations.length})
         </button>
-        <button
-          className={activeTab === 'reviews' ? styles.tabActive : styles.tab}
-          onClick={() => setActiveTab('reviews')}
-        >
-          Reviews ({reviews.length})
-        </button>
       </div>
 
       {/* Tab Content */}
@@ -352,16 +313,6 @@ export default function AdminProductEditPage() {
                 value={description}
                 onChange={setDescription}
                 placeholder="Describe your product..."
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Price per Litre (₹)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={pricePerLitre}
-                onChange={(e) => setPricePerLitre(e.target.value)}
-                className={styles.input}
               />
             </div>
             <div className={styles.formRow}>
@@ -584,95 +535,6 @@ export default function AdminProductEditPage() {
           </div>
         )}
 
-        {/* Reviews Tab */}
-        {activeTab === 'reviews' && (
-          <div className={styles.section}>
-            <h2>Product Reviews</h2>
-            <div className={styles.reviewsList}>
-              {reviews.map((review) => (
-                <div key={review.id} className={styles.reviewCard}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-                      <strong>{review.reviewerName}</strong>
-                      <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span key={star} style={{ color: star <= review.rating ? '#ffc107' : '#ddd' }}>
-                            ★
-                          </span>
-                        ))}
-                      </div>
-                      {!review.isApproved && (
-                        <span style={{ background: '#ffc107', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem' }}>
-                          Pending Approval
-                        </span>
-                      )}
-                    </div>
-                    {review.comment && (
-                      <p style={{ color: '#666', marginTop: '0.5rem' }}>{review.comment}</p>
-                    )}
-                    <div style={{ color: '#999', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                      {new Date(review.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteReview(review.id)}
-                    className={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className={styles.addSection}>
-              <h3>Add New Review</h3>
-              <div className={styles.formGroup}>
-                <label>Reviewer Name</label>
-                <input
-                  type="text"
-                  value={newReview.reviewerName}
-                  onChange={(e) => setNewReview({ ...newReview, reviewerName: e.target.value })}
-                  className={styles.input}
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Rating (1-5)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="5"
-                  value={newReview.rating}
-                  onChange={(e) => setNewReview({ ...newReview, rating: parseInt(e.target.value) })}
-                  className={styles.input}
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Comment</label>
-                <textarea
-                  value={newReview.comment}
-                  onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
-                  className={styles.textarea}
-                  rows={3}
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={newReview.isApproved}
-                    onChange={(e) => setNewReview({ ...newReview, isApproved: e.target.checked })}
-                  />
-                  Approved (visible to customers)
-                </label>
-              </div>
-              <button
-                onClick={handleAddReview}
-                className={styles.addButton}
-              >
-                Add Review
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

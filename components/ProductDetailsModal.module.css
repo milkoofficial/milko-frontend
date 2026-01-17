@@ -860,6 +860,23 @@ box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
+.reviewerNameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.verifiedBadge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #e6f4ff;
+  color: #0070f3;
+  border: 1px solid rgba(0, 112, 243, 0.22);
+  white-space: nowrap;
+}
+
 .reviewRating {
   display: flex;
   gap: 0.1rem;
@@ -906,6 +923,7 @@ margin-left: -11px;
   border: none;
   width: 100%;
   font-family: inherit;
+  position: relative;
 }
 
 .relatedProductCard:hover {
@@ -913,6 +931,38 @@ margin-left: -11px;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 112, 243, 0.15);
   background: #fff;
+}
+
+.relatedAddButton {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #000;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.06s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.relatedAddButton:hover {
+  background: #161616;
+  transform: scale(1.04);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.relatedAddButton:active {
+  transform: scale(0.96);
+}
+
+.relatedAddButton svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Related Product Shimmer */

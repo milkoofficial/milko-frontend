@@ -13,6 +13,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   about: 'About Us',
   contact: 'Contact Details',
   reviews: 'Reviews Settings',
+  pincodes: 'Pincodes',
 };
 
 /**
@@ -33,6 +34,7 @@ export default function AdminContentEditPage() {
   const [contentText, setContentText] = useState('');
   const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [isActive, setIsActive] = useState(true);
+  const [serviceablePincode, setServiceablePincode] = useState('');
 
   useEffect(() => {
     fetchContent();
@@ -47,9 +49,23 @@ export default function AdminContentEditPage() {
       setContentText(data.content);
       setMetadata(data.metadata || {});
       setIsActive(data.isActive);
+      if (contentType === 'pincodes') {
+        setServiceablePincode((data.metadata?.serviceablePincode as string) || '');
+      }
     } catch (error: any) {
       console.error('Failed to fetch content:', error);
-      setError(error.message || 'Failed to load content');
+      // If this content type doesn't exist yet, allow creating it from the UI
+      if (contentType === 'pincodes') {
+        setError('');
+        setContent(null);
+        setTitle('Pincode Settings');
+        setContentText('Delivery pincode settings');
+        setMetadata({ serviceablePincode: '' });
+        setServiceablePincode('');
+        setIsActive(true);
+      } else {
+        setError(error.message || 'Failed to load content');
+      }
     } finally {
       setLoading(false);
     }
@@ -80,9 +96,23 @@ export default function AdminContentEditPage() {
         };
       }
 
+      // Handle pincodes (single serviceable pincode)
+      if (contentType === 'pincodes') {
+        const cleaned = (serviceablePincode || '').trim();
+        const isEmpty = cleaned.length === 0;
+        const isValid = /^\d{6}$/.test(cleaned);
+        if (!isEmpty && !isValid) {
+          setError('Please enter a valid 6-digit pincode (or leave empty to allow all).');
+          return;
+        }
+        finalMetadata = {
+          serviceablePincode: cleaned,
+        };
+      }
+
       await adminContentApi.update(contentType, {
-        title,
-        content: contentText,
+        title: contentType === 'pincodes' ? 'Pincode Settings' : title,
+        content: contentType === 'pincodes' ? 'Delivery pincode settings' : contentText,
         metadata: finalMetadata,
       });
 
@@ -147,7 +177,7 @@ export default function AdminContentEditPage() {
             onChange={(e) => setTitle(e.target.value)}
             required
             className={styles.input}
-            disabled={contentType === 'contact' || contentType === 'reviews'}
+            disabled={contentType === 'contact' || contentType === 'reviews' || contentType === 'pincodes'}
           />
         </div>
 
@@ -215,6 +245,23 @@ export default function AdminContentEditPage() {
           </div>
         )}
 
+        {contentType === 'pincodes' && (
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Serviceable Pincode (6 digits)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={serviceablePincode}
+              onChange={(e) => setServiceablePincode(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
+              className={styles.input}
+              placeholder="e.g., 474001"
+            />
+            <div className={styles.helpText}>
+              Leave empty to allow delivery for all pincodes. If set, only this exact pincode will be deliverable.
+            </div>
+          </div>
+        )}
+
         <div className={styles.formGroup}>
           <label className={styles.label}>
             Content {contentType === 'contact' ? '(Optional)' : '*'}
@@ -226,6 +273,7 @@ export default function AdminContentEditPage() {
             rows={contentType === 'contact' ? 4 : 20}
             className={styles.textarea}
             placeholder={contentType === 'contact' ? 'Additional contact information...' : 'Enter content here...'}
+            disabled={contentType === 'pincodes'}
           />
         </div>
 

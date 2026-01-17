@@ -8,6 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import styles from './Header.module.css';
 import { User } from '@/types';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
+import { contentApi } from '@/lib/api';
 
 /**
  * User Dropdown Component
@@ -207,17 +208,50 @@ export default function Header() {
   const [deliveryStatus, setDeliveryStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
   const [savedPincode, setSavedPincode] = useState<string | null>(null);
   const [savedDeliveryStatus, setSavedDeliveryStatus] = useState<'available' | 'unavailable' | null>(null);
+  const [serviceablePincodes, setServiceablePincodes] = useState<string[] | null>(null);
   const pincodeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Load saved pincode from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('milko_delivery_pincode');
-    const savedStatus = localStorage.getItem('milko_delivery_status') as 'available' | 'unavailable' | null;
-    if (saved && savedStatus) {
+    if (saved) {
       setSavedPincode(saved);
-      setSavedDeliveryStatus(savedStatus);
     }
   }, []);
+
+  // Load serviceable pincode(s) from admin-configured site content
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await contentApi.getByType('pincodes');
+        const meta = (cfg?.metadata || {}) as any;
+        const list: string[] = Array.isArray(meta.serviceablePincodes)
+          ? meta.serviceablePincodes
+          : (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()
+              ? [meta.serviceablePincode.trim()]
+              : []);
+        setServiceablePincodes(list);
+      } catch {
+        // No config -> allow all
+        setServiceablePincodes(null);
+      }
+    })();
+  }, []);
+
+  const isDeliverable = (pin: string) => {
+    const cleaned = (pin || '').trim();
+    if (cleaned.length !== 6) return false;
+    if (!serviceablePincodes || serviceablePincodes.length === 0) return true;
+    return serviceablePincodes.includes(cleaned);
+  };
+
+  // If we have a saved pincode, compute saved status based on current config
+  useEffect(() => {
+    if (!savedPincode || savedPincode.length !== 6) return;
+    const ok = isDeliverable(savedPincode);
+    setSavedDeliveryStatus(ok ? 'available' : 'unavailable');
+    localStorage.setItem('milko_delivery_status', ok ? 'available' : 'unavailable');
+  }, [savedPincode, serviceablePincodes]);
 
   // Focus first pincode input when modal opens
   useEffect(() => {
@@ -239,10 +273,8 @@ export default function Header() {
 
     setDeliveryStatus('checking');
     
-    // Simulate API call - Replace with actual API call
-    // For now, we'll simulate: pincodes starting with 47 are available (Gwalior area)
     setTimeout(() => {
-      const isAvailable = fullPincode.startsWith('47');
+      const isAvailable = isDeliverable(fullPincode);
       setDeliveryStatus(isAvailable ? 'available' : 'unavailable');
     }, 800); // Simulate network delay
   };

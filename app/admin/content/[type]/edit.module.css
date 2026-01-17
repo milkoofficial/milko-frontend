@@ -85,6 +85,13 @@
   cursor: pointer;
 }
 
+.helpText {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
 .formActions {
   display: flex;
   gap: 1rem;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Product, ProductVariation, ProductReview } from '@/types';
-import { productsApi } from '@/lib/api';
+import { productsApi, contentApi } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
 import { animateToCart } from '@/lib/utils/cartAnimation';
@@ -39,6 +39,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const [showDeliveryInfo, setShowDeliveryInfo] = useState(false);
   const [isPincodeAvailable, setIsPincodeAvailable] = useState<boolean | null>(null);
   const [isCheckingPincode, setIsCheckingPincode] = useState(false);
+  const [serviceablePincodes, setServiceablePincodes] = useState<string[] | null>(null);
   
   // Swipe/drag state
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -49,33 +50,40 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
 
-  // Load pincode from localStorage when modal opens and check availability
+  const isDeliverable = (pin: string) => {
+    const cleaned = (pin || '').trim();
+    if (cleaned.length !== 6) return false;
+    // If admin hasn't configured pincodes (or content not active), allow all.
+    if (!serviceablePincodes || serviceablePincodes.length === 0) return true;
+    return serviceablePincodes.includes(cleaned);
+  };
+
+  // Load pincode config + saved pincode when modal opens
   useEffect(() => {
     if (isOpen) {
+      // Fetch serviceable pincode(s) from admin-configured site content
+      (async () => {
+        try {
+          const cfg = await contentApi.getByType('pincodes');
+          const meta = (cfg?.metadata || {}) as any;
+          const list: string[] = Array.isArray(meta.serviceablePincodes)
+            ? meta.serviceablePincodes
+            : (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()
+                ? [meta.serviceablePincode.trim()]
+                : []);
+          setServiceablePincodes(list);
+        } catch {
+          // No config -> allow all
+          setServiceablePincodes(null);
+        }
+      })();
+
       const savedPincode = localStorage.getItem('milko_delivery_pincode');
-      const savedStatus = localStorage.getItem('milko_delivery_status') as 'available' | 'unavailable' | null;
       
       if (savedPincode && savedPincode.length === 6) {
         setPincode(savedPincode);
-        // If we have a saved status, use it immediately
-        if (savedStatus === 'available') {
-          setIsPincodeAvailable(true);
-          setShowDeliveryInfo(true);
-        } else if (savedStatus === 'unavailable') {
-          setIsPincodeAvailable(false);
-          setShowDeliveryInfo(false);
-        } else {
-          // If no saved status, automatically check availability
-          setIsCheckingPincode(true);
-          setTimeout(() => {
-            const isAvailable = savedPincode.startsWith('47');
-            setIsPincodeAvailable(isAvailable);
-            setShowDeliveryInfo(isAvailable);
-            setIsCheckingPincode(false);
-            // Save the status for future use
-            localStorage.setItem('milko_delivery_status', isAvailable ? 'available' : 'unavailable');
-          }, 800);
-        }
+        setIsPincodeAvailable(null);
+        setShowDeliveryInfo(false);
       } else {
         setPincode('');
         setIsPincodeAvailable(null);
@@ -83,6 +91,15 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
       }
     }
   }, [isOpen]);
+
+  // Auto-evaluate availability once we have both pincode + config
+  useEffect(() => {
+    if (!isOpen) return;
+    if (pincode.length !== 6) return;
+    const ok = isDeliverable(pincode);
+    setIsPincodeAvailable(ok);
+    setShowDeliveryInfo(ok);
+  }, [isOpen, pincode, serviceablePincodes]);
 
   // Listen for storage events (for cross-tab sync only)
   useEffect(() => {
@@ -126,15 +143,11 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     setShowDeliveryInfo(false);
     setIsPincodeAvailable(null);
 
-    // Simulate API call - Replace with actual API call
-    // For now, we'll simulate: pincodes starting with 47 are available (Gwalior area)
     setTimeout(() => {
-      const isAvailable = pincode.startsWith('47');
+      const isAvailable = isDeliverable(pincode);
       setIsPincodeAvailable(isAvailable);
       setShowDeliveryInfo(isAvailable);
       setIsCheckingPincode(false);
-      // Save the status to localStorage for future use
-      localStorage.setItem('milko_delivery_status', isAvailable ? 'available' : 'unavailable');
     }, 800); // Simulate network delay
   };
 
@@ -765,7 +778,10 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                               {review.reviewerName.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div className={styles.reviewerName}>{review.reviewerName}</div>
+                              <div className={styles.reviewerNameRow}>
+                                <div className={styles.reviewerName}>{review.reviewerName}</div>
+                                <span className={styles.verifiedBadge}>Verified</span>
+                              </div>
                               <div className={styles.reviewRating}>
                                 <RatingBadge rating={review.rating} size="sm" />
                               </div>
@@ -822,6 +838,52 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                         }
                       }}
                     >
+                      <button
+                        type="button"
+                        className={styles.relatedAddButton}
+                        aria-label={`Add ${relatedProduct.name} to cart`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addItem({ productId: relatedProduct.id, quantity: 1 });
+                          showToast('Added to cart', 'success');
+
+                          const pickVisibleCartTarget = (): HTMLElement | null => {
+                            const candidates = [
+                              cartIconRefStore.getDesktop(),
+                              cartIconRefStore.getMobile(),
+                            ].filter(Boolean) as HTMLElement[];
+
+                            if (candidates.length === 0) return null;
+
+                            const visible = candidates.find((el) => {
+                              const r = el.getBoundingClientRect();
+                              return r.width > 0 && r.height > 0 && r.top < window.innerHeight && r.bottom > 0;
+                            });
+
+                            return visible || candidates[0];
+                          };
+
+                          const iconEl = pickVisibleCartTarget();
+                          if (iconEl) {
+                            // Prefer the badge element (where the cart count number is shown)
+                            const badge =
+                              (iconEl.querySelector('[class*="cartBadge"], .cartBadge') as HTMLElement | null) ||
+                              (iconEl.closest('a[href="/cart"]')?.querySelector('[class*="cartBadge"], .cartBadge') as HTMLElement | null);
+
+                            const targetElement = badge || iconEl;
+
+                            animateToCart({
+                              sourceElement: e.currentTarget as HTMLElement,
+                              targetElement,
+                              imageUrl: relatedProduct.imageUrl || '',
+                            });
+                          }
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M6 12H18M12 6V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                        </svg>
+                      </button>
                       {relatedProduct.imageUrl ? (
                         <Image
                           src={relatedProduct.imageUrl}
