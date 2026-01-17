@@ -50,9 +50,9 @@ export default function AdminDeliveriesPage() {
       result = result.filter(
         (delivery) =>
           delivery.subscriptionId.toString().includes(q) ||
-          (delivery.subscription?.product?.name || '').toLowerCase().includes(q) ||
-          (delivery.subscription?.user?.name || '').toLowerCase().includes(q) ||
-          (delivery.subscription?.user?.email || '').toLowerCase().includes(q)
+          (delivery.productName || '').toLowerCase().includes(q) ||
+          (delivery.userName || '').toLowerCase().includes(q) ||
+          (delivery.userEmail || '').toLowerCase().includes(q)
       );
     }
 
@@ -276,16 +276,16 @@ export default function AdminDeliveriesPage() {
                     </td>
                     <td>
                       <div className={styles.productCell}>
-                        {delivery.subscription?.product?.name || 'N/A'}
+                        {delivery.productName || 'N/A'}
                       </div>
                     </td>
                     <td>
                       <div className={styles.customerCell}>
                         <div className={styles.customerName}>
-                          {delivery.subscription?.user?.name || delivery.subscription?.user?.email || 'N/A'}
+                          {delivery.userName || delivery.userEmail || 'N/A'}
                         </div>
-                        {delivery.subscription?.user?.email && delivery.subscription?.user?.name && (
-                          <div className={styles.customerEmail}>{delivery.subscription.user.email}</div>
+                        {delivery.userEmail && delivery.userName && (
+                          <div className={styles.customerEmail}>{delivery.userEmail}</div>
                         )}
                       </div>
                     </td>

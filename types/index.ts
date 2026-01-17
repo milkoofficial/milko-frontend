@@ -94,6 +94,13 @@ export interface DeliverySchedule {
   deliveryDate: string; // YYYY-MM-DD
   status: 'pending' | 'delivered' | 'skipped' | 'cancelled';
   createdAt: string;
+  // Extended fields from backend joins
+  userId?: string;
+  litresPerDay?: number;
+  deliveryTime?: string;
+  productName?: string;
+  userName?: string;
+  userEmail?: string;
 }
 
 // Paused Date Types
