@@ -124,7 +124,7 @@ export default function AdminCategoriesPage() {
             onClick={() => setIsFormOpen(true)} 
             className={adminStyles.adminButton}
           >
-            + Add Category
+            Add Category
           </button>
         )}
       </div>

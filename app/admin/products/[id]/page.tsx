@@ -6,8 +6,12 @@ import { adminProductsApi } from '@/lib/api';
 import { Product, ProductImage, ProductVariation, ProductReview } from '@/types';
 import Image from 'next/image';
 import styles from './page.module.css';
-import LoadingSpinner, { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
+import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import adminStyles from '../../admin-styles.module.css';
+import { getAllCategories, Category } from '@/lib/api/categories';
+import { useToast } from '@/contexts/ToastContext';
+import RichTextEditor from '@/components/ui/RichTextEditor';
+import { sanitizeHtml } from '@/lib/utils/sanitizeHtml';
 
 /**
  * Admin Product Edit Page
@@ -22,12 +26,29 @@ export default function AdminProductEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'images' | 'variations' | 'reviews'>('details');
+  const { showToast } = useToast();
+
+  const getErrorMessage = (err: unknown) => {
+    if (typeof err === 'string') return err;
+    if (err && typeof err === 'object' && 'message' in err) {
+      const maybe = (err as { message?: unknown }).message;
+      if (typeof maybe === 'string') return maybe;
+    }
+    return 'Something went wrong';
+  };
 
   // Form states
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [pricePerLitre, setPricePerLitre] = useState('');
+  const [sellingPrice, setSellingPrice] = useState('');
+  const [compareAtPrice, setCompareAtPrice] = useState('');
+  const [quantity, setQuantity] = useState('0');
+  const [lowStockThreshold, setLowStockThreshold] = useState('10');
+  const [categoryId, setCategoryId] = useState('');
+  const [suffixAfterPrice, setSuffixAfterPrice] = useState('Litres');
   const [isActive, setIsActive] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   // Images
   const [images, setImages] = useState<ProductImage[]>([]);
@@ -35,7 +56,7 @@ export default function AdminProductEditPage() {
 
   // Variations
   const [variations, setVariations] = useState<ProductVariation[]>([]);
-  const [newVariation, setNewVariation] = useState({ size: '', priceMultiplier: '1.0', isAvailable: true });
+  const [newVariation, setNewVariation] = useState({ size: '', price: '', isAvailable: true });
 
   // Reviews
   const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -49,12 +70,19 @@ export default function AdminProductEditPage() {
         setName(data.name);
         setDescription(data.description || '');
         setPricePerLitre(data.pricePerLitre.toString());
+        setSellingPrice(data.sellingPrice !== null && data.sellingPrice !== undefined ? String(data.sellingPrice) : '');
+        setCompareAtPrice(data.compareAtPrice !== null && data.compareAtPrice !== undefined ? String(data.compareAtPrice) : '');
+        setQuantity(String(data.quantity ?? 0));
+        setLowStockThreshold(String(data.lowStockThreshold ?? 10));
+        setCategoryId(data.categoryId ?? '');
+        setSuffixAfterPrice(data.suffixAfterPrice || 'Litres');
         setIsActive(data.isActive);
         setImages(data.images || []);
         setVariations(data.variations || []);
         setReviews(data.reviews || []);
       } catch (error) {
         console.error('Failed to fetch product:', error);
+        showToast(getErrorMessage(error), 'error');
       } finally {
         setLoading(false);
       }
@@ -63,21 +91,41 @@ export default function AdminProductEditPage() {
     if (productId) {
       fetchProduct();
     }
-  }, [productId]);
+  }, [productId, showToast]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await getAllCategories();
+        setCategories(data);
+      } catch (error) {
+        // Non-blocking
+        console.warn('Failed to fetch categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const handleSaveProduct = async () => {
     setSaving(true);
     try {
       await adminProductsApi.update(productId, {
         name,
-        description,
+        description: sanitizeHtml(description),
         pricePerLitre: parseFloat(pricePerLitre),
+        sellingPrice: sellingPrice ? parseFloat(sellingPrice) : null,
+        compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
+        quantity: quantity ? parseInt(quantity) : 0,
+        lowStockThreshold: lowStockThreshold ? parseInt(lowStockThreshold) : 10,
+        categoryId: categoryId || null,
+        suffixAfterPrice: suffixAfterPrice || 'Litres',
         isActive,
       });
-      alert('Product updated successfully!');
+      showToast('Product updated successfully', 'success');
     } catch (error) {
       console.error('Failed to update product:', error);
-      alert('Failed to update product');
+      showToast(getErrorMessage(error), 'error');
     } finally {
       setSaving(false);
     }
@@ -95,7 +143,7 @@ export default function AdminProductEditPage() {
       if (fileInput) fileInput.value = '';
     } catch (error) {
       console.error('Failed to add image:', error);
-      alert('Failed to add image');
+      showToast(getErrorMessage(error), 'error');
     }
   };
 
@@ -105,30 +153,36 @@ export default function AdminProductEditPage() {
     try {
       await adminProductsApi.deleteImage(productId, imageId);
       setImages(images.filter(img => img.id !== imageId));
+      showToast('Image deleted', 'success');
     } catch (error) {
       console.error('Failed to delete image:', error);
-      alert('Failed to delete image');
+      showToast(getErrorMessage(error), 'error');
     }
   };
 
   const handleAddVariation = async () => {
     if (!newVariation.size) {
-      alert('Please enter a size');
+      showToast('Please enter a size', 'error');
+      return;
+    }
+    if (!newVariation.price) {
+      showToast('Please enter a price', 'error');
       return;
     }
 
     try {
       const variation = await adminProductsApi.addVariation(productId, {
         size: newVariation.size,
-        priceMultiplier: parseFloat(newVariation.priceMultiplier),
+        price: parseFloat(newVariation.price),
         isAvailable: newVariation.isAvailable,
         displayOrder: variations.length,
       });
       setVariations([...variations, variation]);
-      setNewVariation({ size: '', priceMultiplier: '1.0', isAvailable: true });
+      setNewVariation({ size: '', price: '', isAvailable: true });
+      showToast('Variation added', 'success');
     } catch (error) {
       console.error('Failed to add variation:', error);
-      alert('Failed to add variation');
+      showToast(getErrorMessage(error), 'error');
     }
   };
 
@@ -138,15 +192,16 @@ export default function AdminProductEditPage() {
     try {
       await adminProductsApi.deleteVariation(productId, variationId);
       setVariations(variations.filter(v => v.id !== variationId));
+      showToast('Variation deleted', 'success');
     } catch (error) {
       console.error('Failed to delete variation:', error);
-      alert('Failed to delete variation');
+      showToast(getErrorMessage(error), 'error');
     }
   };
 
   const handleAddReview = async () => {
     if (!newReview.reviewerName || !newReview.rating) {
-      alert('Please enter reviewer name and rating');
+      showToast('Please enter reviewer name and rating', 'error');
       return;
     }
 
@@ -159,9 +214,10 @@ export default function AdminProductEditPage() {
       });
       setReviews([...reviews, review]);
       setNewReview({ reviewerName: '', rating: 5, comment: '', isApproved: true });
+      showToast('Review added', 'success');
     } catch (error) {
       console.error('Failed to add review:', error);
-      alert('Failed to add review');
+      showToast(getErrorMessage(error), 'error');
     }
   };
 
@@ -171,9 +227,10 @@ export default function AdminProductEditPage() {
     try {
       await adminProductsApi.deleteReview(productId, reviewId);
       setReviews(reviews.filter(r => r.id !== reviewId));
+      showToast('Review deleted', 'success');
     } catch (error) {
       console.error('Failed to delete review:', error);
-      alert('Failed to delete review');
+      showToast(getErrorMessage(error), 'error');
     }
   };
 
@@ -192,7 +249,18 @@ export default function AdminProductEditPage() {
   }
 
   if (!product) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Product not found</div>;
+    return (
+      <div className={styles.container}>
+        <div className={styles.content}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Product not found</p>
+            <button onClick={() => router.push('/admin/products')} className={styles.backButton}>
+              ← Back to Products
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -249,11 +317,10 @@ export default function AdminProductEditPage() {
             </div>
             <div className={styles.formGroup}>
               <label>Description</label>
-              <textarea
+              <RichTextEditor
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className={styles.textarea}
-                rows={5}
+                onChange={setDescription}
+                placeholder="Describe your product..."
               />
             </div>
             <div className={styles.formGroup}>
@@ -265,6 +332,91 @@ export default function AdminProductEditPage() {
                 onChange={(e) => setPricePerLitre(e.target.value)}
                 className={styles.input}
               />
+            </div>
+            <div className={styles.formRow}>
+              <div style={{ flex: 1 }}>
+                <div className={styles.formGroup}>
+                  <label>Selling Price (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={sellingPrice}
+                    onChange={(e) => setSellingPrice(e.target.value)}
+                    className={styles.input}
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className={styles.formGroup}>
+                  <label>Compare At Price (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={compareAtPrice}
+                    onChange={(e) => setCompareAtPrice(e.target.value)}
+                    className={styles.input}
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className={styles.formRow}>
+              <div style={{ flex: 1 }}>
+                <div className={styles.formGroup}>
+                  <label>Quantity</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className={styles.input}
+                  />
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className={styles.formGroup}>
+                  <label>Low Stock Threshold</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={lowStockThreshold}
+                    onChange={(e) => setLowStockThreshold(e.target.value)}
+                    className={styles.input}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className={styles.formRow}>
+              <div style={{ flex: 1 }}>
+                <div className={styles.formGroup}>
+                  <label>Category</label>
+                  <select
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className={styles.input}
+                  >
+                    <option value="">No Category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className={styles.formGroup}>
+                  <label>Suffix After Price</label>
+                  <input
+                    type="text"
+                    value={suffixAfterPrice}
+                    onChange={(e) => setSuffixAfterPrice(e.target.value)}
+                    className={styles.input}
+                    placeholder="Litres"
+                  />
+                </div>
+              </div>
             </div>
             <div className={styles.formGroup}>
               <label>
@@ -339,8 +491,8 @@ export default function AdminProductEditPage() {
                   <div>
                     <strong>{variation.size}</strong>
                     <div style={{ color: '#666', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-                      Price: ₹{(product.pricePerLitre * variation.priceMultiplier).toFixed(2)}
-                      {variation.priceMultiplier !== 1 && ` (${variation.priceMultiplier}x)`}
+                      Price: ₹{(variation.price ?? (product.pricePerLitre * variation.priceMultiplier)).toFixed(2)}
+                      {variation.price === undefined && variation.priceMultiplier !== 1 && ` (${variation.priceMultiplier}x)`}
                     </div>
                     <div style={{ color: variation.isAvailable ? '#28a745' : '#dc3545', fontSize: '0.85rem', marginTop: '0.25rem' }}>
                       {variation.isAvailable ? 'Available' : 'Not Available'}
@@ -368,10 +520,10 @@ export default function AdminProductEditPage() {
                 />
                 <input
                   type="number"
-                  step="0.1"
-                  placeholder="Price Multiplier"
-                  value={newVariation.priceMultiplier}
-                  onChange={(e) => setNewVariation({ ...newVariation, priceMultiplier: e.target.value })}
+                  step="0.01"
+                  placeholder="Price (₹)"
+                  value={newVariation.price}
+                  onChange={(e) => setNewVariation({ ...newVariation, price: e.target.value })}
                   className={styles.input}
                   style={{ width: '150px' }}
                 />

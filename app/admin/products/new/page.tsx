@@ -7,6 +7,8 @@ import { getAllCategories, Category } from '@/lib/api/categories';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import adminStyles from '../../admin-styles.module.css';
 import styles from './page.module.css';
+import RichTextEditor from '@/components/ui/RichTextEditor';
+import { sanitizeHtml } from '@/lib/utils/sanitizeHtml';
 
 interface ProductVariation {
   size: string;
@@ -150,7 +152,7 @@ export default function AdminCreateProductPage() {
     try {
       const formData = new FormData();
       formData.append('name', name);
-      formData.append('description', description);
+      formData.append('description', sanitizeHtml(description));
       // Use selling price as the main price field
       if (variations.length === 0) {
         // When no variations, use selling price for both pricePerLitre (backend requirement) and sellingPrice
@@ -259,10 +261,9 @@ export default function AdminCreateProductPage() {
 
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>Description</label>
-            <textarea
+            <RichTextEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className={styles.formTextarea}
+              onChange={setDescription}
               placeholder="Describe your product..."
             />
           </div>

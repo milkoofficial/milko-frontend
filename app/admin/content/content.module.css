@@ -35,8 +35,20 @@
 }
 
 .cardIcon {
-  font-size: 2rem;
-  line-height: 1;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f1f1;
+  border: 1px solid #cbcbcb;
+  color: #232323;
+}
+
+.cardIcon svg {
+  width: 24px;
+  height: 24px;
 }
 
 .cardTitle {
@@ -84,7 +96,7 @@
   cursor: pointer;
   text-decoration: none;
   text-align: center;
-  transition: all 0.2s;
+  transition: all 0.02s;
 }
 
 .editButton {

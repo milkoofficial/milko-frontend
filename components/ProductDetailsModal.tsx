@@ -11,6 +11,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import styles from './ProductDetailsModal.module.css';
 import RatingBadge from '@/components/ui/RatingBadge';
+import { toSafeHtml } from '@/lib/utils/sanitizeHtml';
 
 interface ProductDetailsModalProps {
   product: Product;
@@ -460,9 +461,10 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     : 5; // Default to 5 if no reviews
 
   const safeQty = Math.max(1, Math.min(99, quantity));
-  const descriptionText =
+  const descriptionHtml = toSafeHtml(
     displayProduct.description ||
-    'Demo description text for layout testing. Freshly sourced every day, quality checked, and delivered chilled to your doorstep.';
+      'Demo description text for layout testing. Freshly sourced every day, quality checked, and delivered chilled to your doorstep.'
+  );
 
   const unitMultiplier = selectedVariation?.priceMultiplier ?? 1;
   const unitLabel = selectedVariation?.size ?? 'litre';
@@ -839,10 +841,10 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
             {/* Description */}
             <div className={styles.descriptionSection}>
               <h3 className={styles.sectionTitle}>Description</h3>
-              <p className={styles.descriptionText}>{descriptionText}</p>
-              <p className={styles.descriptionText} style={{ marginTop: '0.75rem' }}>
-                Demo: smooth scrolling content + long text block. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-              </p>
+              <div
+                className={styles.descriptionText}
+                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+              />
             </div>
 
             {/* Reviews Section */}
