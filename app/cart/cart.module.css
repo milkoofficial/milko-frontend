@@ -354,6 +354,28 @@
   border-color: #000;
 }
 
+.couponInputValid {
+  border-color: #10b981 !important;
+  border-width: 2px;
+}
+
+.couponInputInvalid {
+  border-color: #dc3545 !important;
+  border-width: 2px;
+}
+
+.couponInputShake {
+  animation: none;
+}
+
+@keyframes couponShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
 .applyCouponButton {
   position: absolute;
   right: 6px;

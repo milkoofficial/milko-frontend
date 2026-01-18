@@ -60,6 +60,7 @@ export default function CheckoutPage() {
   const [showCreateNewAddress, setShowCreateNewAddress] = useState(false);
   const [saveAddress, setSaveAddress] = useState(false);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [savingAddressForCheckout, setSavingAddressForCheckout] = useState(false);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -227,47 +228,52 @@ export default function CheckoutPage() {
     });
   };
 
+  // Save new address to account when "Save this address" is checked (used by form submit and summary Checkout button)
+  const saveNewAddressIfRequested = async (): Promise<{ ok: boolean }> => {
+    if (!saveAddress || selectedAddressId) return { ok: true };
+    if (!addressForm.name?.trim() || !addressForm.street?.trim() || !addressForm.city?.trim() || !addressForm.state?.trim() || !addressForm.postalCode?.trim() || !addressForm.country?.trim() || !addressForm.phone?.trim()) {
+      setAddressError('Please fill in all required fields');
+      return { ok: false };
+    }
+    try {
+      await addressesApi.create({
+        name: addressForm.name.trim(),
+        street: addressForm.street.trim(),
+        city: addressForm.city.trim(),
+        state: addressForm.state.trim(),
+        postalCode: addressForm.postalCode.trim(),
+        country: addressForm.country.trim(),
+        phone: addressForm.phone.trim(),
+        isDefault: savedAddresses.length === 0,
+      });
+      const addresses = await addressesApi.getAll();
+      setSavedAddresses(addresses);
+      return { ok: true };
+    } catch (error: any) {
+      setAddressError(error.message || 'Failed to save address');
+      return { ok: false };
+    }
+  };
+
   // Handle address form submission
   const handleAddressSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setAddressError('');
 
-    // Validate required fields
-    if (!addressForm.name || !addressForm.street || !addressForm.city || !addressForm.state || !addressForm.postalCode) {
+    if (!addressForm.name?.trim() || !addressForm.street?.trim() || !addressForm.city?.trim() || !addressForm.state?.trim() || !addressForm.postalCode?.trim() || !addressForm.country?.trim() || !addressForm.phone?.trim()) {
       setAddressError('Please fill in all required fields');
       return;
     }
 
-    // Check if user is logged in before proceeding to review
     if (!isAuthenticated || !user) {
       setAddressError('Please login to proceed with your order');
       return;
     }
 
-    // Save address if checkbox is checked and it's a new address
-    if (saveAddress && !selectedAddressId) {
-      try {
-        await addressesApi.create({
-          name: addressForm.name,
-          street: addressForm.street,
-          city: addressForm.city,
-          state: addressForm.state,
-          postalCode: addressForm.postalCode,
-          country: addressForm.country,
-          phone: addressForm.phone,
-          isDefault: savedAddresses.length === 0, // Set as default if it's the first address
-        });
-        // Refresh addresses list
-        const addresses = await addressesApi.getAll();
-        setSavedAddresses(addresses);
-      } catch (error: any) {
-        setAddressError(error.message || 'Failed to save address');
-        return;
-      }
-    }
+    const { ok } = await saveNewAddressIfRequested();
+    if (!ok) return;
 
-    // Move to review step
     setStep('review');
   };
 
@@ -312,6 +318,23 @@ export default function CheckoutPage() {
   const deliveryCharges = 0; // Free delivery
   const total = subtotal - discount + deliveryCharges;
 
+  // Your total savings = sum of (compareAtPrice - sellingPrice) * mult * qty per item
+  const savings = items.reduce((sum, it) => {
+    const p = products[it.productId];
+    if (!p) return sum;
+    const v = it.variationId ? (p.variations || []).find((x) => x.id === it.variationId) : null;
+    const mult = v?.priceMultiplier ?? 1;
+    const compare = (p.compareAtPrice != null && p.compareAtPrice !== undefined) ? p.compareAtPrice : p.pricePerLitre;
+    const selling = (p.sellingPrice != null && p.sellingPrice !== undefined) ? p.sellingPrice : p.pricePerLitre;
+    const perUnit = Math.max(0, compare - selling);
+    return sum + perUnit * mult * it.quantity;
+  }, 0);
+
+  const isAddressFulfilled = !!(isAuthenticated && user) && (
+    (savedAddresses.length > 0 && selectedAddressId && !showCreateNewAddress) ||
+    !!(addressForm.name?.trim() && addressForm.street?.trim() && addressForm.city?.trim() && addressForm.state?.trim() && addressForm.postalCode?.trim() && addressForm.country?.trim() && addressForm.phone?.trim())
+  );
+
   // Validate coupon code
   const handleValidateCoupon = async () => {
     if (!couponCode.trim()) {
@@ -349,14 +372,13 @@ export default function CheckoutPage() {
 
   // Handle place order
   const handlePlaceOrder = async () => {
-    if (!addressForm.name || !addressForm.street || !addressForm.city || !addressForm.state || !addressForm.postalCode) {
-      alert('Please fill in all address fields');
+    if (!addressForm.name?.trim() || !addressForm.street?.trim() || !addressForm.city?.trim() || !addressForm.state?.trim() || !addressForm.postalCode?.trim() || !addressForm.country?.trim() || !addressForm.phone?.trim()) {
+      alert('Please fill in all required address fields');
       return;
     }
 
     setPlacingOrder(true);
     try {
-      // Save delivery address and order items to localStorage for order success page
       localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
       localStorage.setItem('milko_order_items', JSON.stringify(items));
       
@@ -383,24 +405,33 @@ export default function CheckoutPage() {
 
   return (
     <div className={styles.container}>
-      {/* Progress Bar */}
+      {/* Progress Bar - clickable: 1→cart, 2 from review, 3 when address fulfilled */}
       <div className={styles.progressBar}>
-        <div className={`${styles.progressStep} ${styles.progressStepCompleted}`}>
+        <div
+          className={`${styles.progressStep} ${styles.progressStepCompleted} ${styles.progressStepClickable}`}
+          onClick={() => router.push('/cart')}
+        >
           <span className={styles.stepNumber}>1</span>
           <span className={styles.stepLabel}>Cart</span>
         </div>
-        <div className={`${styles.progressStep} ${currentStep === 'address' ? styles.progressStepActive : currentStep === 'review' ? styles.progressStepCompleted : ''}`}>
+        <div
+          className={`${styles.progressStep} ${currentStep === 'address' ? styles.progressStepActive : currentStep === 'review' ? styles.progressStepCompleted : ''} ${currentStep === 'review' ? styles.progressStepClickable : styles.progressStepDisabled}`}
+          onClick={() => { if (currentStep === 'review') setStep('address'); }}
+        >
           <span className={styles.stepNumber}>2</span>
           <span className={styles.stepLabel}>Address</span>
         </div>
-        <div className={`${styles.progressStep} ${currentStep === 'review' ? styles.progressStepActive : ''}`}>
+        <div
+          className={`${styles.progressStep} ${currentStep === 'review' ? styles.progressStepActive : ''} ${isAddressFulfilled ? styles.progressStepClickable : styles.progressStepDisabled}`}
+          onClick={() => { if (isAddressFulfilled && currentStep === 'address') setStep('review'); }}
+        >
           <span className={styles.stepNumber}>3</span>
           <span className={styles.stepLabel}>Place Order</span>
         </div>
       </div>
 
       <div className={styles.checkoutContent}>
-        {/* Left Column - Steps */}
+        {/* Step content first; price summary at the bottom */}
         <div className={styles.stepsColumn}>
           {/* Step 2: Address (with optional Login if not authenticated) */}
           {currentStep === 'address' && (
@@ -541,6 +572,7 @@ export default function CheckoutPage() {
                   label="Phone Number"
                   value={addressForm.phone}
                   onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+                  required
                 />
 
                 <FloatingLabelInput
@@ -587,35 +619,36 @@ export default function CheckoutPage() {
 
                 {/* Save Address Checkbox - Only show for new addresses when user is authenticated */}
                 {isAuthenticated && user && (showCreateNewAddress || savedAddresses.length === 0) && (
-                  <div className={styles.saveAddressCheckbox}>
-                    <input
-                      type="checkbox"
-                      id="saveAddress"
-                      checked={saveAddress}
-                      onChange={(e) => {
-                        const y = window.scrollY;
-                        setSaveAddress(e.target.checked);
-                        requestAnimationFrame(() => {
-                          requestAnimationFrame(() => window.scrollTo(0, y));
-                        });
-                      }}
-                      className={styles.checkbox}
-                    />
-                    <label htmlFor="saveAddress" className={styles.checkboxLabel}>
-                      <span className={`${styles.checkboxIcon} ${saveAddress ? styles.checkboxIconChecked : ''}`}>
-                        {saveAddress && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor" />
-                          </svg>
-                        )}
-                      </span>
-                      Save this address for future orders
-                    </label>
+                  <div
+                    className={styles.saveAddressCheckbox}
+                    role="checkbox"
+                    aria-checked={saveAddress}
+                    tabIndex={0}
+                    onPointerDown={(e) => {
+                      // Prevent focus-on-click (can trigger scroll-into-view jumps on some browsers)
+                      e.preventDefault();
+                    }}
+                    onClick={() => setSaveAddress((prev) => !prev)}
+                    onKeyDown={(e) => {
+                      if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        setSaveAddress((prev) => !prev);
+                      }
+                    }}
+                  >
+                    <span className={`${styles.checkboxIcon} ${saveAddress ? styles.checkboxIconChecked : ''}`}>
+                      {saveAddress && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className={styles.checkboxLabel}>Save this address for future orders</span>
                   </div>
                 )}
 
-                {/* Submit Button - Only show when creating new address or no saved addresses */}
-                {(showCreateNewAddress || savedAddresses.length === 0) && (
+                {/* Submit in step card: only when no saved addresses. When creating new (with saved), use summary's Continue. */}
+                {savedAddresses.length === 0 && (
                   <button
                     type="submit"
                     className={styles.primaryButton}
@@ -626,18 +659,6 @@ export default function CheckoutPage() {
               </form>
               )}
 
-              {/* Sticky Continue Button - Always visible on mobile, only when address is selected on desktop */}
-              {isAuthenticated && user && savedAddresses.length > 0 && selectedAddressId && !showCreateNewAddress && (
-                <div className={styles.stickyButtonContainer}>
-                  <button
-                    type="button"
-                    onClick={() => setStep('review')}
-                    className={styles.stickyContinueButton}
-                  >
-                    Continue to Checkout
-                  </button>
-                </div>
-              )}
               </div>
               )}
             </div>
@@ -690,48 +711,106 @@ export default function CheckoutPage() {
                   className={styles.editButton}
                   onClick={() => setStep('address')}
                 >
-                  Edit Address
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
                 </button>
               </div>
-
-              {/* Place Order Button */}
-              <button
-                onClick={handlePlaceOrder}
-                className={styles.placeOrderButton}
-                disabled={placingOrder}
-              >
-                {placingOrder ? 'Placing Order...' : 'Place Order'}
-              </button>
             </div>
           )}
         </div>
 
-        {/* Right Column - Order Summary */}
+        {/* Price summary at bottom: after address section (step 2) or below step card (step 3) */}
         <div className={styles.summaryColumn}>
+          <div className={styles.summarySticky}>
           <div className={styles.summaryCard}>
-            <h3 className={styles.summaryTitle}>Order Summary</h3>
-            
-            <div className={styles.summaryRow}>
-              <span>Subtotal</span>
-              <span>₹{subtotal.toFixed(2)}</span>
-            </div>
-            
-            {discount > 0 && (
-              <div className={`${styles.summaryRow} ${styles.summaryRowDiscount}`}>
-                <span>Discount ({couponValidation.coupon?.code})</span>
-                <span className={styles.discountAmount}>-₹{discount.toFixed(2)}</span>
+            <h3 className={styles.summaryTitle}>Price Details</h3>
+            <div className={styles.priceDetailsBox}>
+              <div className={styles.priceRow}>
+                <span>{items.length} item{items.length !== 1 ? 's' : ''}</span>
               </div>
-            )}
-            
-            <div className={styles.summaryRow}>
-              <span>Delivery Charges</span>
-              <span className={styles.freeDelivery}>Free</span>
+              {items.map((it) => {
+                const p = products[it.productId];
+                const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
+                const basePrice = p && (p.sellingPrice != null && p.sellingPrice !== undefined) ? p.sellingPrice : (p ? p.pricePerLitre : 0);
+                const mult = v?.priceMultiplier ?? 1;
+                const unitPrice = p ? (v?.price ?? basePrice * mult) : 0;
+                const itemTotal = unitPrice * it.quantity;
+                return (
+                  <div key={`${it.productId}:${it.variationId || ''}`} className={styles.priceRow}>
+                    <span>{it.quantity} × {p?.name || 'Product'}{v ? ` (${v.size})` : ''}</span>
+                    <span>₹{itemTotal.toFixed(2)}</span>
+                  </div>
+                );
+              })}
+              {discount > 0 && (
+                <div className={styles.priceRow}>
+                  <span>Coupon ({couponValidation.coupon?.code})</span>
+                  <span className={styles.discountAmount}>-₹{discount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className={styles.priceRow}>
+                <span>Delivery</span>
+                <span className={styles.freeDelivery}>Free</span>
+              </div>
+              <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
+                <span>Total</span>
+                <span>₹{total.toFixed(2)}</span>
+              </div>
             </div>
-            
-            <div className={`${styles.summaryRow} ${styles.summaryRowTotal}`}>
-              <span>Total</span>
-              <span>₹{total.toFixed(2)}</span>
+            <div className={styles.totalSavingsBox}>
+              <span className={styles.totalSavingsLabel}>Your total savings</span>
+              <span className={styles.savings}>₹{savings.toFixed(2)}</span>
             </div>
+            <div className={styles.paymentMethods}>
+              <div className={styles.paymentMethodItem}>
+                <span className={styles.paymentMethodLabel}>COD</span>
+                <span className={styles.paymentMethodAvailable}>Available</span>
+              </div>
+              <div className={styles.paymentMethodItem}>
+                <span className={styles.paymentMethodLabel}>Online Payment</span>
+                <span className={styles.paymentMethodAvailable}>Available</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Continue to Checkout: when saved-address selected or creating new and form filled. Hidden when no saved addresses (use form submit). */}
+          {currentStep === 'address' && isAddressFulfilled && ((savedAddresses.length > 0 && selectedAddressId && !showCreateNewAddress) || showCreateNewAddress) && (
+            <div className={styles.summaryButtonWrapper}>
+              <div className={styles.totalAmountSection}>
+                <div className={styles.totalAmountLabel}>Total amount</div>
+                <div className={styles.totalAmountValue}>₹{total.toFixed(2)}</div>
+              </div>
+              <button
+                type="button"
+                className={styles.summaryButtonBelow}
+                disabled={savingAddressForCheckout}
+                onClick={async () => {
+                  setSavingAddressForCheckout(true);
+                  const { ok } = await saveNewAddressIfRequested();
+                  setSavingAddressForCheckout(false);
+                  if (!ok) return;
+                  setStep('review');
+                }}
+              >
+                {savingAddressForCheckout ? 'Saving...' : 'Checkout'}
+              </button>
+            </div>
+          )}
+
+          {/* Place Order - below summary, only on review step */}
+          {currentStep === 'review' && (
+            <div className={styles.summaryButtonWrapper}>
+              <div className={styles.totalAmountSection}>
+                <div className={styles.totalAmountLabel}>Total amount</div>
+                <div className={styles.totalAmountValue}>₹{total.toFixed(2)}</div>
+              </div>
+              <button type="button" onClick={handlePlaceOrder} className={styles.summaryButtonBelow} disabled={placingOrder}>
+                {placingOrder ? 'Placing Order...' : 'Place Order'}
+              </button>
+            </div>
+          )}
           </div>
         </div>
       </div>

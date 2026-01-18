@@ -368,7 +368,7 @@
 .rightButtons {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0rem;
 }
 
 /* Icon-only buttons for mobile */

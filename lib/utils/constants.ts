@@ -1,17 +1,21 @@
 // API Base URL - uses environment variable
 // Production: https://milko-backend.onrender.com
-// Development: http://localhost:3001
+// Development: http://localhost:3003
 function getApiBaseUrl(): string {
   // First, check environment variable
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     return process.env.NEXT_PUBLIC_API_BASE_URL;
   }
   
-  // Auto-detect localhost in browser
+  // Auto-detect local dev in browser
+  // - If running on localhost, use localhost backend port
+  // - If running on LAN IP/hostname (e.g. testing on phone), use same host with backend port
   if (typeof window !== 'undefined') {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:3001';
-    }
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3003';
+    // If you're accessing the frontend via LAN (e.g. http://192.168.x.x:3002),
+    // "localhost" would point to the phone itself — so use the same host for backend.
+    if (host) return `http://${host}:3003`;
   }
   
   // Default to production

@@ -47,6 +47,24 @@
   flex: 1;
   max-width: 200px;
   position: relative;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: default;
+}
+
+.progressStepClickable {
+  cursor: pointer;
+}
+
+.progressStepClickable:hover .stepNumber {
+  border-color: #000;
+}
+
+.progressStepDisabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .progressStep::after {
@@ -109,21 +127,18 @@
   font-weight: 600;
 }
 
-/* Checkout Content */
+/* Checkout Content - mobile: single column, summary at bottom; desktop: two columns, summary on right */
 .checkoutContent {
-  display: grid;
-  grid-template-columns: 1fr 400px;
+  display: flex;
+  flex-direction: column;
   gap: 2rem;
   margin-top: 2rem;
 }
 
-@media (max-width: 968px) {
+@media (min-width: 969px) {
   .checkoutContent {
-    grid-template-columns: 1fr;
-  }
-  
-  .summaryColumn {
-    order: -1;
+    display: grid;
+    grid-template-columns: 1fr 400px;
   }
 }
 
@@ -263,7 +278,7 @@
 
 /* Saved Addresses Section */
 .savedAddressesSection {
-  margin-bottom: 2rem;
+  margin-bottom: 0rem;
 }
 
 .savedAddressesTitle {
@@ -285,10 +300,10 @@
   align-items: flex-start;
   gap: 1rem;
   padding: 1rem;
-  border: 2px solid #e5e5e5;
+  border: 1px solid #e5e5e5;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0s;
   background: #fff;
 }
 
@@ -351,12 +366,12 @@
   padding: 0.75rem;
   background: transparent;
   color: #000;
-  border: 2px dashed #ccc;
+  border: 1px solid #8d8d8d;
   border-radius: 8px;
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0s;
   margin-top: 0.5rem;
 }
 
@@ -371,7 +386,9 @@
   align-items: center;
   gap: 0.75rem;
   margin-top: 0.3rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0rem;
+  cursor: pointer;
+  user-select: none;
 }
 
 .checkbox {
@@ -517,15 +534,21 @@
 
 .editButton {
   margin-top: 1rem;
-  padding: 0.75rem 1.5rem;
-  background: transparent;
+  padding: 0.75rem;
+  background: white;
   color: #000;
   border: 1px solid #ddd;
   border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editButton svg {
+  width: 20px;
+  height: 20px;
 }
 
 .editButton:hover {
@@ -572,6 +595,7 @@
   font-weight: 600;
   margin-bottom: 1rem;
   color: #000;
+  letter-spacing: -0.5px;
 }
 
 .orderItem {
@@ -614,10 +638,10 @@
 
 /* Delivery Address */
 .deliveryAddress {
-  margin-bottom: 2rem;
+  margin-bottom: 0rem;
   padding: 1.5rem;
-  background: #f9f9f9;
-  border-radius: 8px;
+  background: #f1f1f1;
+  border-radius: 12px;
 }
 
 .addressDisplay {
@@ -630,34 +654,50 @@
   margin: 0.25rem 0;
 }
 
-/* Summary Column */
+/* Summary: on mobile at bottom; on desktop in right column with sticky */
 .summaryColumn {
-  position: sticky;
-  top: 2rem;
+  width: 100%;
   height: fit-content;
+  order: 1; /* after step content on mobile (flex) */
+}
+
+@media (min-width: 969px) {
+  .summaryColumn {
+    order: unset; /* grid uses DOM order: steps | summary */
+    align-self: start;
+  }
+
+  .summarySticky {
+    position: sticky;
+    top: 2rem;
+  }
+}
+
+.summarySticky {
+  width: 100%;
 }
 
 .summaryCard {
   background: #fff;
   border-radius: 12px;
-  padding: 1.5rem;
+  
   box-shadow: 0 1px 1px 0 rgba(0, 0, 0, .2);
-  border: 1px solid #ddd;
+  
 }
 
 .summaryTitle {
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   color: #000;
-  letter-spacing: -0.8px;
+  letter-spacing: -0.5px;
 }
 
 /* Coupon Section */
 .couponSection {
   margin-bottom: 1.5rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid #eee;
+ 
 }
 
 .couponLabel {
@@ -732,6 +772,28 @@
   background: #fee;
 }
 
+.couponInputValid {
+  border-color: #10b981 !important;
+  border-width: 2px;
+}
+
+.couponInputInvalid {
+  border-color: #dc3545 !important;
+  border-width: 2px;
+}
+
+.couponInputShake {
+  animation: none;
+}
+
+@keyframes couponShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
 .summaryRow {
   display: flex;
   justify-content: space-between;
@@ -759,8 +821,154 @@
 }
 
 .freeDelivery {
-  color: #4caf50;
+  color: #00835d;
   font-weight: 500;
+}
+
+/* Price Details / Order Summary blocks (step 2 & 3) */
+.priceDetailsBox {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px 12px 0 0;
+  padding: 0.5rem 1.25rem;
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.2);
+}
+
+.priceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.priceRowTotal {
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid #e5e5e5;
+  color: #000;
+}
+
+.totalSavingsBox {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #cdffe169;
+  border: 1px solid #bbf7d0;
+  border-radius: 0 0 12px 12px;
+  padding: 1rem 1.25rem;
+  margin-top: 0;
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.2);
+}
+
+.totalSavingsLabel {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #00835d;
+}
+
+.savings {
+  color: #00835d;
+  font-weight: 600;
+}
+
+.paymentMethods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 14px;
+  margin-top: 0.75rem;
+  justify-content: center;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.2);
+}
+
+.paymentMethodItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.paymentMethodLabel {
+  font-weight: 500;
+}
+
+.paymentMethodAvailable {
+  color: #00835d;
+  font-weight: 800;
+  background: #cdffe1;
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+.summaryButtonWrapper {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.totalAmountSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0 9px;
+}
+
+.totalAmountLabel {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.totalAmountValue {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.summaryButtonBelow {
+  flex: 1;
+  padding: 1rem 1.25rem;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.summaryButtonBelow:hover:not(:disabled) {
+  background: #333;
+}
+
+.summaryButtonBelow:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Desktop: Show only button, hide total amount section */
+@media (min-width: 969px) {
+  .summaryButtonWrapper {
+    display: block;
+  }
+
+  .totalAmountSection {
+    display: none;
+  }
+
+  .summaryButtonBelow {
+    width: 100%;
+  }
 }
 
 @media (max-width: 640px) {
@@ -797,7 +1005,7 @@
   /* Make primary button fixed on mobile when in address form */
   .addressForm {
     position: relative;
-    padding-bottom: 80px; /* Add padding to prevent content from being hidden behind fixed button */
+    padding-bottom: 0px; /* Add padding to prevent content from being hidden behind fixed button */
     margin-bottom: 0;
   }
 
@@ -833,7 +1041,27 @@
 
   /* Add padding to address section to prevent content from being hidden behind fixed button */
   .addressSection {
-    padding-bottom: 80px;
+    padding-bottom: 0px;
+  }
+
+  /* Summary button wrapper - fixed at bottom on mobile with padding */
+  .summaryButtonWrapper {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 8px;
+    z-index: 1001;
+    background: #fff;
+    border-top: 1px solid #e5e5e5;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  .summaryButtonBelow {
+    border-radius: 8px;
+    margin: 0;
+    padding: 20px 4px;
   }
 
 }

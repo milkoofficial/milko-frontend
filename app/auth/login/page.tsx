@@ -315,7 +315,10 @@ function LoginForm() {
         width: '100%',
         maxWidth: '440px'
       }}>
-        By continuing, you agree to our Terms of service & Privacy policy
+        By continuing, you agree to our{' '}
+        <Link href="/terms" style={{ color: '#0070f3', textDecoration: 'none', fontWeight: 500 }}>Terms of service</Link>
+        {' & '}
+        <Link href="/privacy" style={{ color: '#0070f3', textDecoration: 'none', fontWeight: 500 }}>Privacy policy</Link>
       </p>
     </div>
   );

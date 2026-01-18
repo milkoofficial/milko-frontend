@@ -5,7 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
-import { productsApi } from '@/lib/api';
+import { productsApi, couponsApi } from '@/lib/api';
+import type { Coupon } from '@/lib/api';
 import { Product } from '@/types';
 import Select from '@/components/ui/Select';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
@@ -17,7 +18,9 @@ export default function CartPage() {
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
-  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [appliedCouponData, setAppliedCouponData] = useState<Coupon | null>(null);
+  const [couponValidationStatus, setCouponValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<{ name: string; price: number } | null>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [subscriptionProducts, setSubscriptionProducts] = useState<Product[]>([]);
@@ -105,38 +108,67 @@ export default function CartPage() {
     }, 0);
   }, [items, products]);
 
-  // Total savings (compare-at / MRP vs our price); show only when > 0
+  // Your total savings = sum of (compareAtPrice - sellingPrice) * mult * qty per item
   const savings = useMemo(() => {
-    const compareTotal = items.reduce((sum, it) => {
+    return items.reduce((sum, it) => {
       const p = products[it.productId];
       if (!p) return sum;
       const v = it.variationId ? (p.variations || []).find((x) => x.id === it.variationId) : null;
       const mult = v?.priceMultiplier ?? 1;
-      const compare = (p.compareAtPrice != null && p.compareAtPrice !== undefined)
-        ? p.compareAtPrice
-        : p.pricePerLitre;
-      return sum + compare * mult * it.quantity;
+      const compare = (p.compareAtPrice != null && p.compareAtPrice !== undefined) ? p.compareAtPrice : p.pricePerLitre;
+      const selling = (p.sellingPrice != null && p.sellingPrice !== undefined) ? p.sellingPrice : p.pricePerLitre;
+      const perUnit = Math.max(0, compare - selling);
+      return sum + perUnit * mult * it.quantity;
     }, 0);
-    return Math.max(0, compareTotal - subtotal);
-  }, [items, products, subtotal]);
+  }, [items, products]);
+
+  // Coupon discount from applied coupon
+  const couponDiscount = useMemo(() => {
+    if (!appliedCouponData) return 0;
+    const c = appliedCouponData;
+    let d = 0;
+    if (c.discountType === 'percentage') {
+      d = (subtotal * c.discountValue) / 100;
+      if (c.maxDiscountAmount != null && d > c.maxDiscountAmount) d = c.maxDiscountAmount;
+    } else {
+      d = c.discountValue;
+    }
+    return Math.min(d, subtotal);
+  }, [appliedCouponData, subtotal]);
 
   const deliveryCharges = items.length > 0 ? 0 : 0; // Free delivery
   const subscriptionCharge = selectedSubscription ? selectedSubscription.price : 0;
   const total = subtotal - couponDiscount + deliveryCharges + subscriptionCharge;
 
-  const handleApplyCoupon = () => {
-    if (couponCode.trim()) {
-      // TODO: Implement coupon validation with API
-      setAppliedCoupon(couponCode.trim().toUpperCase());
-      setCouponDiscount(2.50); // Placeholder discount
+  const handleApplyCoupon = async () => {
+    const code = couponCode.trim().toUpperCase();
+    if (!code) return;
+    setValidatingCoupon(true);
+    setCouponValidationStatus('idle');
+    try {
+      const coupon = await couponsApi.validate(code, subtotal);
+      setAppliedCoupon(code);
+      setAppliedCouponData(coupon);
+      setCouponValidationStatus('valid');
+    } catch {
+      setCouponValidationStatus('invalid');
+      setAppliedCoupon(null);
+      setAppliedCouponData(null);
+    } finally {
+      setValidatingCoupon(false);
     }
   };
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
+    setAppliedCouponData(null);
     setCouponCode('');
-    setCouponDiscount(0);
+    setCouponValidationStatus('idle');
   };
+
+  useEffect(() => {
+    if (!couponCode.trim()) setCouponValidationStatus('idle');
+  }, [couponCode]);
 
   const handleCheckout = () => {
     if (items.length === 0) {
@@ -311,17 +343,18 @@ export default function CartPage() {
                 <input
                   type="text"
                   value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   placeholder="Enter coupon code"
-                  className={styles.couponInput}
+                  className={`${styles.couponInput} ${couponValidationStatus === 'valid' ? styles.couponInputValid : ''} ${couponValidationStatus === 'invalid' ? styles.couponInputInvalid : ''} ${couponValidationStatus === 'invalid' ? styles.couponInputShake : ''}`}
                   onKeyPress={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                  disabled={validatingCoupon}
                 />
                 <button
-                  onClick={handleApplyCoupon}
+                  onClick={() => handleApplyCoupon()}
                   className={styles.applyCouponButton}
-                  disabled={!couponCode.trim()}
+                  disabled={!couponCode.trim() || validatingCoupon}
                 >
-                  Apply
+                  {validatingCoupon ? '...' : 'Apply'}
                 </button>
               </div>
             )}
