@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { subscriptionsApi } from '@/lib/api';
+import { subscriptionsApi, addressesApi } from '@/lib/api';
 import { Subscription, Address } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
@@ -44,13 +44,19 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [subsData] = await Promise.all([
-          subscriptionsApi.getAll(),
-          // TODO: Fetch addresses when API is available
-          // addressesApi.getAll(),
-        ]);
+        const subsPromise = subscriptionsApi.getAll().catch((e) => {
+          console.error('Failed to fetch subscriptions:', e);
+          return [];
+        });
+        const addrsPromise = user
+          ? addressesApi.getAll().catch((e) => {
+              console.error('Failed to fetch addresses:', e);
+              return [];
+            })
+          : Promise.resolve([]);
+        const [subsData, addrsData] = await Promise.all([subsPromise, addrsPromise]);
         setSubscriptions(subsData);
-        setAddresses([]); // TODO: Set addresses when API is available
+        setAddresses(Array.isArray(addrsData) ? addrsData : []);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -59,7 +65,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -126,10 +132,8 @@ export default function DashboardPage() {
 
     setIsSubmitting(true);
     try {
-      // TODO: Replace with actual API call when available
-      // const newAddress = await addressesApi.create(addressForm);
-      // setAddresses([...addresses, newAddress]);
-      alert('Address added successfully! (API integration pending)');
+      const newAddress = await addressesApi.create(addressForm);
+      setAddresses((prev) => [...prev, newAddress]);
       setIsAddingAddress(false);
       setAddressForm({
         name: '',
@@ -173,10 +177,8 @@ export default function DashboardPage() {
 
     setIsSubmitting(true);
     try {
-      // TODO: Replace with actual API call when available
-      // const updatedAddress = await addressesApi.update(editingAddressId, addressForm);
-      // setAddresses(addresses.map(addr => addr.id === editingAddressId ? updatedAddress : addr));
-      alert('Address updated successfully! (API integration pending)');
+      const updatedAddress = await addressesApi.update(editingAddressId, addressForm);
+      setAddresses((prev) => prev.map((addr) => (addr.id === editingAddressId ? updatedAddress : addr)));
       setEditingAddressId(null);
       setAddressForm({
         name: '',
@@ -203,10 +205,8 @@ export default function DashboardPage() {
 
     setIsSubmitting(true);
     try {
-      // TODO: Replace with actual API call when available
-      // await addressesApi.delete(addressId);
-      // setAddresses(addresses.filter(addr => addr.id !== addressId));
-      alert('Address deleted successfully! (API integration pending)');
+      await addressesApi.delete(addressId);
+      setAddresses((prev) => prev.filter((addr) => addr.id !== addressId));
     } catch (error) {
       console.error('Failed to delete address:', error);
       alert('Failed to delete address. Please try again.');
