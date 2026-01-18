@@ -21,6 +21,7 @@ export default function ConditionalFooter() {
   const isAdminRoute = pathname?.startsWith('/admin');
   const isCartPage = pathname === '/cart';
   const isCheckoutAddressStep = pathname === '/checkout' && checkoutStep === 'address' && isMobile;
+  const isCheckoutReviewStep = pathname === '/checkout' && checkoutStep === 'review' && isMobile;
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -34,6 +35,10 @@ export default function ConditionalFooter() {
   }
 
   if (isCheckoutAddressStep) {
+    return null;
+  }
+
+  if (isCheckoutReviewStep) {
     return null;
   }
 

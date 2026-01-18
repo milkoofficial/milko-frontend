@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCheckoutStep } from '@/contexts/CheckoutStepContext';
-import { productsApi, couponsApi, Coupon, addressesApi } from '@/lib/api';
+import { apiClient, productsApi, couponsApi, Coupon, addressesApi } from '@/lib/api';
 import { Product, Address } from '@/types';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 import styles from './checkout.module.css';
@@ -70,6 +70,7 @@ export default function CheckoutPage() {
     coupon: Coupon | null;
   }>({ status: 'idle', message: '', coupon: null });
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod');
 
   // Load products
   useEffect(() => {
@@ -377,16 +378,26 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (paymentMethod === 'online') {
+      alert('Online payment is coming soon. Please use Cash on Delivery for now.');
+      return;
+    }
+
     setPlacingOrder(true);
     try {
-      localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
-      localStorage.setItem('milko_order_items', JSON.stringify(items));
-      
-      // TODO: Integrate with order API when available
-      // For now, redirect to success page
-      // After payment integration, redirect here after successful payment
+      await apiClient.post('/api/orders', {
+        paymentMethod,
+        couponCode: couponValidation.status === 'valid' ? (couponValidation.coupon?.code || couponCode.trim().toUpperCase()) : null,
+        deliveryAddress: addressForm,
+        items: items.map((it) => ({
+          productId: it.productId,
+          variationId: it.variationId || null,
+          quantity: it.quantity,
+        })),
+      });
+
       clearCart();
-      router.push('/order-success');
+      router.push('/orders');
     } catch (error) {
       console.error('Failed to place order:', error);
       alert('Failed to place order. Please try again.');
@@ -508,7 +519,7 @@ export default function CheckoutPage() {
                 <p className={styles.stepDescription}>Please provide your delivery address</p>
                 
                 {/* Saved Addresses Selection (if user has saved addresses) */}
-                {isAuthenticated && user && savedAddresses.length > 0 && !showCreateNewAddress && (
+                {isAuthenticated && user && savedAddresses.length > 0 && (
                   <div className={styles.savedAddressesSection}>
                     <h3 className={styles.savedAddressesTitle}>Select a saved address</h3>
                     <div className={styles.savedAddressesList}>
@@ -542,13 +553,15 @@ export default function CheckoutPage() {
                         </div>
                       ))}
                     </div>
-                    <button
-                      type="button"
-                      className={styles.createNewAddressButton}
-                      onClick={handleCreateNewAddress}
-                    >
-                      Create a new address
-                    </button>
+                    {!showCreateNewAddress && (
+                      <button
+                        type="button"
+                        className={styles.createNewAddressButton}
+                        onClick={handleCreateNewAddress}
+                      >
+                        Create a new address
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -773,6 +786,33 @@ export default function CheckoutPage() {
                 <span className={styles.paymentMethodAvailable}>Available</span>
               </div>
             </div>
+
+            {/* Step 3 only: explicit payment method selection */}
+            {currentStep === 'review' && (
+              <div className={styles.paymentChoice}>
+                <div className={styles.paymentChoiceTitle}>Choose payment method:</div>
+                <label className={styles.paymentChoiceOption}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cod"
+                    checked={paymentMethod === 'cod'}
+                    onChange={() => setPaymentMethod('cod')}
+                  />
+                  <span>Cash on delivery (COD)</span>
+                </label>
+                <label className={styles.paymentChoiceOption}>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="online"
+                    checked={paymentMethod === 'online'}
+                    onChange={() => setPaymentMethod('online')}
+                  />
+                  <span>Online Payment</span>
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Continue to Checkout: when saved-address selected or creating new and form filled. Hidden when no saved addresses (use form submit). */}

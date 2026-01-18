@@ -2,24 +2,35 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api';
 
 /**
  * My Orders Page
  * Lists all orders for the current user
  */
+type MyOrder = {
+  id: string;
+  orderNumber: string;
+  createdAt: string | null;
+  total: number;
+  status: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  itemsCount: number;
+};
+
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<MyOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        // TODO: Replace with actual orders API when available
-        // const data = await ordersApi.getAll();
-        // setOrders(data);
-        setOrders([]);
+        const data = await apiClient.get<MyOrder[]>('/api/orders');
+        setOrders(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Failed to fetch orders:', error);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
@@ -89,18 +100,15 @@ export default function OrdersPage() {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                 <div>
-                  <h3>Order #{order.id}</h3>
-                  <p>Date: {new Date(order.createdAt).toLocaleDateString()}</p>
-                  <p>Total: ₹{order.total}</p>
+                  <h3>Order #{order.orderNumber}</h3>
+                  <p>Date: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '—'}</p>
+                  <p>Total: ₹{Number(order.total || 0).toFixed(2)}</p>
+                  <p>Items: {order.itemsCount}</p>
                   <p>Status: <strong>{order.status}</strong></p>
+                  <p>Payment: <strong>{order.paymentMethod?.toUpperCase()}</strong> ({order.paymentStatus})</p>
                 </div>
                 <div>
-                  <Link 
-                    href={`/orders/${order.id}`}
-                    style={{ color: '#0070f3' }}
-                  >
-                    View Details
-                  </Link>
+                  {/* TODO: Add order details page */}
                 </div>
               </div>
             </div>
