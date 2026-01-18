@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminDomain, getPostLoginRedirect } from '@/lib/utils/domain';
@@ -31,15 +31,10 @@ function GoogleIcon() {
   );
 }
 
-/**
- * Login Page
- * Modern, clean design inspired by iDenfy
- * Domain-aware: Shows different UI for admin.milko.in vs milko.in
- */
 const OAUTH_STATE_MSG =
   'Google sign-in could not be completed. This can happen with strict privacy settings or ad blockers. Try a normal (non-incognito) window, Chrome or Firefox, or use email and password below.';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, loginWithGoogle, isAuthenticated, user } = useAuth();
@@ -50,7 +45,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
   const isAdmin = isAdminDomain();
-  const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
 
   // Show message when redirected after OAuth bad_oauth_state
   useEffect(() => {
@@ -324,6 +318,24 @@ export default function LoginPage() {
         By continuing, you agree to our Terms of service & Privacy policy
       </p>
     </div>
+  );
+}
+
+/**
+ * Login Page – wraps LoginForm in Suspense (useSearchParams requires it for static prerender).
+ */
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className={styles.authContainer} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5', padding: '3rem' }}>
+          <div style={{ marginBottom: '2rem', textAlign: 'center' }}><h1 style={{ fontSize: '2rem', fontWeight: 600, color: '#1a1a1a', margin: 0 }}>Milko</h1></div>
+          <div style={{ background: 'white', padding: '2.5rem', borderRadius: '12px', width: '100%', maxWidth: '440px', textAlign: 'center', color: '#666' }}>Loading…</div>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
 
