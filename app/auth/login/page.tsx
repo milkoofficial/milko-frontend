@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminDomain, getPostLoginRedirect } from '@/lib/utils/domain';
 import Link from 'next/link';
@@ -36,8 +36,12 @@ function GoogleIcon() {
  * Modern, clean design inspired by iDenfy
  * Domain-aware: Shows different UI for admin.milko.in vs milko.in
  */
+const OAUTH_STATE_MSG =
+  'Google sign-in could not be completed. This can happen with strict privacy settings or ad blockers. Try a normal (non-incognito) window, Chrome or Firefox, or use email and password below.';
+
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, loginWithGoogle, isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,6 +51,14 @@ export default function LoginPage() {
   const [touched, setTouched] = useState({ email: false, password: false });
   const isAdmin = isAdminDomain();
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+
+  // Show message when redirected after OAuth bad_oauth_state
+  useEffect(() => {
+    if (searchParams?.get('error') === 'oauth_state') {
+      setError(OAUTH_STATE_MSG);
+      router.replace('/auth/login', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // Redirect if already authenticated
   useEffect(() => {

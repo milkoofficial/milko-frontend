@@ -99,4 +99,26 @@ No new env vars or routes are required for Google.
 
 - **Redirect URI mismatch:** The redirect URI in Google must exactly match the one shown in Supabase (Auth → Providers → Google).
 - **“Access blocked: This app’s request is invalid”:** Check Authorized JavaScript origins and redirect URIs in Google. For local dev, include `http://localhost:3000`.
-- **Session / 401 after Google login:** Ensure `/auth/callback` is in Supabase **Redirect URLs** and that `NEXT_PUBLIC_*`** are set and the frontend was rebuilt/restarted after changing `.env.local`.
+- **Session / 401 after Google login:** Ensure `/auth/callback` is in Supabase **Redirect URLs** and that `NEXT_PUBLIC_*` are set and the frontend was rebuilt/restarted after changing `.env.local`.
+
+### `bad_oauth_state` / "OAuth callback with invalid state"
+
+If the URL becomes `/?error=invalid_request&error_code=bad_oauth_state&...` after clicking Continue on Google:
+
+1. **Supabase Redirect URLs** (Authentication → URL Configuration)  
+   The `redirectTo` we send is `https://<your-domain>/auth/callback`. It must match **exactly**:
+   - `https://milko.in/auth/callback`
+   - If you use `www`, also add: `https://www.milko.in/auth/callback`  
+   No trailing slash. Same scheme (https) and host as your live site.
+
+2. **Site URL**  
+   Set **Site URL** to your main app URL, e.g. `https://milko.in` (or `https://www.milko.in` if that is canonical). This is where Supabase sends the user when something goes wrong.
+
+3. **Cookies / privacy**  
+   Supabase uses a cookie for the OAuth state. If it’s blocked, you get `bad_oauth_state`:
+   - Try in **Chrome or Firefox** with default (non‑strict) settings.
+   - Avoid **Safari** or “Block third‑party cookies” / strict tracking protection for a test.
+   - Use a **normal** (non‑incognito) window.
+
+4. **www vs non‑www**  
+   If users can open both `https://milko.in` and `https://www.milko.in`, add **both** `/auth/callback` URLs to **Redirect URLs**. The one we send comes from `window.location.origin`, so it must be in the list.

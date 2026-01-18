@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { CheckoutStepProvider } from '@/contexts/CheckoutStepContext';
+import OAuthErrorHandler from '@/components/OAuthErrorHandler';
 import Header from '@/components/Header';
 import AdminHeader from '@/components/AdminHeader';
 import ConditionalHeader from '@/components/ConditionalHeader';
@@ -36,6 +38,9 @@ export default function RootLayout({
           <CartProvider>
             <ToastProvider>
               <CheckoutStepProvider>
+                <Suspense fallback={null}>
+                  <OAuthErrorHandler />
+                </Suspense>
                 <ConditionalHeader />
                 {children}
                 <ConditionalFooter />

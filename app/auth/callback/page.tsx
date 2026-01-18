@@ -7,6 +7,9 @@ import { tokenStorage } from '@/lib/utils/storage';
 
 const RETURN_TO_KEY = 'milko_return_after_auth';
 
+const OAUTH_STATE_MSG =
+  'Google sign-in could not be completed. This can happen with strict privacy settings or ad blockers. Try a normal (non-incognito) window, Chrome or Firefox, or use email and password.';
+
 /**
  * OAuth callback (e.g. Google). Supabase redirects here after sign-in.
  * We read the session, store the access_token, and redirect. AuthContext
@@ -21,6 +24,12 @@ export default function AuthCallbackPage() {
 
     const run = async () => {
       try {
+        const q = typeof window !== 'undefined' ? window.location.search : '';
+        if (q && q.indexOf('bad_oauth_state') !== -1) {
+          if (mounted) setError(OAUTH_STATE_MSG);
+          return;
+        }
+
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (!mounted) return;
