@@ -333,16 +333,10 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     }
   };
 
-  // Get variations from product details (or demo variations for testing UI)
-  const demoVariations: ProductVariation[] = [
-    { id: 'demo-0.5L', productId: displayProduct.id, size: '0.5L', priceMultiplier: 0.5, isAvailable: true, displayOrder: 1, createdAt: '', updatedAt: '' },
-    { id: 'demo-1L', productId: displayProduct.id, size: '1L', priceMultiplier: 1, isAvailable: true, displayOrder: 2, createdAt: '', updatedAt: '' },
-    { id: 'demo-2L', productId: displayProduct.id, size: '2L', priceMultiplier: 2, isAvailable: true, displayOrder: 3, createdAt: '', updatedAt: '' },
-    { id: 'demo-5L', productId: displayProduct.id, size: '5L', priceMultiplier: 4.8, isAvailable: false, displayOrder: 4, createdAt: '', updatedAt: '' },
-  ];
+  // Get variations from product details (only show if they exist)
   const variations = (displayProduct.variations && displayProduct.variations.length > 0) 
     ? displayProduct.variations 
-    : demoVariations;
+    : [];
   const availableVariations = variations.filter((v) => v.isAvailable);
 
   useEffect(() => {
@@ -352,8 +346,12 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
       return;
     }
     // If nothing selected (or selection no longer valid), default to first available.
-    if (!selectedVariationId || !availableVariations.some((v) => v.id === selectedVariationId)) {
-      setSelectedVariationId(availableVariations[0].id);
+    if (availableVariations.length > 0) {
+      if (!selectedVariationId || !availableVariations.some((v) => v.id === selectedVariationId)) {
+        setSelectedVariationId(availableVariations[0].id);
+      }
+    } else {
+      setSelectedVariationId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, displayProduct.id, availableVariations.map((v) => v.id).join(',')]);

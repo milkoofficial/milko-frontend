@@ -9,6 +9,17 @@
   transition: height 0.3s ease;
 }
 
+/* Hide banner on mobile devices when on cart page */
+.hideOnMobile {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .hideOnMobile {
+    display: none !important;
+  }
+}
+
 .bannerWrapper {
   position: relative;
   width: 100%;

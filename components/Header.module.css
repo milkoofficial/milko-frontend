@@ -644,7 +644,7 @@
   color: #333;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background-color 0.06s;
+  transition: background-color 0.0s;
   text-decoration: none;
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }

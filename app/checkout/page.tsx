@@ -4,8 +4,9 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { productsApi, couponsApi, Coupon } from '@/lib/api';
-import { Product } from '@/types';
+import { useCheckoutStep } from '@/contexts/CheckoutStepContext';
+import { productsApi, couponsApi, Coupon, addressesApi } from '@/lib/api';
+import { Product, Address } from '@/types';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 import styles from './checkout.module.css';
 
@@ -15,6 +16,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, clearCart } = useCart();
   const { user, isAuthenticated, login, loading: authLoading } = useAuth();
+  const { setCheckoutStep } = useCheckoutStep();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('address');
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,13 @@ export default function CheckoutPage() {
     phone: '',
   });
   const [addressError, setAddressError] = useState('');
+  
+  // Saved addresses state
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [showCreateNewAddress, setShowCreateNewAddress] = useState(false);
+  const [saveAddress, setSaveAddress] = useState(false);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
 
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -100,6 +109,13 @@ export default function CheckoutPage() {
     setStepInitialized(true);
   }, [stepInitialized]);
 
+  // Sync step to CheckoutStepContext for ConditionalFooter (hide footer on address step, mobile only)
+  useEffect(() => {
+    const step = currentStep === 'login' ? 'address' : currentStep;
+    setCheckoutStep(step);
+    return () => setCheckoutStep(null);
+  }, [currentStep, setCheckoutStep]);
+
   // Helper function to set step with manual flag
   const setStep = (step: CheckoutStep) => {
     manualStepChange.current = true;
@@ -130,8 +146,78 @@ export default function CheckoutPage() {
     }
   };
 
+  // Fetch saved addresses when user is authenticated
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      if (!isAuthenticated || !user) {
+        setSavedAddresses([]);
+        return;
+      }
+
+      try {
+        setLoadingAddresses(true);
+        const addresses = await addressesApi.getAll();
+        setSavedAddresses(addresses);
+        
+        // If user has addresses and no address is selected, select the default one
+        if (addresses.length > 0 && !selectedAddressId) {
+          const defaultAddress = addresses.find(addr => addr.isDefault) || addresses[0];
+          if (defaultAddress) {
+            setSelectedAddressId(defaultAddress.id);
+            fillAddressForm(defaultAddress);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch addresses:', error);
+      } finally {
+        setLoadingAddresses(false);
+      }
+    };
+
+    fetchAddresses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
+
+  // Fill address form with selected address
+  const fillAddressForm = (address: Address) => {
+    setAddressForm({
+      name: address.name,
+      street: address.street,
+      city: address.city,
+      state: address.state,
+      postalCode: address.postalCode,
+      country: address.country || 'India',
+      phone: address.phone || '',
+    });
+  };
+
+  // Handle address selection
+  const handleAddressSelect = (addressId: string) => {
+    setSelectedAddressId(addressId);
+    setShowCreateNewAddress(false);
+    const address = savedAddresses.find(addr => addr.id === addressId);
+    if (address) {
+      fillAddressForm(address);
+    }
+  };
+
+  // Handle create new address option
+  const handleCreateNewAddress = () => {
+    setShowCreateNewAddress(true);
+    setSelectedAddressId(null);
+    setAddressForm({
+      name: '',
+      street: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'India',
+      phone: '',
+    });
+  };
+
   // Handle address form submission
-  const handleAddressSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddressSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setAddressError('');
@@ -146,6 +232,28 @@ export default function CheckoutPage() {
     if (!isAuthenticated || !user) {
       setAddressError('Please login to proceed with your order');
       return;
+    }
+
+    // Save address if checkbox is checked and it's a new address
+    if (saveAddress && !selectedAddressId) {
+      try {
+        await addressesApi.create({
+          name: addressForm.name,
+          street: addressForm.street,
+          city: addressForm.city,
+          state: addressForm.state,
+          postalCode: addressForm.postalCode,
+          country: addressForm.country,
+          phone: addressForm.phone,
+          isDefault: savedAddresses.length === 0, // Set as default if it's the first address
+        });
+        // Refresh addresses list
+        const addresses = await addressesApi.getAll();
+        setSavedAddresses(addresses);
+      } catch (error: any) {
+        setAddressError(error.message || 'Failed to save address');
+        return;
+      }
     }
 
     // Move to review step
@@ -335,19 +443,63 @@ export default function CheckoutPage() {
                   <div className={styles.authLinks}>
                     <p>Don&apos;t have an account? <a href="/auth/signup">Sign up</a></p>
                   </div>
-
-                  <div className={styles.divider}>
-                    <span>OR</span>
-                  </div>
                 </div>
               ) : null}
 
-              {/* Address Form - Always visible */}
+              {/* Address Section - only when logged in */}
+              {(isAuthenticated && user) && (
               <div className={styles.addressSection}>
                 <h2 className={styles.stepTitle}>Delivery Address</h2>
                 <p className={styles.stepDescription}>Please provide your delivery address</p>
                 
-                <form onSubmit={handleAddressSubmit} className={styles.addressForm} noValidate>
+                {/* Saved Addresses Selection (if user has saved addresses) */}
+                {isAuthenticated && user && savedAddresses.length > 0 && !showCreateNewAddress && (
+                  <div className={styles.savedAddressesSection}>
+                    <h3 className={styles.savedAddressesTitle}>Select a saved address</h3>
+                    <div className={styles.savedAddressesList}>
+                      {savedAddresses.map((address) => (
+                        <div
+                          key={address.id}
+                          className={`${styles.savedAddressCard} ${selectedAddressId === address.id ? styles.savedAddressCardSelected : ''}`}
+                          onClick={() => handleAddressSelect(address.id)}
+                        >
+                          <input
+                            type="radio"
+                            name="selectedAddress"
+                            checked={selectedAddressId === address.id}
+                            onChange={() => handleAddressSelect(address.id)}
+                            className={styles.addressRadio}
+                          />
+                          <div className={styles.savedAddressContent}>
+                            <div className={styles.savedAddressHeader}>
+                              <span className={styles.savedAddressName}>{address.name}</span>
+                              {address.isDefault && (
+                                <span className={styles.defaultBadge}>Default</span>
+                              )}
+                            </div>
+                            <div className={styles.savedAddressDetails}>
+                              <p>{address.street}</p>
+                              <p>{address.city}, {address.state} {address.postalCode}</p>
+                              <p>{address.country}</p>
+                              {address.phone && <p>Phone: {address.phone}</p>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.createNewAddressButton}
+                      onClick={handleCreateNewAddress}
+                    >
+                      Create a new address
+                    </button>
+                  </div>
+                )}
+
+                {/* Address Form - Show when creating new address or no saved addresses */}
+                {(showCreateNewAddress || savedAddresses.length === 0) && (
+                  <form onSubmit={handleAddressSubmit} className={styles.addressForm} noValidate>
                 {addressError && (
                   <div className={styles.errorMessage}>{addressError}</div>
                 )}
@@ -409,14 +561,48 @@ export default function CheckoutPage() {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className={styles.primaryButton}
-                >
-                  Continue to Review
-                </button>
+                {/* Save Address Checkbox - Only show for new addresses when user is authenticated */}
+                {isAuthenticated && user && (showCreateNewAddress || savedAddresses.length === 0) && (
+                  <div className={styles.saveAddressCheckbox}>
+                    <input
+                      type="checkbox"
+                      id="saveAddress"
+                      checked={saveAddress}
+                      onChange={(e) => setSaveAddress(e.target.checked)}
+                      className={styles.checkbox}
+                    />
+                    <label htmlFor="saveAddress" className={styles.checkboxLabel}>
+                      Save this address for future orders
+                    </label>
+                  </div>
+                )}
+
+                {/* Submit Button - Only show when creating new address or no saved addresses */}
+                {(showCreateNewAddress || savedAddresses.length === 0) && (
+                  <button
+                    type="submit"
+                    className={styles.primaryButton}
+                  >
+                    {saveAddress ? 'Save Address & Continue' : 'Continue to Checkout'}
+                  </button>
+                )}
               </form>
+              )}
+
+              {/* Sticky Continue Button - Always visible on mobile, only when address is selected on desktop */}
+              {isAuthenticated && user && savedAddresses.length > 0 && selectedAddressId && !showCreateNewAddress && (
+                <div className={styles.stickyButtonContainer}>
+                  <button
+                    type="button"
+                    onClick={() => setStep('review')}
+                    className={styles.stickyContinueButton}
+                  >
+                    Continue to Checkout
+                  </button>
+                </div>
+              )}
               </div>
+              )}
             </div>
           )}
 
@@ -487,45 +673,6 @@ export default function CheckoutPage() {
         <div className={styles.summaryColumn}>
           <div className={styles.summaryCard}>
             <h3 className={styles.summaryTitle}>Order Summary</h3>
-            
-            {/* Coupon Code Section */}
-            <div className={styles.couponSection}>
-              <label className={styles.couponLabel}>Coupon Code</label>
-              <div className={styles.couponInputWrapper}>
-                <input
-                  type="text"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  onBlur={handleValidateCoupon}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleValidateCoupon();
-                    }
-                  }}
-                  placeholder="Enter coupon code"
-                  className={styles.couponInput}
-                  disabled={validatingCoupon}
-                />
-                <button
-                  type="button"
-                  onClick={handleValidateCoupon}
-                  className={styles.couponButton}
-                  disabled={validatingCoupon || !couponCode.trim()}
-                >
-                  {validatingCoupon ? '...' : 'Apply'}
-                </button>
-              </div>
-              {couponValidation.message && (
-                <div className={`${styles.couponMessage} ${
-                  couponValidation.status === 'valid' 
-                    ? styles.couponMessageValid 
-                    : styles.couponMessageInvalid
-                }`}>
-                  {couponValidation.message}
-                </div>
-              )}
-            </div>
             
             <div className={styles.summaryRow}>
               <span>Subtotal</span>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { bannersApi, Banner as BannerType } from '@/lib/api';
 import styles from './Banner.module.css';
 
@@ -15,6 +16,7 @@ interface BannerProps {
  * Supports separate mobile/desktop images and adaptive height
  */
 export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
+  const pathname = usePathname();
   const [banners, setBanners] = useState<BannerType[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -37,15 +39,18 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
     fetchBanners();
   }, []);
 
-  // Detect mobile device
+  // Detect mobile device - check immediately and on resize
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
     
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    // Check immediately
+    if (typeof window !== 'undefined') {
+      checkMobile();
+      window.addEventListener('resize', checkMobile);
+      return () => window.removeEventListener('resize', checkMobile);
+    }
   }, []);
 
   // Adapt to first image height if enabled
@@ -95,6 +100,9 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
     setCurrentSlide((prev) => (prev + 1) % banners.length);
   };
 
+  // Hide banner on mobile for cart page
+  const shouldHideOnMobile = pathname === '/cart' && isMobile;
+
   // Don't render if loading or no banners
   if (loading) {
     return null;
@@ -114,7 +122,7 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
 
   return (
     <div 
-      className={styles.bannerContainer}
+      className={`${styles.bannerContainer} ${pathname === '/cart' ? styles.hideOnMobile : ''}`}
       style={containerHeight ? { height: `${containerHeight}px` } : undefined}
     >
       <div className={styles.bannerWrapper}>

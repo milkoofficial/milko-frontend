@@ -13,5 +13,7 @@ export { getAllCategories, createCategory, updateCategory, deleteCategory } from
 export type { Category, CreateCategoryInput, UpdateCategoryInput } from './categories';
 export { couponsApi, adminCouponsApi } from './coupons';
 export type { Coupon, CreateCouponInput, UpdateCouponInput } from './coupons';
+export { addressesApi } from './addresses';
+export type { CreateAddressInput, UpdateAddressInput } from './addresses';
 export { apiClient } from './client';
 

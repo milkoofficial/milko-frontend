@@ -8,13 +8,13 @@ import { useCart } from '@/contexts/CartContext';
 import { productsApi } from '@/lib/api';
 import { Product } from '@/types';
 import Select from '@/components/ui/Select';
+import ProductDetailsModal from '@/components/ProductDetailsModal';
 import styles from './cart.module.css';
 
 export default function CartPage() {
   const router = useRouter();
   const { items, setItemQuantity, removeItem } = useCart();
   const [products, setProducts] = useState<Record<string, Product>>({});
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
@@ -24,6 +24,8 @@ export default function CartPage() {
   const [subscriptionSelectedProduct, setSubscriptionSelectedProduct] = useState<string>('');
   const [subscriptionLitersPerDay, setSubscriptionLitersPerDay] = useState<string>('1');
   const [subscriptionDurationDays, setSubscriptionDurationDays] = useState<string>('30');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   
   // Subscription price is 0 as it's included in the subscription service itself
 
@@ -45,9 +47,6 @@ export default function CartPage() {
         if (p) map[id] = p;
       }
       setProducts(map);
-      
-      // Items are not selected by default (selection is for deletion)
-      setSelectedItems(new Set());
     };
     if (items.length) load();
   }, [items]);
@@ -85,25 +84,6 @@ export default function CartPage() {
     return `${productId}:${variationId || ''}`;
   };
 
-  const toggleItemSelection = (productId: string, variationId?: string) => {
-    const key = getItemKey(productId, variationId);
-    const newSelected = new Set(selectedItems);
-    if (newSelected.has(key)) {
-      newSelected.delete(key);
-    } else {
-      newSelected.add(key);
-    }
-    setSelectedItems(newSelected);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedItems.size === items.length) {
-      setSelectedItems(new Set());
-    } else {
-      const allKeys = items.map(it => getItemKey(it.productId, it.variationId));
-      setSelectedItems(new Set(allKeys));
-    }
-  };
 
   const handleQuantityChange = (productId: string, variationId: string | undefined, delta: number) => {
     const item = items.find(it => it.productId === productId && it.variationId === variationId);
@@ -113,10 +93,6 @@ export default function CartPage() {
     }
   };
 
-  // Items to keep (not selected = not marked for deletion) - only used for remove functionality
-  const itemsToKeep = useMemo(() => {
-    return items.filter(it => !selectedItems.has(getItemKey(it.productId, it.variationId)));
-  }, [items, selectedItems]);
 
   // Calculate subtotal based on ALL items in cart (not filtered by selection)
   const subtotal = useMemo(() => {
@@ -207,26 +183,9 @@ export default function CartPage() {
       <div className={styles.cartLayout}>
         {/* Left Column - Cart Items */}
         <div className={styles.cartItemsColumn}>
-          {/* Selection Summary */}
+          {/* Item Count */}
           <div className={styles.selectionSummary}>
-            {selectedItems.size > 0 && (
-              <div className={styles.actionLinks}>
-                <button 
-                  className={styles.actionLink}
-                  onClick={() => {
-                    items.filter(it => selectedItems.has(getItemKey(it.productId, it.variationId))).forEach(it => {
-                      removeItem(it.productId, it.variationId);
-                    });
-                    setSelectedItems(new Set());
-                  }}
-                >
-                  Remove {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''}
-                </button>
-              </div>
-            )}
-            {selectedItems.size === 0 && items.length > 0 && (
-              <span className={styles.itemCount}>{items.length} item{items.length !== 1 ? 's' : ''} in cart</span>
-            )}
+            <span className={styles.itemCount}>{items.length} item{items.length !== 1 ? 's' : ''} in cart</span>
           </div>
 
           {/* Items List */}
@@ -235,26 +194,31 @@ export default function CartPage() {
               const p = products[it.productId];
               const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
               const itemKey = getItemKey(it.productId, it.variationId);
-              const isSelected = selectedItems.has(itemKey);
               const mult = v?.priceMultiplier ?? 1;
               const price = p ? p.pricePerLitre * mult : 0;
               const itemTotal = price * it.quantity;
               const productImage = p?.images?.[0]?.imageUrl || p?.imageUrl || '/placeholder-product.png';
 
+              const handleProductClick = async () => {
+                if (p) {
+                  try {
+                    // Fetch full product details
+                    const fullProduct = await productsApi.getById(p.id, true);
+                    setSelectedProduct(fullProduct);
+                    setIsProductModalOpen(true);
+                  } catch (error) {
+                    console.error('Failed to fetch product details:', error);
+                  }
+                }
+              };
+
               return (
-                <div key={itemKey} className={`${styles.cartItem} ${isSelected ? styles.cartItemSelected : ''}`}>
+                <div key={itemKey} className={styles.cartItem}>
                   <div 
-                    className={`${styles.itemCheckbox} ${isSelected ? styles.itemCheckboxChecked : ''}`}
-                    onClick={() => toggleItemSelection(it.productId, it.variationId)}
+                    className={styles.itemImage}
+                    onClick={handleProductClick}
+                    style={{ cursor: 'pointer' }}
                   >
-                    {isSelected && (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </div>
-                  
-                  <div className={styles.itemImage}>
                     {p && productImage && productImage !== '/placeholder-product.png' ? (
                       <Image
                         src={productImage}
@@ -272,7 +236,11 @@ export default function CartPage() {
                     )}
                   </div>
 
-                  <div className={styles.itemDetails}>
+                  <div 
+                    className={styles.itemDetails}
+                    onClick={handleProductClick}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <h3 className={styles.itemTitle}>{p ? p.name : 'Loading...'}</h3>
                     <div className={styles.itemInfo}>
                       {v && <span>{v.size}</span>}
@@ -588,6 +556,18 @@ export default function CartPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Product Details Modal */}
+      {selectedProduct && (
+        <ProductDetailsModal
+          product={selectedProduct}
+          isOpen={isProductModalOpen}
+          onClose={() => {
+            setIsProductModalOpen(false);
+            setSelectedProduct(null);
+          }}
+        />
       )}
     </div>
   );

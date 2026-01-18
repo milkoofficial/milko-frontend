@@ -57,6 +57,14 @@ export const API_ENDPOINTS = {
   COUPONS: {
     VALIDATE: '/api/coupons/validate',
   },
+  // Addresses
+  ADDRESSES: {
+    LIST: '/api/addresses',
+    CREATE: '/api/addresses',
+    DETAIL: (id: string) => `/api/addresses/${id}`,
+    UPDATE: (id: string) => `/api/addresses/${id}`,
+    DELETE: (id: string) => `/api/addresses/${id}`,
+  },
   // Admin
   ADMIN: {
     PRODUCTS: {

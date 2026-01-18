@@ -1,0 +1,10 @@
+/* Hide footer on mobile devices when on cart page */
+.hideOnMobile {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .hideOnMobile {
+    display: none !important;
+  }
+}

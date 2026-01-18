@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { AuthResponse, User } from '@/types';
 import { userStorage, tokenStorage } from '@/lib/utils/storage';
 import { authApi } from '@/lib/api';
+import { supabase } from '@/lib/supabase/client';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +13,7 @@ interface AuthContextType {
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
   signup: (name: string, email: string, password: string) => Promise<AuthResponse>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -98,6 +100,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return response; // Return response for redirect logic
   };
 
+  const loginWithGoogle = async () => {
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname;
+    if (path && path !== '/auth/login' && path !== '/auth/signup') {
+      localStorage.setItem('milko_return_after_auth', path);
+    }
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+  };
+
   const logout = async () => {
     await authApi.logout();
     setUser(null);
@@ -121,6 +133,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin: user?.role?.toLowerCase() === 'admin', // Case-insensitive comparison
     login,
     signup,
+    loginWithGoogle,
     logout,
     refreshUser,
   };
