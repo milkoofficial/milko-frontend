@@ -81,11 +81,11 @@
 }
 
 .stepNumber {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 2px solid #e0e0e0;
-  background: #fff;
+  background: #e0e0e0;
   color: #666;
   display: flex;
   align-items: center;
