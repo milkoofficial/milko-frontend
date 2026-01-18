@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { tokenStorage } from '@/lib/utils/storage';
 
@@ -16,7 +15,6 @@ const OAUTH_STATE_MSG =
  * will then load the user via /api/auth/me.
  */
 export default function AuthCallbackPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,7 +28,19 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        // If no session, try code exchange (Supabase may use ?code= instead of #access_token)
+        if (!session?.access_token && typeof window !== 'undefined') {
+          const code = new URLSearchParams(window.location.search).get('code');
+          if (code) {
+            const { data, error: exError } = await supabase.auth.exchangeCodeForSession(code);
+            if (!exError && data?.session) {
+              session = data.session;
+              sessionError = null;
+            }
+          }
+        }
 
         if (!mounted) return;
 
@@ -54,7 +64,8 @@ export default function AuthCallbackPage() {
         }
 
         const path = (returnTo && returnTo.startsWith('/')) ? returnTo : '/';
-        router.replace(path);
+        // Full-page redirect so AuthContext re-inits and loads user via /api/auth/me
+        window.location.href = path;
       } catch {
         if (mounted) setError('Something went wrong. Please try again.');
       }
@@ -62,7 +73,7 @@ export default function AuthCallbackPage() {
 
     run();
     return () => { mounted = false; };
-  }, [router]);
+  }, []);
 
   if (error) {
     return (

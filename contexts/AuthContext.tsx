@@ -36,35 +36,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize auth state from storage
+  // Initialize auth state from storage (and from token-only, e.g. after Google OAuth)
   useEffect(() => {
     const initAuth = async () => {
       const storedUser = userStorage.get();
       const token = tokenStorage.get();
 
-      if (storedUser && token) {
-        // SECURITY: Always verify token with server to get fresh role data
-        // Don't trust stored user role - it might be stale or tampered with
+      if (token) {
+        // Verify token with server and load user (works for email/password and Google OAuth).
+        // For Google, we only have token in storage; storedUser is empty until we fetch.
         try {
           const currentUser = await authApi.getCurrentUser();
-          // Use fresh user data from server (ensures correct role)
           setUser(currentUser);
-          userStorage.set(currentUser); // Update storage with fresh data
+          userStorage.set(currentUser);
           console.log('[AUTH] User verified, role:', currentUser.role);
         } catch (error: any) {
-          // If token verification fails (401), clear auth data
           if (error?.response?.status === 401 || error?.status === 401) {
             console.warn('[AUTH] Token invalid, clearing auth data');
             setUser(null);
             userStorage.remove();
             tokenStorage.remove();
-          } else {
-            // For other errors, use stored user but log warning
+          } else if (storedUser) {
             console.warn('[AUTH] Failed to verify token, using stored user:', error);
             setUser(storedUser);
-            // Still try to refresh in background
           }
         }
+      } else if (storedUser) {
+        userStorage.remove();
+        setUser(null);
       }
 
       setLoading(false);
