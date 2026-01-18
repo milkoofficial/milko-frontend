@@ -250,7 +250,7 @@ function LoginForm() {
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', margin: '1.25rem 0', gap: '1rem' }}>
             <div style={{ flex: 1, height: 1, background: '#e5e5e5' }} />
-            <span style={{ fontSize: '0.8rem', color: '#999' }}>or</span>
+            <span style={{ fontSize: '1rem', color: '#999' }}>or</span>
             <div style={{ flex: 1, height: 1, background: '#e5e5e5' }} />
           </div>
 

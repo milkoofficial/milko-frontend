@@ -9,7 +9,24 @@
   text-align: center;
   padding: 4rem;
   font-size: 1.1rem;
-  color: #666;
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    #999 0%,
+    #bbb 20%,
+    #e8e8e8 50%,
+    #bbb 80%,
+    #999 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: checkoutLoadingShimmer 2.5s ease-in-out infinite;
+}
+
+@keyframes checkoutLoadingShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Progress Bar */
@@ -126,22 +143,24 @@
 
 .stepTitle {
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 800;
   margin-bottom: 0.5rem;
   color: #000;
+  letter-spacing: -1.2px;
 }
 
 .stepDescription {
   color: #666;
   margin-bottom: 2rem;
   font-size: 0.95rem;
+  letter-spacing: -0.4px;
 }
 
 /* Login Form */
 .loginForm {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0rem;
 }
 
 .passwordInputWrapper {
@@ -152,7 +171,7 @@
   position: absolute;
   right: 12px;
   top: 50%;
-  transform: translateY(-84%);
+  transform: translateY(-81%);
   background: none;
   border: none;
   color: #666;
@@ -166,11 +185,54 @@
   color: #000;
 }
 
+.orDivider {
+  display: flex;
+  align-items: center;
+  margin: 1.25rem 0;
+  gap: 1rem;
+}
+
+.orDivider::before,
+.orDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e5e5e5;
+}
+
+.orDivider span {
+  font-size: 1rem;
+  color: #999;
+}
+
+.googleButton {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: inherit;
+  box-shadow: 0 1px 1px 0 rgba(0, 0, 0, .2);
+}
+
+.googleButton:hover {
+  border-color: #999;
+  background: #f9f9f9;
+}
+
 /* Login Section (shown in Step 2 when not authenticated) */
 .loginSection {
-  margin-bottom: 2rem;
-  padding-bottom: 2rem;
-  border-bottom: 1px solid #eee;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0rem;
+  border-bottom: 0px solid #eee;
 }
 
 .divider {
@@ -308,18 +370,47 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
+  margin-top: 0.3rem;
+  margin-bottom: 1rem;
 }
 
 .checkbox {
-  width: 18px;
-  height: 18px;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  opacity: 0;
   cursor: pointer;
-  accent-color: #000;
+  z-index: 1;
+}
+
+.checkboxIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+  color: transparent;
+}
+
+.checkboxIconChecked {
+  background: #000;
+  border-color: #000;
+  color: #fff;
 }
 
 .checkboxLabel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   font-size: 0.95rem;
   color: #333;
   cursor: pointer;
@@ -559,6 +650,7 @@
   font-weight: 600;
   margin-bottom: 1.5rem;
   color: #000;
+  letter-spacing: -0.8px;
 }
 
 /* Coupon Section */

@@ -105,6 +105,21 @@ export default function CartPage() {
     }, 0);
   }, [items, products]);
 
+  // Total savings (compare-at / MRP vs our price); show only when > 0
+  const savings = useMemo(() => {
+    const compareTotal = items.reduce((sum, it) => {
+      const p = products[it.productId];
+      if (!p) return sum;
+      const v = it.variationId ? (p.variations || []).find((x) => x.id === it.variationId) : null;
+      const mult = v?.priceMultiplier ?? 1;
+      const compare = (p.compareAtPrice != null && p.compareAtPrice !== undefined)
+        ? p.compareAtPrice
+        : p.pricePerLitre;
+      return sum + compare * mult * it.quantity;
+    }, 0);
+    return Math.max(0, compareTotal - subtotal);
+  }, [items, products, subtotal]);
+
   const deliveryCharges = items.length > 0 ? 0 : 0; // Free delivery
   const subscriptionCharge = selectedSubscription ? selectedSubscription.price : 0;
   const total = subtotal - couponDiscount + deliveryCharges + subscriptionCharge;
@@ -379,6 +394,20 @@ export default function CartPage() {
               <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
                 <span>Total Amount</span>
                 <span>₹{total.toFixed(2)}</span>
+              </div>
+            </div>
+            <div className={styles.totalSavingsBox}>
+              <span className={styles.totalSavingsLabel}>Your total savings</span>
+              <span className={styles.savings}>₹{savings.toFixed(2)}</span>
+            </div>
+            <div className={styles.paymentMethods}>
+              <div className={styles.paymentMethodItem}>
+                <span className={styles.paymentMethodLabel}>COD</span>
+                <span className={styles.paymentMethodAvailable}>Available</span>
+              </div>
+              <div className={styles.paymentMethodItem}>
+                <span className={styles.paymentMethodLabel}>Card, Netbanking, UPI</span>
+                <span className={styles.paymentMethodAvailable}>Available</span>
               </div>
             </div>
           </div>

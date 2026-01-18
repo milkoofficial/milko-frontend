@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "node -e \"var f=require('fs');['.next','node_modules/.cache'].forEach(function(p){try{f.rmSync(p,{recursive:true,force:true})}catch(e){}})\" && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
