@@ -77,6 +77,15 @@ export default function OrdersPage() {
   }
 
   // Demo "Delivered Product" shown in the same list as real items (on its way or delivered)
+  const demoItem: OrderItem = {
+    productName: 'Delivered Product',
+    variationSize: null,
+    quantity: 1,
+    unitPrice: 0,
+    lineTotal: 0,
+    productId: null,
+    imageUrl: null,
+  };
   const demoOrder: MyOrder = {
     id: 'demo',
     orderNumber: 'DEMO-001',
@@ -87,15 +96,7 @@ export default function OrdersPage() {
     itemsCount: 1,
     total: 0,
     deliveryDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-  };
-  const demoItem: OrderItem = {
-    productName: 'Delivered Product',
-    variationSize: null,
-    quantity: 1,
-    unitPrice: 0,
-    lineTotal: 0,
-    productId: null,
-    imageUrl: null,
+    items: [demoItem],
   };
   const displayRows: { item: OrderItem; order: MyOrder }[] = [...rows, { item: demoItem, order: demoOrder }].sort(
     (a, b) => {
