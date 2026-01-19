@@ -13,7 +13,7 @@ export default function Footer() {
           {/* Company Info */}
           <div className={styles.footerSection}>
             <Link href="/" className={styles.logo}>
-              Milko.in
+              Milko
             </Link>
             <p className={styles.description}>
               Fresh milk delivered daily to your doorstep. 

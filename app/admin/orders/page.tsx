@@ -60,7 +60,7 @@ export default function AdminOrdersPage() {
         Showing paid orders only
       </p>
 
-      <div style={{ background: 'white', borderRadius: '8px', overflow: 'hidden', marginTop: '1.5rem' }}>
+      <div style={{ background: 'white', borderRadius: '12px', overflow: 'hidden', marginTop: '1.5rem', border: '1px solid #ddd' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f5f5f5' }}>

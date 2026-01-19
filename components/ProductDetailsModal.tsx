@@ -39,7 +39,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const [showDeliveryInfo, setShowDeliveryInfo] = useState(false);
   const [isPincodeAvailable, setIsPincodeAvailable] = useState<boolean | null>(null);
   const [isCheckingPincode, setIsCheckingPincode] = useState(false);
-  const [serviceablePincodes, setServiceablePincodes] = useState<string[] | null>(null);
+  const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime?: string }> | null>(null);
   
   // Swipe/drag state
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -59,9 +59,8 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const isDeliverable = (pin: string) => {
     const cleaned = (pin || '').trim();
     if (cleaned.length !== 6) return false;
-    // If admin hasn't configured pincodes (or content not active), allow all.
     if (!serviceablePincodes || serviceablePincodes.length === 0) return true;
-    return serviceablePincodes.includes(cleaned);
+    return serviceablePincodes.some((e) => (typeof e === 'string' ? e : e.pincode) === cleaned);
   };
 
   // Reset membership form when modal closes or product changes
@@ -82,12 +81,17 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
         try {
           const cfg = await contentApi.getByType('pincodes');
           const meta = (cfg?.metadata || {}) as any;
-          const list: string[] = Array.isArray(meta.serviceablePincodes)
-            ? meta.serviceablePincodes
-            : (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()
-                ? [meta.serviceablePincode.trim()]
-                : []);
-          setServiceablePincodes(list);
+          let list: Array<{ pincode: string; deliveryTime?: string }> = [];
+          if (Array.isArray(meta.serviceablePincodes)) {
+            list = meta.serviceablePincodes.map((el: any) =>
+              typeof el === 'string'
+                ? { pincode: el.trim(), deliveryTime: '1h' }
+                : { pincode: (el.pincode || el).toString().trim(), deliveryTime: (el.deliveryTime || '1h')?.toString() || '1h' }
+            ).filter((x: { pincode: string }) => x.pincode.length === 6);
+          } else if (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()) {
+            list = [{ pincode: meta.serviceablePincode.trim(), deliveryTime: '1h' }];
+          }
+          setServiceablePincodes(list.length > 0 ? list : null);
         } catch {
           // No config -> allow all
           setServiceablePincodes(null);

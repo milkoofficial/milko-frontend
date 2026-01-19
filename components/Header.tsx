@@ -149,7 +149,7 @@ export default function Header() {
   const [deliveryStatus, setDeliveryStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
   const [savedPincode, setSavedPincode] = useState<string | null>(null);
   const [savedDeliveryStatus, setSavedDeliveryStatus] = useState<'available' | 'unavailable' | null>(null);
-  const [serviceablePincodes, setServiceablePincodes] = useState<string[] | null>(null);
+  const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime?: string }> | null>(null);
   const pincodeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Load saved pincode from localStorage on mount
@@ -160,20 +160,24 @@ export default function Header() {
     }
   }, []);
 
-  // Load serviceable pincode(s) from admin-configured site content
+  // Load serviceable pincode(s) and delivery time from admin-configured site content
   useEffect(() => {
     (async () => {
       try {
         const cfg = await contentApi.getByType('pincodes');
         const meta = (cfg?.metadata || {}) as any;
-        const list: string[] = Array.isArray(meta.serviceablePincodes)
-          ? meta.serviceablePincodes
-          : (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()
-              ? [meta.serviceablePincode.trim()]
-              : []);
-        setServiceablePincodes(list);
+        let list: Array<{ pincode: string; deliveryTime?: string }> = [];
+        if (Array.isArray(meta.serviceablePincodes)) {
+          list = meta.serviceablePincodes.map((el: any) =>
+            typeof el === 'string'
+              ? { pincode: el.trim(), deliveryTime: '1h' }
+              : { pincode: (el.pincode || el).toString().trim(), deliveryTime: (el.deliveryTime || '1h').toString().trim() || '1h' }
+          ).filter((x: { pincode: string }) => x.pincode.length === 6);
+        } else if (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()) {
+          list = [{ pincode: meta.serviceablePincode.trim(), deliveryTime: '1h' }];
+        }
+        setServiceablePincodes(list.length > 0 ? list : null);
       } catch {
-        // No config -> allow all
         setServiceablePincodes(null);
       }
     })();
@@ -183,7 +187,19 @@ export default function Header() {
     const cleaned = (pin || '').trim();
     if (cleaned.length !== 6) return false;
     if (!serviceablePincodes || serviceablePincodes.length === 0) return true;
-    return serviceablePincodes.includes(cleaned);
+    return serviceablePincodes.some((e) => (typeof e === 'string' ? e : e.pincode) === cleaned);
+  };
+
+  const getDeliveryTimeFor = (pin: string): string => {
+    if (!serviceablePincodes || serviceablePincodes.length === 0) return '1h';
+    const el = serviceablePincodes.find((e) => (typeof e === 'string' ? e : e.pincode) === (pin || '').trim());
+    return (el && typeof el === 'object' && (el.deliveryTime || '1h')) || '1h';
+  };
+
+  const formatDeliveryTimeDisplay = (t: string): string => {
+    const s = (t || '1h').trim();
+    if (/^\d+h$/.test(s)) return s.replace(/h$/, 'hr'); // 1h->1hr, 2h->2hr
+    return s;
   };
 
   // If we have a saved pincode, compute saved status based on current config
@@ -247,6 +263,14 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const hasScrolledToMembershipRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 767);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Store cart icon refs for animation
   useEffect(() => {
@@ -381,98 +405,41 @@ export default function Header() {
     <>
       <header
         ref={headerRef}
-        className={isAuthPage 
-          ? `${styles.header} ${styles.headerTransparent}` 
-          : `${styles.header} ${isScrolled ? styles.headerScrolled : ''}`
-        }
+        className={[
+          isAuthPage ? `${styles.header} ${styles.headerTransparent}` : `${styles.header} ${isScrolled ? styles.headerScrolled : ''}`,
+          !isAuthPage && isMobile && savedPincode && savedDeliveryStatus === 'available' && styles.headerMobileBgServiceable,
+          !isAuthPage && isMobile && savedPincode && savedDeliveryStatus === 'unavailable' && styles.headerMobileBgUnserviceable
+        ].filter(Boolean).join(' ')}
       >
-        {/* First Row: Logo and Icons */}
-        <div className={`${styles.headerRow} ${isScrolled ? styles.headerRowScrolled : ''}`}>
-          {/* Mobile: Show search bar in headerRow when scrolled */}
-          {!isAuthPage && isScrolled && (
-            <form onSubmit={handleSearch} className={styles.searchFormMobileSticky}>
-              {/* Search Icon */}
-              {!isSearching && (
-                <div className={styles.searchIcon}>
-                  <svg 
-                    viewBox="0 -0.5 25 25" 
-                    fill="none" 
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                    <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                    <g id="SVGRepo_iconCarrier">
-                      <path 
-                        fillRule="evenodd" 
-                        clipRule="evenodd" 
-                        d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
-                        stroke="#000000" 
-                        strokeWidth="1.5" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      ></path>
-                      <path 
-                        d="M15.989 15.4905L19.5 19.0015" 
-                        stroke="#000000" 
-                        strokeWidth="1.5" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      ></path>
-                    </g>
-                  </svg>
-                </div>
-              )}
-              <input
-                type="text"
-                placeholder="Search Dairy products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={styles.searchInput}
-                disabled={isSearching}
-              />
-              {isSearching && (
-                <div className={styles.searchSpinner}>
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className={styles.spinnerIcon}
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="#000000"
-                      strokeWidth="2"
-                      strokeOpacity="0.2"
-                      fill="none"
-                    />
-                    <path
-                      d="M12 2C6.477 2 2 6.477 2 12"
-                      stroke="#000000"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      fill="none"
-                      strokeDasharray="20 40"
-                    />
-                  </svg>
-                </div>
-              )}
-            </form>
-          )}
-
-          {/* Logo - Hide on mobile when scrolled */}
-          <Link href="/" className={`${styles.logo} ${isScrolled ? styles.logoHiddenMobile : ''}`}>
-            {isLoading ? (
-              <div className={`${styles.logoShimmer} ${styles.shimmer}`}></div>
-            ) : (
-              <div className={styles.logoText}>
-                Milko.in
+        {/* First Row: Logo and Icons - hidden on mobile when scrolled (only search row stays sticky) */}
+        <div className={`${styles.headerRow} ${isScrolled ? styles.headerRowScrolled : ''} ${isScrolled ? styles.headerRowHiddenOnScroll : ''}`}>
+          {/* Mobile when serviceable: lightning + "1hr to pincode" in place of logo; else Logo */}
+          {isMobile && savedPincode && savedDeliveryStatus === 'available' ? (
+            <button
+              type="button"
+              className={`${styles.deliveryAtLogo} ${styles.deliveryIconAvailable}`}
+              onClick={() => setIsAddressModalOpen(true)}
+              aria-label="Delivery to pincode"
+            >
+              <svg className={styles.deliveryAtLogoIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+              <div className={styles.deliveryAtLogoText}>
+                <span className={styles.deliverToTime}>{formatDeliveryTimeDisplay(getDeliveryTimeFor(savedPincode))}</span>
+                <span className={styles.deliverToAddress}>to {savedPincode}</span>
               </div>
-            )}
-          </Link>
+            </button>
+          ) : (
+            <Link href="/" className={`${styles.logo} ${isScrolled ? styles.logoHiddenMobile : ''}`}>
+              {isLoading ? (
+                <div className={`${styles.logoShimmer} ${styles.shimmer}`}></div>
+              ) : (
+                <div className={styles.logoText}>
+                  Milko
+                </div>
+              )}
+            </Link>
+          )}
 
           {/* Desktop Search Bar - Hide on auth pages */}
           {!isAuthPage ? (
@@ -483,30 +450,12 @@ export default function Header() {
                 {/* Search Icon */}
                 {!isSearching && (
                   <div className={styles.searchIcon}>
-                    <svg 
-                      viewBox="0 -0.5 25 25" 
-                      fill="none" 
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
+                    <svg viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
                       <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
                       <g id="SVGRepo_iconCarrier">
-                        <path 
-                          fillRule="evenodd" 
-                          clipRule="evenodd" 
-                          d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
-                          stroke="#000000" 
-                          strokeWidth="1.5" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                        ></path>
-                        <path 
-                          d="M15.989 15.4905L19.5 19.0015" 
-                          stroke="#000000" 
-                          strokeWidth="1.5" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                        ></path>
+                        <path fillRule="evenodd" clipRule="evenodd" d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+                        <path d="M15.989 15.4905L19.5 19.0015" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
                       </g>
                     </svg>
                   </div>
@@ -521,31 +470,9 @@ export default function Header() {
                 />
                 {isSearching && (
                   <div className={styles.searchSpinner}>
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      className={styles.spinnerIcon}
-                    >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="#000000"
-                        strokeWidth="2"
-                        strokeOpacity="0.2"
-                        fill="none"
-                      />
-                      <path
-                        d="M12 2C6.477 2 2 6.477 2 12"
-                        stroke="#000000"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        fill="none"
-                        strokeDasharray="20 40"
-                      />
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.spinnerIcon}>
+                      <circle cx="12" cy="12" r="10" stroke="#000000" strokeWidth="2" strokeOpacity="0.2" fill="none" />
+                      <path d="M12 2C6.477 2 2 6.477 2 12" stroke="#000000" strokeWidth="2" strokeLinecap="round" fill="none" strokeDasharray="20 40" />
                     </svg>
                   </div>
                 )}
@@ -564,45 +491,50 @@ export default function Header() {
               </div>
             ) : (
               <div className={styles.rightButtons}>
-              {/* Deliver To Address - Icon Only on Mobile */}
+              {/* Deliver To Address - Mobile icon: hidden when deliveryAtLogo is showing (no repetition); Desktop deliverTo below */}
+              {!(isMobile && savedPincode && savedDeliveryStatus === 'available') && (
               <button 
                 className={`${styles.iconButton} ${savedDeliveryStatus === 'available' ? styles.deliveryIconAvailable : savedDeliveryStatus === 'unavailable' ? styles.deliveryIconUnavailable : ''}`}
                 onClick={() => setIsAddressModalOpen(true)}
                 aria-label="Delivery location"
               >
-                <svg className={styles.buttonIcon} viewBox="0 0 8.4666669 8.4666669" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                  <g id="SVGRepo_iconCarrier">
-                    <g transform="translate(0,-288.53332)">
-                      <path d="m 4.2324219,288.79688 c -1.6042437,0 -2.9101556,1.30591 -2.9101563,2.91015 -10e-7,2.82277 2.7460938,4.96875 2.7460938,4.96875 a 0.26460978,0.26460978 0 0 0 0.3300781,0 c 0,0 2.7460996,-2.14598 2.7460937,-4.96875 -3.4e-6,-1.60424 -1.3078657,-2.91015 -2.9121093,-2.91015 z m 0,0.52929 c 1.3182605,0 2.3828097,1.0626 2.3828125,2.38086 4.8e-6,2.30926 -2.0910618,4.13374 -2.3808594,4.38086 -0.2884142,-0.24588 -2.3828134,-2.0707 -2.3828125,-4.38086 5e-7,-1.31826 1.0625988,-2.38086 2.3808594,-2.38086 z" fill="currentColor"></path>
-                      <path d="m 4.2324219,290.38477 c -0.7274912,0 -1.3222633,0.59477 -1.3222657,1.32226 -4.5e-6,0.7275 0.5947697,1.32422 1.3222657,1.32422 0.727496,0 1.3242233,-0.59672 1.3242187,-1.32422 -2.3e-6,-0.72749 -0.5967275,-1.32226 -1.3242187,-1.32226 z m 0,0.52929 c 0.4415089,0 0.7949204,0.35146 0.7949219,0.79297 2.7e-6,0.44151 -0.35341,0.79492 -0.7949219,0.79492 -0.441512,0 -0.7929715,-0.35341 -0.7929688,-0.79492 1.4e-6,-0.44151 0.3514598,-0.79297 0.7929688,-0.79297 z" fill="currentColor"></path>
-                    </g>
+                <svg className={styles.buttonIcon} viewBox="0 0 8.4666669 8.4666669" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <g transform="translate(0,-288.53332)">
+                    <path d="m 4.2324219,288.79688 c -1.6042437,0 -2.9101556,1.30591 -2.9101563,2.91015 -10e-7,2.82277 2.7460938,4.96875 2.7460938,4.96875 a 0.26460978,0.26460978 0 0 0 0.3300781,0 c 0,0 2.7460996,-2.14598 2.7460937,-4.96875 -3.4e-6,-1.60424 -1.3078657,-2.91015 -2.9121093,-2.91015 z m 0,0.52929 c 1.3182605,0 2.3828097,1.0626 2.3828125,2.38086 4.8e-6,2.30926 -2.0910618,4.13374 -2.3808594,4.38086 -0.2884142,-0.24588 -2.3828134,-2.0707 -2.3828125,-4.38086 5e-7,-1.31826 1.0625988,-2.38086 2.3808594,-2.38086 z" fill="currentColor"/>
+                    <path d="m 4.2324219,290.38477 c -0.7274912,0 -1.3222633,0.59477 -1.3222657,1.32226 -4.5e-6,0.7275 0.5947697,1.32422 1.3222657,1.32422 0.727496,0 1.3242233,-0.59672 1.3242187,-1.32422 -2.3e-6,-0.72749 -0.5967275,-1.32226 -1.3242187,-1.32226 z m 0,0.52929 c 0.4415089,0 0.7949204,0.35146 0.7949219,0.79297 2.7e-6,0.44151 -0.35341,0.79492 -0.7949219,0.79492 -0.441512,0 -0.7929715,-0.35341 -0.7929688,-0.79492 1.4e-6,-0.44151 0.3514598,-0.79297 0.7929688,-0.79297 z" fill="currentColor"/>
                   </g>
                 </svg>
                 <span className={styles.iconButtonText}>Location</span>
               </button>
+              )}
               
-              {/* Desktop Deliver To Address */}
-              <div className={styles.deliverTo} onClick={() => setIsAddressModalOpen(true)}>
-                <svg className={styles.locationIcon} viewBox="0 0 8.4666669 8.4666669" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                  <g id="SVGRepo_iconCarrier">
+              {/* Desktop Deliver To Address - lightning when eligible, location otherwise; time 0.75rem, "to pincode" 0.875rem */}
+              <div className={`${styles.deliverTo} ${savedDeliveryStatus === 'available' ? styles.deliveryIconAvailable : savedDeliveryStatus === 'unavailable' ? styles.deliveryIconUnavailable : ''}`} onClick={() => setIsAddressModalOpen(true)}>
+                {savedDeliveryStatus === 'available' ? (
+                  <svg className={styles.locationIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                  </svg>
+                ) : (
+                  <svg className={styles.locationIcon} viewBox="0 0 8.4666669 8.4666669" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                     <g transform="translate(0,-288.53332)">
-                      <path d="m 4.2324219,288.79688 c -1.6042437,0 -2.9101556,1.30591 -2.9101563,2.91015 -10e-7,2.82277 2.7460938,4.96875 2.7460938,4.96875 a 0.26460978,0.26460978 0 0 0 0.3300781,0 c 0,0 2.7460996,-2.14598 2.7460937,-4.96875 -3.4e-6,-1.60424 -1.3078657,-2.91015 -2.9121093,-2.91015 z m 0,0.52929 c 1.3182605,0 2.3828097,1.0626 2.3828125,2.38086 4.8e-6,2.30926 -2.0910618,4.13374 -2.3808594,4.38086 -0.2884142,-0.24588 -2.3828134,-2.0707 -2.3828125,-4.38086 5e-7,-1.31826 1.0625988,-2.38086 2.3808594,-2.38086 z" fill="currentColor"></path>
-                      <path d="m 4.2324219,290.38477 c -0.7274912,0 -1.3222633,0.59477 -1.3222657,1.32226 -4.5e-6,0.7275 0.5947697,1.32422 1.3222657,1.32422 0.727496,0 1.3242233,-0.59672 1.3242187,-1.32422 -2.3e-6,-0.72749 -0.5967275,-1.32226 -1.3242187,-1.32226 z m 0,0.52929 c 0.4415089,0 0.7949204,0.35146 0.7949219,0.79297 2.7e-6,0.44151 -0.35341,0.79492 -0.7949219,0.79492 -0.441512,0 -0.7929715,-0.35341 -0.7929688,-0.79492 1.4e-6,-0.44151 0.3514598,-0.79297 0.7929688,-0.79297 z" fill="currentColor"></path>
+                      <path d="m 4.2324219,288.79688 c -1.6042437,0 -2.9101556,1.30591 -2.9101563,2.91015 -10e-7,2.82277 2.7460938,4.96875 2.7460938,4.96875 a 0.26460978,0.26460978 0 0 0 0.3300781,0 c 0,0 2.7460996,-2.14598 2.7460937,-4.96875 -3.4e-6,-1.60424 -1.3078657,-2.91015 -2.9121093,-2.91015 z m 0,0.52929 c 1.3182605,0 2.3828097,1.0626 2.3828125,2.38086 4.8e-6,2.30926 -2.0910618,4.13374 -2.3808594,4.38086 -0.2884142,-0.24588 -2.3828134,-2.0707 -2.3828125,-4.38086 5e-7,-1.31826 1.0625988,-2.38086 2.3808594,-2.38086 z" fill="currentColor"/>
+                      <path d="m 4.2324219,290.38477 c -0.7274912,0 -1.3222633,0.59477 -1.3222657,1.32226 -4.5e-6,0.7275 0.5947697,1.32422 1.3222657,1.32422 0.727496,0 1.3242233,-0.59672 1.3242187,-1.32422 -2.3e-6,-0.72749 -0.5967275,-1.32226 -1.3242187,-1.32226 z m 0,0.52929 c 0.4415089,0 0.7949204,0.35146 0.7949219,0.79297 2.7e-6,0.44151 -0.35341,0.79492 -0.7949219,0.79492 -0.441512,0 -0.7929715,-0.35341 -0.7929688,-0.79492 1.4e-6,-0.44151 0.3514598,-0.79297 0.7929688,-0.79297 z" fill="currentColor"/>
                     </g>
-                  </g>
-                </svg>
+                  </svg>
+                )}
                 <div className={styles.deliverToContent}>
                   {savedPincode && savedDeliveryStatus ? (
-                    <>
-                      <span className={styles.deliverToLabel}>
-                        {savedDeliveryStatus === 'available' ? 'Available:' : 'Not available:'}
-                      </span>
-                      <span className={styles.deliverToAddress}>{savedPincode}</span>
-                    </>
+                    savedDeliveryStatus === 'available' ? (
+                      <>
+                        <span className={styles.deliverToTime}>{formatDeliveryTimeDisplay(getDeliveryTimeFor(savedPincode))}</span>
+                        <span className={styles.deliverToAddress}>to {savedPincode}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className={styles.deliverToLabel}>Not available:</span>
+                        <span className={styles.deliverToAddress}>{savedPincode}</span>
+                      </>
+                    )
                   ) : (
                     <>
                       <span className={styles.deliverToLabel}>Deliver to:</span>
@@ -771,9 +703,9 @@ export default function Header() {
           ) : null}
         </div>
 
-      {/* Second Row: Search Bar - Mobile Only (Hide when scrolled, search moves to headerRow) */}
+      {/* Second Row: Search Bar - Mobile Only; sticky at top when scrolled (first row hides) */}
       {!isAuthPage ? (
-        <div className={`${styles.searchRow} ${isScrolled ? styles.searchRowHidden : ''}`}>
+        <div className={`${styles.searchRow} ${isScrolled ? styles.searchRowSticky : ''}`}>
           {isLoading ? (
             <div className={`${styles.searchShimmer} ${styles.shimmer}`}></div>
           ) : (
@@ -781,30 +713,12 @@ export default function Header() {
             {/* Search Icon */}
             {!isSearching && (
               <div className={styles.searchIcon}>
-                <svg 
-                  viewBox="0 -0.5 25 25" 
-                  fill="none" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
+                <svg viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
                   <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
                   <g id="SVGRepo_iconCarrier">
-                    <path 
-                      fillRule="evenodd" 
-                      clipRule="evenodd" 
-                      d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" 
-                      stroke="#000000" 
-                      strokeWidth="1.5" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                    ></path>
-                    <path 
-                      d="M15.989 15.4905L19.5 19.0015" 
-                      stroke="#000000" 
-                      strokeWidth="1.5" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                    ></path>
+                    <path fillRule="evenodd" clipRule="evenodd" d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M15.989 15.4905L19.5 19.0015" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
                   </g>
                 </svg>
               </div>
@@ -819,31 +733,9 @@ export default function Header() {
             />
             {isSearching && (
               <div className={styles.searchSpinner}>
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className={styles.spinnerIcon}
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="#000000"
-                    strokeWidth="2"
-                    strokeOpacity="0.2"
-                    fill="none"
-                  />
-                  <path
-                    d="M12 2C6.477 2 2 6.477 2 12"
-                    stroke="#000000"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    fill="none"
-                    strokeDasharray="20 40"
-                  />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.spinnerIcon}>
+                  <circle cx="12" cy="12" r="10" stroke="#000000" strokeWidth="2" strokeOpacity="0.2" fill="none" />
+                  <path d="M12 2C6.477 2 2 6.477 2 12" stroke="#000000" strokeWidth="2" strokeLinecap="round" fill="none" strokeDasharray="20 40" />
                 </svg>
               </div>
             )}

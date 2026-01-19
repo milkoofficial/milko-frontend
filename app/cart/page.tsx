@@ -439,7 +439,7 @@ export default function CartPage() {
                 <span className={styles.paymentMethodAvailable}>Available</span>
               </div>
               <div className={styles.paymentMethodItem}>
-                <span className={styles.paymentMethodLabel}>Card, Netbanking, UPI</span>
+                <span className={styles.paymentMethodLabel}>Online Payment</span>
                 <span className={styles.paymentMethodAvailable}>Available</span>
               </div>
             </div>

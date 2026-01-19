@@ -35,8 +35,9 @@ export default function AdminContentEditPage() {
   const [contentText, setContentText] = useState('');
   const [metadata, setMetadata] = useState<Record<string, any>>({});
   const [isActive, setIsActive] = useState(true);
-  const [serviceablePincodes, setServiceablePincodes] = useState<string[]>([]);
+  const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime: string }>>([]);
   const [newPincodeInput, setNewPincodeInput] = useState('');
+  const [newDeliveryTimeInput, setNewDeliveryTimeInput] = useState('1h');
 
   useEffect(() => {
     fetchContent();
@@ -52,15 +53,19 @@ export default function AdminContentEditPage() {
       setMetadata(data.metadata || {});
       setIsActive(data.isActive);
       if (contentType === 'pincodes') {
-        // Support both array and single string format for backward compatibility
+        // Support: {pincode, deliveryTime}[], legacy string[], or single string
         const meta = data.metadata || {};
+        let list: Array<{ pincode: string; deliveryTime: string }> = [];
         if (Array.isArray(meta.serviceablePincodes)) {
-          setServiceablePincodes(meta.serviceablePincodes);
+          list = meta.serviceablePincodes.map((el: any) =>
+            typeof el === 'string'
+              ? { pincode: el.trim(), deliveryTime: '1h' }
+              : { pincode: (el.pincode || el).toString().trim(), deliveryTime: (el.deliveryTime || '1h').toString().trim() || '1h' }
+          ).filter((x) => x.pincode.length === 6);
         } else if (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()) {
-          setServiceablePincodes([meta.serviceablePincode.trim()]);
-        } else {
-          setServiceablePincodes([]);
+          list = [{ pincode: meta.serviceablePincode.trim(), deliveryTime: '1h' }];
         }
+        setServiceablePincodes(list);
       }
     } catch (error: any) {
       console.error('Failed to fetch content:', error);
@@ -71,7 +76,7 @@ export default function AdminContentEditPage() {
         setTitle('Pincode Settings');
         setContentText('Delivery pincode settings');
         setMetadata({ serviceablePincodes: [] });
-        setServiceablePincodes([]);
+        setServiceablePincodes([] as Array<{ pincode: string; deliveryTime: string }>);
         setIsActive(true);
       } else {
         setError(error.message || 'Failed to load content');
@@ -106,17 +111,17 @@ export default function AdminContentEditPage() {
         };
       }
 
-      // Handle pincodes (multiple serviceable pincodes)
+      // Handle pincodes (multiple serviceable pincodes with delivery time)
       if (contentType === 'pincodes') {
-        // Validate all pincodes are 6 digits
-        const invalidPincodes = serviceablePincodes.filter(pin => !/^\d{6}$/.test(pin));
-        if (invalidPincodes.length > 0) {
+        const invalid = serviceablePincodes.filter((x) => !/^\d{6}$/.test(x.pincode));
+        if (invalid.length > 0) {
           setError('All pincodes must be exactly 6 digits. Please check and fix invalid pincodes.');
           return;
         }
-        finalMetadata = {
-          serviceablePincodes: serviceablePincodes.filter(pin => pin.trim().length > 0),
-        };
+        const withTime = serviceablePincodes
+          .filter((x) => x.pincode.trim().length > 0)
+          .map((x) => ({ pincode: x.pincode.trim(), deliveryTime: (x.deliveryTime || '1h').toString().trim() || '1h' }));
+        finalMetadata = { serviceablePincodes: withTime };
       }
 
       await adminContentApi.update(contentType, {
@@ -258,21 +263,33 @@ export default function AdminContentEditPage() {
 
         {contentType === 'pincodes' ? (
           <div className={styles.formGroup}>
-            <label className={styles.label}>Serviceable Pincodes (6 digits each)</label>
+            <label className={styles.label}>Serviceable Pincodes (6 digits) + Delivery time</label>
             
-            {/* List of added pincodes */}
+            {/* List of added pincodes with delivery time */}
             {serviceablePincodes.length > 0 && (
               <div className={styles.pincodeList}>
-                {serviceablePincodes.map((pincode, index) => (
+                {serviceablePincodes.map((item, index) => (
                   <div key={index} className={styles.pincodeItem}>
-                    <span className={styles.pincodeValue}>{pincode}</span>
+                    <span className={styles.pincodeValue}>{item.pincode}</span>
+                    <input
+                      type="text"
+                      value={item.deliveryTime}
+                      onChange={(e) => {
+                        const next = [...serviceablePincodes];
+                        next[index] = { ...next[index], deliveryTime: e.target.value };
+                        setServiceablePincodes(next);
+                      }}
+                      className={styles.deliveryTimeInput}
+                      placeholder="e.g. 1h, 2h, 15m"
+                      title="How much time for delivery (e.g. 1h, 2h, 15m, 30min)"
+                    />
                     <button
                       type="button"
                       onClick={() => {
                         setServiceablePincodes(serviceablePincodes.filter((_, i) => i !== index));
                       }}
                       className={styles.removePincodeButton}
-                      aria-label={`Remove pincode ${pincode}`}
+                      aria-label={`Remove pincode ${item.pincode}`}
                     >
                       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
                         <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -283,7 +300,7 @@ export default function AdminContentEditPage() {
               </div>
             )}
 
-            {/* Add new pincode input */}
+            {/* Add new pincode + delivery time */}
             <div className={styles.addPincodeRow}>
               <input
                 type="text"
@@ -291,26 +308,34 @@ export default function AdminContentEditPage() {
                 value={newPincodeInput}
                 onChange={(e) => setNewPincodeInput(e.target.value.replace(/[^\d]/g, '').slice(0, 6))}
                 className={styles.input}
-                placeholder="Enter 6-digit pincode (e.g., 474001)"
+                placeholder="6-digit pincode"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newPincodeInput.length === 6) {
                     e.preventDefault();
-                    if (!serviceablePincodes.includes(newPincodeInput)) {
-                      setServiceablePincodes([...serviceablePincodes, newPincodeInput]);
+                    if (!serviceablePincodes.some((p) => p.pincode === newPincodeInput)) {
+                      setServiceablePincodes([...serviceablePincodes, { pincode: newPincodeInput, deliveryTime: newDeliveryTimeInput || '1h' }]);
                       setNewPincodeInput('');
                     }
                   }
                 }}
               />
+              <input
+                type="text"
+                value={newDeliveryTimeInput}
+                onChange={(e) => setNewDeliveryTimeInput(e.target.value)}
+                className={styles.deliveryTimeInput}
+                placeholder="e.g. 1h, 2h, 15m"
+                title="How much time for delivery"
+              />
               <button
                 type="button"
                 onClick={() => {
-                  if (newPincodeInput.length === 6 && !serviceablePincodes.includes(newPincodeInput)) {
-                    setServiceablePincodes([...serviceablePincodes, newPincodeInput]);
+                  if (newPincodeInput.length === 6 && !serviceablePincodes.some((p) => p.pincode === newPincodeInput)) {
+                    setServiceablePincodes([...serviceablePincodes, { pincode: newPincodeInput, deliveryTime: newDeliveryTimeInput || '1h' }]);
                     setNewPincodeInput('');
                   }
                 }}
-                disabled={newPincodeInput.length !== 6 || serviceablePincodes.includes(newPincodeInput)}
+                disabled={newPincodeInput.length !== 6 || serviceablePincodes.some((p) => p.pincode === newPincodeInput)}
                 className={styles.addPincodeButton}
               >
                 Add
@@ -318,7 +343,7 @@ export default function AdminContentEditPage() {
             </div>
             
             <div className={styles.helpText}>
-              Add multiple pincodes where delivery is available. If no pincodes are added, delivery will be available for all pincodes.
+              Add pincodes and delivery time (e.g. 1h, 2h, 15m, 30min). If no pincodes are added, delivery will be available for all pincodes.
             </div>
           </div>
         ) : (
