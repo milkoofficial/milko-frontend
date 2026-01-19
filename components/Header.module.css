@@ -734,6 +734,7 @@
 .cartIcon {
   width: 23px;
   height: 23px;
+  margin-top: 1px;
 }
 
 @media (max-width: 767px) {

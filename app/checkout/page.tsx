@@ -129,6 +129,15 @@ export default function CheckoutPage() {
     return () => setCheckoutStep(null);
   }, [currentStep, setCheckoutStep]);
 
+  // When entering step 3 (review), scroll to the top of the page
+  useEffect(() => {
+    if (currentStep === 'review' && typeof window !== 'undefined') {
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+      });
+    }
+  }, [currentStep]);
+
   // Helper function to set step with manual flag
   const setStep = (step: CheckoutStep) => {
     manualStepChange.current = true;
@@ -371,6 +380,21 @@ export default function CheckoutPage() {
     }
   }, [couponCode]);
 
+  // Load Razorpay checkout script (once)
+  const loadRazorpayScript = (): Promise<void> => {
+    if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Failed to load Razorpay'));
+      document.head.appendChild(s);
+    });
+  };
+
   // Handle place order
   const handlePlaceOrder = async () => {
     if (!addressForm.name?.trim() || !addressForm.street?.trim() || !addressForm.city?.trim() || !addressForm.state?.trim() || !addressForm.postalCode?.trim() || !addressForm.country?.trim() || !addressForm.phone?.trim()) {
@@ -378,14 +402,17 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (paymentMethod === 'online') {
-      alert('Online payment is coming soon. Please use Cash on Delivery for now.');
-      return;
-    }
-
     setPlacingOrder(true);
+    let openedRazorpay = false;
     try {
-      await apiClient.post('/api/orders', {
+      const data = await apiClient.post<{
+        orderId?: string;
+        orderNumber?: string;
+        razorpayOrderId?: string;
+        key?: string;
+        currency?: string;
+        amount?: number;
+      }>('/api/orders', {
         paymentMethod,
         couponCode: couponValidation.status === 'valid' ? (couponValidation.coupon?.code || couponCode.trim().toUpperCase()) : null,
         deliveryAddress: addressForm,
@@ -396,13 +423,46 @@ export default function CheckoutPage() {
         })),
       });
 
+      if (data.razorpayOrderId && data.key) {
+        openedRazorpay = true;
+        await loadRazorpayScript();
+        const Razorpay = (window as unknown as { Razorpay: new (o: unknown) => { open: () => void } }).Razorpay;
+        const rzp = new Razorpay({
+          key: data.key,
+          order_id: data.razorpayOrderId,
+          currency: data.currency || 'INR',
+          name: 'Milko',
+          description: `Order #${data.orderNumber || ''}`,
+          handler: async function (resp: { razorpay_payment_id: string; razorpay_order_id: string }) {
+            try {
+              await apiClient.post('/api/orders/verify-payment', {
+                razorpay_order_id: resp.razorpay_order_id,
+                razorpay_payment_id: resp.razorpay_payment_id,
+              });
+              clearCart();
+              router.push('/orders');
+            } catch (e) {
+              console.error(e);
+              alert('Payment verification failed. Please contact support with your order details.');
+            } finally {
+              setPlacingOrder(false);
+            }
+          },
+          modal: {
+            ondismiss: () => setPlacingOrder(false),
+          },
+        });
+        rzp.open();
+        return;
+      }
+
       clearCart();
       router.push('/orders');
     } catch (error) {
       console.error('Failed to place order:', error);
-      alert('Failed to place order. Please try again.');
+      alert((error as { message?: string })?.message || 'Failed to place order. Please try again.');
     } finally {
-      setPlacingOrder(false);
+      if (!openedRazorpay) setPlacingOrder(false);
     }
   };
 
