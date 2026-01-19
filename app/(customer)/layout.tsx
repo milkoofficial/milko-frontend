@@ -1,9 +1,10 @@
 'use client';
 
 import { useRequireAuth } from '@/hooks/useRequireAuth';
-import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import MobileBackToAccount from '@/components/MobileBackToAccount';
 
 /**
  * Customer Layout
@@ -16,12 +17,15 @@ export default function CustomerLayout({
 }) {
   const { isAuthenticated, loading, user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   useRequireAuth(); // Redirects to login if not authenticated
 
   const handleLogout = async () => {
     await logout();
     router.push('/auth/login');
   };
+
+  const showBackToAccount = pathname === '/dashboard' || pathname === '/orders' || pathname === '/subscriptions';
 
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
@@ -34,7 +38,10 @@ export default function CustomerLayout({
   return (
     <div>
       {/* Header is now global in root layout */}
-      <main>{children}</main>
+      <main>
+        {showBackToAccount && <MobileBackToAccount />}
+        {children}
+      </main>
     </div>
   );
 }

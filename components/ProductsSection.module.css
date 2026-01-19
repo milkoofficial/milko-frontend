@@ -113,6 +113,46 @@
   border-radius: 8px;
 }
 
+/* Shorter product card skeleton on mobile */
+@media (max-width: 768px) {
+  .productImageShimmer {
+    height: 140px;
+  }
+
+  .productInfoShimmer {
+    padding: 0.9rem 1rem;
+    gap: 0.6rem;
+  }
+
+  .titleShimmer {
+    height: 18px;
+    width: 55%;
+  }
+
+  .descriptionShimmer {
+    height: 12px;
+  }
+
+  .priceShimmer {
+    height: 24px;
+    width: 90px;
+  }
+
+  .discountShimmer {
+    height: 18px;
+    width: 55px;
+  }
+
+  .buttonsShimmer {
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+  }
+
+  .buttonShimmer {
+    height: 34px;
+  }
+}
+
 .productsGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

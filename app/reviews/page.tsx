@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { subscriptionsApi, productsApi } from '@/lib/api';
+import MobileBackToAccount from '@/components/MobileBackToAccount';
 import { Subscription, Product } from '@/types';
 
 interface PurchasedProduct {
@@ -85,6 +86,7 @@ export default function ReviewsPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+      <MobileBackToAccount />
       <h1>My Reviews</h1>
       
       {purchasedProducts.length === 0 ? (
@@ -189,10 +191,10 @@ export default function ReviewsPage() {
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', color: '#666', fontSize: '0.95rem' }}>
                   <div>
-                    <strong>Product Rate:</strong> ₹{item.product.pricePerLitre.toFixed(2)} per litre
+                    <strong>Product Rate:</strong> ?{item.product.pricePerLitre.toFixed(2)} per litre
                   </div>
                   <div>
-                    <strong>Delivery Charges:</strong> {item.deliveryCharges === 0 ? 'Free' : `₹${item.deliveryCharges.toFixed(2)}`}
+                    <strong>Delivery Charges:</strong> {item.deliveryCharges === 0 ? 'Free' : `?${item.deliveryCharges.toFixed(2)}`}
                   </div>
                   <div>
                     <strong>Delivered on:</strong> {item.deliveredDate}

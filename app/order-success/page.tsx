@@ -6,6 +6,7 @@ import { productsApi } from '@/lib/api';
 import { Product } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
+import ProductDetailsModal from '@/components/ProductDetailsModal';
 import styles from './order-success.module.css';
 
 export default function OrderSuccessPage() {
@@ -16,11 +17,16 @@ export default function OrderSuccessPage() {
     productId: string;
     variationId?: string;
     quantity: number;
-    product: Product;
-    variation?: any;
+    product: Product | null;
+    variation?: { size?: string } | null;
     price: number;
+    productName?: string;
+    variationSize?: string;
+    imageUrl?: string | null;
   }>>([]);
   const [deliveryAddress, setDeliveryAddress] = useState<any>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
   useEffect(() => {
     // Get order items from localStorage (saved before cart was cleared)
@@ -55,26 +61,36 @@ export default function OrderSuccessPage() {
         }
         setProducts(map);
 
-        // Build order items with product details
-        const items = storedItems.map((item: { productId: string; variationId?: string; quantity: number }) => {
-          const product = map[item.productId];
-          if (!product) return null;
-          
-          const variation = item.variationId 
-            ? (product.variations || []).find((v) => v.id === item.variationId)
+        // Build order items: use product from fetch when available, else fallback to stored productName/imageUrl/unitPrice so items always show
+        const items = storedItems.map((stored: {
+          productId: string;
+          variationId?: string;
+          quantity: number;
+          productName?: string;
+          variationSize?: string;
+          imageUrl?: string | null;
+          unitPrice?: number;
+        }) => {
+          const product = map[stored.productId] ?? null;
+          const variation = product && stored.variationId
+            ? (product.variations || []).find((v) => String(v.id) === String(stored.variationId))
             : null;
           const multiplier = variation?.priceMultiplier ?? 1;
-          const price = product.pricePerLitre * multiplier;
+          const base = product && (product.sellingPrice != null && product.sellingPrice !== undefined) ? product.sellingPrice : (product?.pricePerLitre ?? 0);
+          const price = product ? (variation?.price ?? base * multiplier) : (stored.unitPrice ?? 0);
 
           return {
-            productId: item.productId,
-            variationId: item.variationId,
-            quantity: item.quantity,
+            productId: stored.productId,
+            variationId: stored.variationId,
+            quantity: stored.quantity,
             product,
             variation,
             price,
+            productName: stored.productName,
+            variationSize: stored.variationSize,
+            imageUrl: stored.imageUrl,
           };
-        }).filter(Boolean) as any[];
+        });
 
         setOrderItems(items);
 
@@ -133,24 +149,52 @@ export default function OrderSuccessPage() {
         {/* Order Summary */}
         <div className={styles.orderSummarySection}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Order Summary</h2>
-            <svg className={styles.caretIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg className={styles.sectionTitleIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
+            <h2 className={styles.sectionTitle}>Order Summary</h2>
           </div>
           
           <div className={styles.itemsList}>
             {orderItems.map((item, index) => {
-              const productImage = item.product.images?.[0]?.imageUrl || item.product.imageUrl;
-              const variationText = item.variation ? `${item.variation.size}` : '';
-              
+              const productImage = item.product?.images?.[0]?.imageUrl || item.product?.imageUrl || item.imageUrl;
+              const variationText = item.variation?.size ?? item.variationSize ?? '';
+              const productName = item.product?.name ?? item.productName ?? 'Product';
+
+              const handleItemClick = async () => {
+                let p: Product | null = item.product;
+                if (!p) {
+                  try {
+                    p = await productsApi.getById(item.productId, true);
+                  } catch {
+                    return;
+                  }
+                }
+                if (p) {
+                  setSelectedProduct(p);
+                  setIsProductModalOpen(true);
+                }
+              };
+
               return (
-                <div key={index} className={styles.orderItem}>
+                <div
+                  key={index}
+                  className={styles.orderItem}
+                  onClick={handleItemClick}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleItemClick();
+                    }
+                  }}
+                >
                   <div className={styles.itemImage}>
                     {productImage ? (
                       <Image
                         src={productImage}
-                        alt={item.product.name}
+                        alt={productName}
                         width={60}
                         height={60}
                         style={{ objectFit: 'cover', borderRadius: '8px' }}
@@ -162,7 +206,7 @@ export default function OrderSuccessPage() {
                     )}
                   </div>
                   <div className={styles.itemDetails}>
-                    <h3 className={styles.itemName}>{item.product.name}</h3>
+                    <h3 className={styles.itemName}>{productName}</h3>
                     {variationText && <p className={styles.itemVariant}>{variationText}</p>}
                     <p className={styles.itemQuantity}>Qty: {item.quantity}</p>
                   </div>
@@ -198,7 +242,7 @@ export default function OrderSuccessPage() {
         {deliveryAddress && (
           <div className={styles.deliverySection}>
             <div className={styles.sectionHeader}>
-              <svg className={styles.locationIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg className={styles.sectionTitleIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                 <path d="M21 10C21 17 12 23 12 23C12 23 3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -236,6 +280,18 @@ export default function OrderSuccessPage() {
           </Link>
         </div>
       </div>
+
+      {/* Product Details Modal */}
+      {selectedProduct && (
+        <ProductDetailsModal
+          product={selectedProduct}
+          isOpen={isProductModalOpen}
+          onClose={() => {
+            setIsProductModalOpen(false);
+            setSelectedProduct(null);
+          }}
+        />
+      )}
     </div>
   );
 }

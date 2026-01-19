@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCheckoutStep } from '@/contexts/CheckoutStepContext';
 import { apiClient, productsApi, couponsApi, Coupon, addressesApi } from '@/lib/api';
 import { Product, Address } from '@/types';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
@@ -27,7 +26,6 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, clearCart } = useCart();
   const { user, isAuthenticated, login, loginWithGoogle, loading: authLoading } = useAuth();
-  const { setCheckoutStep } = useCheckoutStep();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('address');
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [loading, setLoading] = useState(true);
@@ -121,13 +119,6 @@ export default function CheckoutPage() {
     setCurrentStep('address');
     setStepInitialized(true);
   }, [stepInitialized]);
-
-  // Sync step to CheckoutStepContext for ConditionalFooter (hide footer on address step, mobile only)
-  useEffect(() => {
-    const step = currentStep === 'login' ? 'address' : currentStep;
-    setCheckoutStep(step);
-    return () => setCheckoutStep(null);
-  }, [currentStep, setCheckoutStep]);
 
   // When entering step 3 (review), scroll to the top of the page
   useEffect(() => {
@@ -380,6 +371,25 @@ export default function CheckoutPage() {
     }
   }, [couponCode]);
 
+  // Build order items for localStorage (with productName, imageUrl, unitPrice) so order-success can show them even if fetch fails
+  const buildStoredOrderItems = () =>
+    items.map((it) => {
+      const p = products[it.productId] ?? products[String(it.productId)];
+      const v = p && it.variationId ? (p.variations || []).find((x) => String(x.id) === String(it.variationId)) : null;
+      const mult = v?.priceMultiplier ?? 1;
+      const base = p && (p.sellingPrice != null && p.sellingPrice !== undefined) ? p.sellingPrice : (p?.pricePerLitre ?? 0);
+      const unitPrice = p ? (v?.price ?? base * mult) : 0;
+      return {
+        productId: String(it.productId),
+        variationId: it.variationId ?? undefined,
+        quantity: it.quantity,
+        productName: p?.name ?? 'Product',
+        variationSize: v?.size,
+        imageUrl: p?.images?.[0]?.imageUrl || p?.imageUrl,
+        unitPrice,
+      };
+    });
+
   // Load Razorpay checkout script (once)
   const loadRazorpayScript = (): Promise<void> => {
     if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
@@ -439,8 +449,12 @@ export default function CheckoutPage() {
                 razorpay_order_id: resp.razorpay_order_id,
                 razorpay_payment_id: resp.razorpay_payment_id,
               });
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('milko_order_items', JSON.stringify(buildStoredOrderItems()));
+                localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
+              }
               clearCart();
-              router.push('/orders');
+              router.push('/order-success');
             } catch (e) {
               console.error(e);
               alert('Payment verification failed. Please contact support with your order details.');
@@ -456,8 +470,12 @@ export default function CheckoutPage() {
         return;
       }
 
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('milko_order_items', JSON.stringify(buildStoredOrderItems()));
+        localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
+      }
       clearCart();
-      router.push('/orders');
+      router.push('/order-success');
     } catch (error) {
       console.error('Failed to place order:', error);
       alert((error as { message?: string })?.message || 'Failed to place order. Please try again.');
