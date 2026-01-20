@@ -100,6 +100,14 @@ export const API_ENDPOINTS = {
       LIST: '/api/admin/deliveries',
       UPDATE_STATUS: (id: string) => `/api/admin/deliveries/${id}`,
     },
+    ORDER_DELIVERIES: {
+      LIST: '/api/admin/order-deliveries',
+      MARK_PACKAGE_PREPARED: (id: string) => `/api/admin/orders/${id}/mark-package-prepared`,
+      MARK_OUT_FOR_DELIVERY: (id: string) => `/api/admin/orders/${id}/mark-out-for-delivery`,
+      MARK_DELIVERED: (id: string) => `/api/admin/orders/${id}/mark-delivered`,
+      MARK_FULFILLED: (id: string) => `/api/admin/orders/${id}/mark-fulfilled`,
+      DETAIL: (id: string) => `/api/admin/orders/${id}`,
+    },
     BANNERS: {
       LIST: '/api/admin/banners',
       CREATE: '/api/admin/banners',

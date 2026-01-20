@@ -30,6 +30,9 @@ type OrderDetail = {
   deliveryAddress: any;
   createdAt: string;
   deliveryDate: string | null;
+  packagePreparedAt?: string | null;
+  outForDeliveryAt?: string | null;
+  deliveredAt?: string | null;
   customer: {
     name: string;
     email: string;
@@ -57,51 +60,51 @@ function getTimelineSteps(order: OrderDetail) {
   });
 
   // Package prepared
-  const prepared = order.status === 'confirmed' || order.status === 'delivered';
+  const prepared = order.status === 'package_prepared' || order.status === 'out_for_delivery' || order.status === 'delivered';
   steps.push({
     title: 'Package prepared',
     description: 'Packed and handed to DHL Express',
-    date: prepared ? (order.createdAt ? new Date(new Date(order.createdAt).getTime() + 24 * 60 * 60 * 1000).toLocaleString('en-US', {
+    date: order.packagePreparedAt ? new Date(order.packagePreparedAt).toLocaleString('en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }) : '') : '',
+    }) : '',
     icon: '🎁',
     completed: prepared
   });
 
-  // In transit
-  const inTransit = order.status === 'delivered';
-  steps.push({
-    title: 'In transit',
-    description: 'Package in transit',
-    date: inTransit ? (order.createdAt ? new Date(new Date(order.createdAt).getTime() + 2 * 24 * 60 * 60 * 1000).toLocaleString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : '') : '',
-    icon: '🚚',
-    completed: inTransit
-  });
-
   // Out for delivery
-  const outForDelivery = order.status === 'delivered';
+  const outForDelivery = order.status === 'out_for_delivery' || order.status === 'delivered';
   steps.push({
     title: 'Out for delivery',
     description: 'Will be delivered today',
-    date: outForDelivery ? (order.deliveryDate ? new Date(order.deliveryDate).toLocaleString('en-US', {
+    date: order.outForDeliveryAt ? new Date(order.outForDeliveryAt).toLocaleString('en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }) : '') : '',
+    }) : '',
     icon: '📍',
     completed: outForDelivery
+  });
+
+  // Delivered
+  const delivered = order.status === 'delivered';
+  steps.push({
+    title: 'Delivered',
+    description: 'Package delivered successfully',
+    date: order.deliveredAt ? new Date(order.deliveredAt).toLocaleString('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : '',
+    icon: '✅',
+    completed: delivered
   });
 
   return steps;
