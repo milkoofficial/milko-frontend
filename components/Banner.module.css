@@ -150,12 +150,15 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .bannerOuter {
-    padding: 12px; /* Increase to 16px, 20px, etc. for a stronger inset effect */
+    padding: 12px;
+    background: #f9f9f9;
+     /* Increase to 16px, 20px, etc. for a stronger inset effect */
   }
 
   .bannerContainer {
     height: 300px;
     border-radius: 12px;
+    touch-action: pan-y; /* allow vertical scroll, we handle horizontal swipe for sliding */
   }
 
   .bannerTitle {
@@ -172,7 +175,14 @@
   }
 
   .dotsContainer {
-    bottom: 1rem;
-  }
+   bottom: 1rem;
+        margin-bottom: -10px;
+        padding: 3px;
+        gap: 0.2rem;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+    }
 }
 

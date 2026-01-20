@@ -22,6 +22,7 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [containerHeight, setContainerHeight] = useState<number | null>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const firstImageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,6 +101,20 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
     setCurrentSlide((prev) => (prev + 1) % banners.length);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX - touchEndX;
+    const threshold = 50;
+    if (diff > threshold) goToNext();
+    else if (diff < -threshold) goToPrevious();
+    setTouchStartX(null);
+  };
+
   // Hide banner on mobile for cart page
   const shouldHideOnMobile = pathname === '/cart' && isMobile;
 
@@ -125,6 +140,8 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
       <div
         className={styles.bannerContainer}
         style={containerHeight ? { height: `${containerHeight}px` } : undefined}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         <div className={styles.bannerWrapper}>
         {banners.map((banner, index) => {
