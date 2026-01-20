@@ -83,7 +83,12 @@ export default function HowWasItModal({ isOpen, onClose, order, onSubmitSuccess 
   ) => (
     <div className={styles.starRow}>
       <div className={styles.subTitle}>{label}</div>
-      <div className={styles.stars} role="group" aria-label={`${label}, ${value} of 5 stars`}>
+      <div
+        className={styles.stars}
+        data-level={value >= 1 && value <= 5 ? value : undefined}
+        role="group"
+        aria-label={`${label}, ${value} of 5 stars`}
+      >
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}

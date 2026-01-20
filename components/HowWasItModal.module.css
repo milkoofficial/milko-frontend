@@ -43,7 +43,7 @@
   width: 36px;
   height: 36px;
   border: none;
-  background: #f0f0f0;
+  background: white;
   border-radius: 50%;
   font-size: 1.5rem;
   line-height: 1;
@@ -105,9 +105,41 @@
 }
 
 .starActive {
+  /* base; overridden by starsLevel1–5 for selected stars */
   border-color: #f59e0b;
   color: #f59e0b;
   background: #fffbeb;
+}
+
+/* Level-based colors for selected stars (1–5) */
+.stars[data-level="5"] .starActive {
+  border-color: #14532d;
+  color: #14532d;
+  background: #dcfce7;
+}
+
+.stars[data-level="4"] .starActive {
+  border-color: #15803d;
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.stars[data-level="3"] .starActive {
+  border-color: #ea580c;
+  color: #ea580c;
+  background: #ffedd5;
+}
+
+.stars[data-level="2"] .starActive {
+  border-color: #d97706;
+  color: #d97706;
+  background: #fef3c7;
+}
+
+.stars[data-level="1"] .starActive {
+  border-color: #dc2626;
+  color: #dc2626;
+  background: #fee2e2;
 }
 
 .woRow {
