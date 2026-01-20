@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import styles from './Header.module.css';
-import { User } from '@/types';
+import { User, Product } from '@/types';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
-import { contentApi } from '@/lib/api';
+import { contentApi, productsApi } from '@/lib/api';
 
 /**
  * User Dropdown Component
@@ -144,6 +144,12 @@ export default function Header() {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [allProducts, setAllProducts] = useState<Product[] | null>(null);
+  const [isSearchProductsLoading, setIsSearchProductsLoading] = useState(false);
+  const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false);
+  const [isSearchOverlayClosing, setIsSearchOverlayClosing] = useState(false);
+  const searchOverlayInputRef = useRef<HTMLInputElement>(null);
+  const searchOverlayCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [pincode, setPincode] = useState(['', '', '', '', '', '']);
   const [deliveryStatus, setDeliveryStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
@@ -336,6 +342,28 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Focus overlay search input when mobile search overlay opens; lock body scroll
+  useEffect(() => {
+    if (isSearchOverlayOpen) {
+      if (searchOverlayCloseTimeoutRef.current) {
+        clearTimeout(searchOverlayCloseTimeoutRef.current);
+        searchOverlayCloseTimeoutRef.current = null;
+      }
+      setIsSearchOverlayClosing(false);
+      setTimeout(() => searchOverlayInputRef.current?.focus(), 50);
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [isSearchOverlayOpen]);
+
+  // Clear close timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchOverlayCloseTimeoutRef.current) clearTimeout(searchOverlayCloseTimeoutRef.current);
+    };
+  }, []);
+
   // If we land on /#membership (e.g., from another route), scroll after the page renders.
   // Only scroll once when the hash is first detected, not on every render or scroll.
   useEffect(() => {
@@ -385,14 +413,41 @@ export default function Header() {
     return true;
   };
 
+  const ensureProducts = () => {
+    if (allProducts === null && !isSearchProductsLoading) {
+      setIsSearchProductsLoading(true);
+      productsApi.getAll().then((p) => {
+        setAllProducts(p);
+        setIsSearchProductsLoading(false);
+      }).catch(() => setIsSearchProductsLoading(false));
+    }
+  };
+
+  const searchResults = useMemo(() => {
+    if (!allProducts || !searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase().trim();
+    return allProducts.filter((p) => p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q));
+  }, [allProducts, searchQuery]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       setIsSearching(true);
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      // Reset searching state after navigation (component will unmount anyway, but just in case)
       setTimeout(() => setIsSearching(false), 1000);
     }
+  };
+
+  const closeSearchOverlay = () => {
+    if (searchOverlayCloseTimeoutRef.current) {
+      clearTimeout(searchOverlayCloseTimeoutRef.current);
+    }
+    setIsSearchOverlayClosing(true);
+    searchOverlayCloseTimeoutRef.current = setTimeout(() => {
+      setIsSearchOverlayOpen(false);
+      setIsSearchOverlayClosing(false);
+      searchOverlayCloseTimeoutRef.current = null;
+    }, 280);
   };
 
   // Don't render header on admin pages (AdminHeader handles that)
@@ -446,37 +501,58 @@ export default function Header() {
             isLoading ? (
               <div className={`${styles.searchShimmer} ${styles.shimmer}`}></div>
             ) : (
-              <form onSubmit={handleSearch} className={styles.searchForm}>
-                {/* Search Icon */}
-                {!isSearching && (
-                  <div className={styles.searchIcon}>
-                    <svg viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-                      <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
-                      <g id="SVGRepo_iconCarrier">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
-                        <path d="M15.989 15.4905L19.5 19.0015" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
-                      </g>
-                    </svg>
+              <div className={styles.searchWrap}>
+                <form onSubmit={handleSearch} className={styles.searchForm}>
+                  {!isSearching && (
+                    <div className={styles.searchIcon}>
+                      <svg viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                        <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                        <g id="SVGRepo_iconCarrier">
+                          <path fillRule="evenodd" clipRule="evenodd" d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+                          <path d="M15.989 15.4905L19.5 19.0015" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+                        </g>
+                      </svg>
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    placeholder="Search Dairy products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={ensureProducts}
+                    className={styles.searchInput}
+                    disabled={isSearching}
+                  />
+                  {isSearching && (
+                    <div className={styles.searchSpinner}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.spinnerIcon}>
+                        <circle cx="12" cy="12" r="10" stroke="#000000" strokeWidth="2" strokeOpacity="0.2" fill="none" />
+                        <path d="M12 2C6.477 2 2 6.477 2 12" stroke="#000000" strokeWidth="2" strokeLinecap="round" fill="none" strokeDasharray="20 40" />
+                      </svg>
+                    </div>
+                  )}
+                </form>
+                {searchQuery.trim() && (
+                  <div className={styles.searchDropdown}>
+                    {isSearchProductsLoading ? (
+                      <div className={styles.searchDropdownLoading}>Loading...</div>
+                    ) : searchResults.length > 0 ? (
+                      searchResults.slice(0, 8).map((p) => (
+                        <Link key={p.id} href={`/subscribe?productId=${p.id}`} className={styles.searchResultItem}>
+                          {p.imageUrl && <img src={p.imageUrl} alt="" className={styles.searchResultImg} />}
+                          <div className={styles.searchResultText}>
+                            <span className={styles.searchResultName}>{p.name}</span>
+                            <span className={styles.searchResultPrice}>₹{p.pricePerLitre} per litre</span>
+                          </div>
+                        </Link>
+                      ))
+                    ) : (
+                      <div className={styles.searchDropdownEmpty}>No products match</div>
+                    )}
                   </div>
                 )}
-                <input
-                  type="text"
-                  placeholder="Search Dairy products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={styles.searchInput}
-                  disabled={isSearching}
-                />
-                {isSearching && (
-                  <div className={styles.searchSpinner}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.spinnerIcon}>
-                      <circle cx="12" cy="12" r="10" stroke="#000000" strokeWidth="2" strokeOpacity="0.2" fill="none" />
-                      <path d="M12 2C6.477 2 2 6.477 2 12" stroke="#000000" strokeWidth="2" strokeLinecap="round" fill="none" strokeDasharray="20 40" />
-                    </svg>
-                  </div>
-                )}
-              </form>
+              </div>
             )
           ) : null}
 
@@ -710,7 +786,6 @@ export default function Header() {
             <div className={`${styles.searchShimmer} ${styles.shimmer}`}></div>
           ) : (
             <form onSubmit={handleSearch} className={styles.searchForm}>
-            {/* Search Icon */}
             {!isSearching && (
               <div className={styles.searchIcon}>
                 <svg viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -728,6 +803,7 @@ export default function Header() {
               placeholder="Search Dairy products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => { ensureProducts(); setIsSearchOverlayOpen(true); }}
               className={styles.searchInput}
               disabled={isSearching}
             />
@@ -868,6 +944,59 @@ export default function Header() {
         </div>
       ) : null}
       </header>
+
+      {/* Mobile: full-page white search overlay when search is focused */}
+      {isMobile && isSearchOverlayOpen && (
+        <div className={`${styles.searchOverlay} ${isSearchOverlayClosing ? styles.searchOverlayClosing : ''}`}>
+          <div className={styles.searchOverlayBar}>
+            <form onSubmit={handleSearch} className={`${styles.searchForm} ${styles.searchOverlayForm}`}>
+              <div className={styles.searchIcon}>
+                <svg viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                  <g id="SVGRepo_iconCarrier">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M5.5 11.1455C5.49956 8.21437 7.56975 5.69108 10.4445 5.11883C13.3193 4.54659 16.198 6.08477 17.32 8.79267C18.4421 11.5006 17.495 14.624 15.058 16.2528C12.621 17.8815 9.37287 17.562 7.3 15.4895C6.14763 14.3376 5.50014 12.775 5.5 11.1455Z" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M15.989 15.4905L19.5 19.0015" stroke="#000000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+                  </g>
+                </svg>
+              </div>
+              <input
+                ref={searchOverlayInputRef}
+                type="text"
+                placeholder="Search Dairy products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={styles.searchInput}
+                autoComplete="off"
+              />
+            </form>
+            <button type="button" className={styles.searchOverlayClose} onClick={closeSearchOverlay} aria-label="Close search">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
+          </div>
+          <div className={styles.searchOverlayResults}>
+            {isSearchProductsLoading ? (
+              <p className={styles.searchOverlayStatus}>Loading...</p>
+            ) : searchQuery.trim() ? (
+              searchResults.length > 0 ? (
+                searchResults.map((p) => (
+                  <Link key={p.id} href={`/subscribe?productId=${p.id}`} className={styles.searchOverlayRow} onClick={closeSearchOverlay}>
+                    {p.imageUrl ? <img src={p.imageUrl} alt="" className={styles.searchOverlayRowImg} /> : <div className={styles.searchOverlayRowImg} />}
+                    <div className={styles.searchOverlayRowText}>
+                      <span className={styles.searchOverlayRowName}>{p.name}</span>
+                      <span className={styles.searchOverlayRowPrice}>₹{p.pricePerLitre} per litre</span>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <p className={styles.searchOverlayStatus}>No products match</p>
+              )
+            ) : (
+              <p className={styles.searchOverlayStatus}>Type to search products</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Spacer so content doesn't go under fixed header (keep auth pages overlay) */}
       {!isAuthPage ? (

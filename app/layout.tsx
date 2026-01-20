@@ -11,6 +11,7 @@ import Header from '@/components/Header';
 import AdminHeader from '@/components/AdminHeader';
 import ConditionalHeader from '@/components/ConditionalHeader';
 import ConditionalFooter from '@/components/ConditionalFooter';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import Toast from '@/components/Toast';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 
@@ -44,6 +45,7 @@ export default function RootLayout({
               <ConditionalHeader />
               {children}
               <ConditionalFooter />
+              <MobileBottomNav />
               <Toast />
               <SpeedInsights />
               <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
