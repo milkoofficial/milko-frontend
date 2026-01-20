@@ -164,7 +164,7 @@ export default function OrdersPage() {
                     </svg>
                   </div>
                   <div className={styles.orderRowActions}>
-                    <Link href="/products" className={styles.orderRowBtn}>View details</Link>
+                    <Link href={`/orders/${order.id}`} className={styles.orderRowBtn}>View details</Link>
                     <Link href="/products" className={styles.orderRowBtn}>
                       <svg className={styles.orderRowBtnIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>

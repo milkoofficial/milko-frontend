@@ -1,0 +1,690 @@
+.container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.content {
+  max-width: 750px;
+  width: 100%;
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  margin: 2rem 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem 2rem;
+  font-size: 1.1rem;
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    #999 0%,
+    #bbb 20%,
+    #e8e8e8 50%,
+    #bbb 80%,
+    #999 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: loadingShimmer 2.8s ease-in-out infinite;
+}
+
+@keyframes loadingShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.error {
+  text-align: center;
+  padding: 2rem;
+  color: #dc3545;
+  font-size: 1rem;
+}
+
+.backLink {
+  display: inline-block;
+  margin: 1rem auto;
+  text-align: center;
+  color: #0070f3;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.orderTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0;
+  flex: 1;
+}
+
+.statusBadge {
+  padding: 0.35rem 0.75rem;
+  background: #d1fae5;
+  color: #065f46;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.statusBadge::before {
+  content: '✓';
+  font-size: 1rem;
+}
+
+.menuButton {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #999;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
+}
+
+.menuButton:hover {
+  color: #666;
+}
+
+.orderDate {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0 0 2rem 0;
+}
+
+/* Sections */
+.section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #999;
+  letter-spacing: 0.5px;
+  margin: 0 0 1rem 0;
+  text-transform: uppercase;
+}
+
+/* Order Items */
+.orderItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.orderItemImage {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f0f0f0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orderItemImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.orderItemImagePlaceholder {
+  font-size: 1.5rem;
+}
+
+.orderItemDetails {
+  flex: 1;
+  min-width: 0;
+}
+
+.orderItemName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000;
+  margin: 0 0 0.25rem 0;
+}
+
+.orderItemVariation {
+  font-size: 0.85rem;
+  color: #999;
+  margin: 0;
+}
+
+/* Pricing */
+.pricingRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0;
+  font-size: 0.9rem;
+  color: #333;
+  border-top: 1px solid #f0f0f0;
+}
+
+.pricingRow:first-of-type {
+  border-top: none;
+}
+
+.totalRow {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #000;
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+  border-top: 2px solid #e5e5e5;
+}
+
+/* Customer */
+.customerInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.customerAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.customerName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000;
+  margin: 0 0 0.25rem 0;
+}
+
+.customerEmail {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0;
+}
+
+/* Timeline */
+.timeline {
+  position: relative;
+}
+
+.timelineStep {
+  position: relative;
+  display: flex;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+}
+
+.timelineStep:last-child {
+  padding-bottom: 0;
+}
+
+.timelineIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.timelineIconCompleted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.timelineLine {
+  position: absolute;
+  left: 20px;
+  top: 40px;
+  bottom: -1.5rem;
+  width: 2px;
+  background: #e5e5e5;
+  z-index: 1;
+}
+
+.timelineLineCompleted {
+  background: #10b981;
+}
+
+.timelineStep:last-child .timelineLine {
+  display: none;
+}
+
+.timelineContent {
+  flex: 1;
+  padding-top: 0.25rem;
+}
+
+.timelineTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000;
+  margin: 0 0 0.25rem 0;
+}
+
+.timelineDescription {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0 0 0.25rem 0;
+}
+
+.timelineDate {
+  font-size: 0.8rem;
+  color: #999;
+  margin: 0;
+}
+
+/* Recommendation Section */
+.recommendationTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 1.5rem 0;
+  text-align: center;
+}
+
+.ratingOptions {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.ratingOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  transition: background 0.2s;
+}
+
+.ratingOption:hover {
+  background: #f5f5f5;
+}
+
+.ratingOptionSelected {
+  background: #e8f5e9;
+}
+
+.ratingEmoji {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.ratingLabel {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Order Details Grid */
+.detailsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detailRow:last-child {
+  border-bottom: none;
+}
+
+.detailLabel {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 400;
+}
+
+.detailValue {
+  font-size: 0.9rem;
+  color: #000;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.freeTag {
+  color: #00a365;
+  font-weight: 700;
+}
+
+.strikethrough {
+  text-decoration: line-through;
+  color: #999;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.downloadIcon {
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.downloadIcon:hover {
+  color: #000;
+}
+
+/* Order Items Section */
+.orderItemsTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0 0 1.5rem 0;
+}
+
+.orderItemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.productCard {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.productCardTop {
+  display: flex;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.productImageWrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.productCardImage {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.productImagePlaceholder {
+  width: 80px;
+  height: 80px;
+  background: #f0f0f0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.productCountBadge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: #000;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  min-width: 28px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.productCardInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.productCardName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.productCardPrice {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0;
+}
+
+.productCardQuantity {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0;
+}
+
+.productRating {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 1rem;
+}
+
+.rateLabel {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.stars {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.star {
+  background: transparent;
+  border: none;
+  font-size: 1.75rem;
+  color: #d1d5db;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s, transform 0.1s;
+  line-height: 1;
+}
+
+.star:hover {
+  color: #fbbf24;
+  transform: scale(1.1);
+}
+
+.starActive {
+  color: #fbbf24;
+}
+
+/* Mobile */
+@media (max-width: 767px) {
+  .content {
+    margin: 0;
+    border-radius: 0;
+    padding: 1.5rem 1rem;
+    min-height: 100vh;
+  }
+
+  .orderTitle {
+    font-size: 1.25rem;
+  }
+
+  .statusBadge {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .orderDate {
+    font-size: 0.85rem;
+  }
+
+  .orderItemImage {
+    width: 56px;
+    height: 56px;
+  }
+
+  .orderItemName {
+    font-size: 0.95rem;
+  }
+
+  .pricingRow {
+    font-size: 0.85rem;
+  }
+
+  .totalRow {
+    font-size: 0.95rem;
+  }
+
+  .customerAvatar {
+    width: 42px;
+    height: 42px;
+    font-size: 1.1rem;
+  }
+
+  .customerName {
+    font-size: 0.95rem;
+  }
+
+  .timelineIcon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .timelineLine {
+    left: 18px;
+    top: 36px;
+  }
+
+  .timelineTitle {
+    font-size: 0.95rem;
+  }
+
+  .recommendationTitle {
+    font-size: 0.85rem;
+  }
+
+  .ratingOptions {
+    gap: 1rem;
+  }
+
+  .ratingEmoji {
+    font-size: 2rem;
+  }
+
+  .ratingLabel {
+    font-size: 0.7rem;
+  }
+
+  .detailLabel,
+  .detailValue {
+    font-size: 0.85rem;
+  }
+
+  .detailRow {
+    padding: 0.75rem 0;
+  }
+
+  .orderItemsTitle {
+    font-size: 1rem;
+  }
+
+  .productCardImage,
+  .productImagePlaceholder {
+    width: 70px;
+    height: 70px;
+  }
+
+  .productCardName {
+    font-size: 0.95rem;
+  }
+
+  .productCardPrice {
+    font-size: 0.95rem;
+  }
+
+  .productRating {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .rateLabel {
+    font-size: 0.85rem;
+  }
+
+  .star {
+    font-size: 1.5rem;
+  }
+
+  .productCountBadge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    min-width: 24px;
+  }
+}

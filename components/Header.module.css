@@ -498,7 +498,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s, transform 0.15s;
+  transition: background 0s, transform 0s;
   padding: 0;
 }
 
@@ -538,6 +538,29 @@
 .searchResultPrice {
   font-size: 0.8rem;
   color: #666;
+}
+
+.searchShowMore {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0070f3;
+  background: #f8faff;
+  border: none;
+  border-top: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: center;
+}
+
+.searchShowMore:hover {
+  background: #eef4ff;
+}
+
+.searchShowMore:active {
+  background: #e0eaff;
 }
 
 /* Mobile: full-page search overlay */
@@ -640,7 +663,7 @@
   -webkit-background-clip: text;
   color: transparent;
   transform: translateZ(0);
-  animation: shimmerText 2.2s linear infinite;
+  animation: shimmerText 2.8s linear infinite;
 }
 
 @keyframes shimmerText {

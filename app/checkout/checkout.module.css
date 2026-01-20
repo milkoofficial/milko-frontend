@@ -21,7 +21,7 @@
   background-size: 200% 100%;
   background-clip: text;
   -webkit-background-clip: text;
-  animation: checkoutLoadingShimmer 2.5s ease-in-out infinite;
+  animation: checkoutLoadingShimmer 2.8s ease-in-out infinite;
 }
 
 @keyframes checkoutLoadingShimmer {

@@ -228,7 +228,7 @@ export default function SignUpPage() {
               fontSize: '0.95rem',
               fontWeight: 500,
               cursor: loading ? 'not-allowed' : 'pointer',
-              marginBottom: '1.5rem',
+              marginBottom: '0rem',
               transition: 'background-color 0.2s',
               fontFamily: 'inherit'
             }}
@@ -310,6 +310,7 @@ export default function SignUpPage() {
         marginTop: '1.5rem',
         lineHeight: '1.4',
         width: '100%',
+        padding: '0 10px',
         maxWidth: '440px'
       }}>
         By continuing, you agree to our{' '}

@@ -18,8 +18,25 @@
 .loading {
   text-align: center;
   padding: 3rem;
-  color: #666;
   font-size: 1.1rem;
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    #999 0%,
+    #bbb 20%,
+    #e8e8e8 50%,
+    #bbb 80%,
+    #999 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: loadingShimmer 2.8s ease-in-out infinite;
+}
+
+@keyframes loadingShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Success Section */

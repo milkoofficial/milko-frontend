@@ -559,34 +559,48 @@ export default function Header() {
                     {isSearchProductsLoading ? (
                       <div className={styles.searchDropdownLoading}>Loading...</div>
                     ) : searchResults.length > 0 ? (
-                      searchResults.slice(0, 8).map((p) => (
-                        <div
-                          key={p.id}
-                          role="button"
-                          tabIndex={0}
-                          className={styles.searchResultItem}
-                          onClick={() => setSelectedProduct(p)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProduct(p); } }}
-                        >
-                          {p.imageUrl && <img src={p.imageUrl} alt="" className={styles.searchResultImg} />}
-                          <div className={styles.searchResultText}>
-                            <span className={styles.searchResultName}>{p.name}</span>
-                            <span className={styles.searchResultPrice}>₹{p.pricePerLitre} per litre</span>
+                      <>
+                        {searchResults.slice(0, 5).map((p) => (
+                          <div
+                            key={p.id}
+                            role="button"
+                            tabIndex={0}
+                            className={styles.searchResultItem}
+                            onClick={() => setSelectedProduct(p)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProduct(p); } }}
+                          >
+                            {p.imageUrl && <img src={p.imageUrl} alt="" className={styles.searchResultImg} />}
+                            <div className={styles.searchResultText}>
+                              <span className={styles.searchResultName}>{p.name}</span>
+                              <span className={styles.searchResultPrice}>₹{p.pricePerLitre} per litre</span>
+                            </div>
+                            <button
+                              type="button"
+                              className={styles.searchResultAddBtn}
+                              aria-label="Add to cart"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addItem({ productId: p.id, quantity: 1 });
+                                showToast('Added to cart', 'success');
+                              }}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5V19M5 12H19" /></svg>
+                            </button>
                           </div>
+                        ))}
+                        {searchResults.length > 5 && (
                           <button
                             type="button"
-                            className={styles.searchResultAddBtn}
-                            aria-label="Add to cart"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addItem({ productId: p.id, quantity: 1 });
-                              showToast('Added to cart', 'success');
+                            className={styles.searchShowMore}
+                            onClick={() => {
+                              setIsSearchDropdownOpen(false);
+                              router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
                             }}
                           >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5V19M5 12H19" /></svg>
+                            Show more
                           </button>
-                        </div>
-                      ))
+                        )}
+                      </>
                     ) : (
                       <div className={styles.searchDropdownEmpty}>No products match</div>
                     )}
@@ -1019,34 +1033,48 @@ export default function Header() {
               <p className={styles.searchOverlayStatus}>Loading...</p>
             ) : searchQuery.trim() ? (
               searchResults.length > 0 ? (
-                searchResults.map((p) => (
-                  <div
-                    key={p.id}
-                    role="button"
-                    tabIndex={0}
-                    className={styles.searchOverlayRow}
-                    onClick={() => { closeSearchOverlay(); setSelectedProduct(p); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeSearchOverlay(); setSelectedProduct(p); } }}
-                  >
-                    {p.imageUrl ? <img src={p.imageUrl} alt="" className={styles.searchOverlayRowImg} /> : <div className={styles.searchOverlayRowImg} />}
-                    <div className={styles.searchOverlayRowText}>
-                      <span className={styles.searchOverlayRowName}>{p.name}</span>
-                      <span className={styles.searchOverlayRowPrice}>₹{p.pricePerLitre} per litre</span>
+                <>
+                  {searchResults.slice(0, 5).map((p) => (
+                    <div
+                      key={p.id}
+                      role="button"
+                      tabIndex={0}
+                      className={styles.searchOverlayRow}
+                      onClick={() => { closeSearchOverlay(); setSelectedProduct(p); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeSearchOverlay(); setSelectedProduct(p); } }}
+                    >
+                      {p.imageUrl ? <img src={p.imageUrl} alt="" className={styles.searchOverlayRowImg} /> : <div className={styles.searchOverlayRowImg} />}
+                      <div className={styles.searchOverlayRowText}>
+                        <span className={styles.searchOverlayRowName}>{p.name}</span>
+                        <span className={styles.searchOverlayRowPrice}>₹{p.pricePerLitre} per litre</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.searchOverlayRowAddBtn}
+                        aria-label="Add to cart"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addItem({ productId: p.id, quantity: 1 });
+                          showToast('Added to cart', 'success');
+                        }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5V19M5 12H19" /></svg>
+                      </button>
                     </div>
+                  ))}
+                  {searchResults.length > 5 && (
                     <button
                       type="button"
-                      className={styles.searchOverlayRowAddBtn}
-                      aria-label="Add to cart"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addItem({ productId: p.id, quantity: 1 });
-                        showToast('Added to cart', 'success');
+                      className={styles.searchShowMore}
+                      onClick={() => {
+                        closeSearchOverlay();
+                        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
                       }}
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5V19M5 12H19" /></svg>
+                      Show more
                     </button>
-                  </div>
-                ))
+                  )}
+                </>
               ) : (
                 <p className={styles.searchOverlayStatus}>No products match</p>
               )
