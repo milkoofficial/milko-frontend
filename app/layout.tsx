@@ -12,6 +12,7 @@ import AdminHeader from '@/components/AdminHeader';
 import ConditionalHeader from '@/components/ConditionalHeader';
 import ConditionalFooter from '@/components/ConditionalFooter';
 import Toast from '@/components/Toast';
+import GoogleAnalytics from '@/components/GoogleAnalytics';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -45,6 +46,7 @@ export default function RootLayout({
               <ConditionalFooter />
               <Toast />
               <SpeedInsights />
+              <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
             </ToastProvider>
           </CartProvider>
         </AuthProvider>

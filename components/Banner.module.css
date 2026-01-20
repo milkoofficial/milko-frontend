@@ -1,5 +1,10 @@
 /* Banner Component Styles */
 
+/* Outer wrapper: on mobile, padding on all sides so you can tweak for an inset effect */
+.bannerOuter {
+  width: 100%;
+}
+
 .bannerContainer {
   position: relative;
   width: 100%;
@@ -144,8 +149,13 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .bannerOuter {
+    padding: 12px; /* Increase to 16px, 20px, etc. for a stronger inset effect */
+  }
+
   .bannerContainer {
     height: 300px;
+    border-radius: 12px;
   }
 
   .bannerTitle {
@@ -156,14 +166,9 @@
     font-size: 1rem;
   }
 
+  /* Hide nav arrows on mobile; users can swipe/scroll the banner */
   .navButton {
-    width: 40px;
-    height: 40px;
-    left: 0.5rem;
-  }
-
-  .navButtonRight {
-    right: 0.5rem;
+    display: none !important;
   }
 
   .dotsContainer {

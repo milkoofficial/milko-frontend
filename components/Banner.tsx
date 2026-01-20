@@ -121,11 +121,12 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
   };
 
   return (
-    <div 
-      className={`${styles.bannerContainer} ${pathname === '/cart' ? styles.hideOnMobile : ''}`}
-      style={containerHeight ? { height: `${containerHeight}px` } : undefined}
-    >
-      <div className={styles.bannerWrapper}>
+    <div className={`${styles.bannerOuter} ${pathname === '/cart' ? styles.hideOnMobile : ''}`}>
+      <div
+        className={styles.bannerContainer}
+        style={containerHeight ? { height: `${containerHeight}px` } : undefined}
+      >
+        <div className={styles.bannerWrapper}>
         {banners.map((banner, index) => {
           const BannerWrapper = banner.link ? 'a' : 'div';
           const wrapperProps = banner.link 
@@ -185,16 +186,17 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
         </svg>
       </button>
 
-      {/* Dots Indicator */}
-      <div className={styles.dotsContainer}>
-        {banners.map((banner, index) => (
-          <button
-            key={banner.id}
-            className={`${styles.dot} ${index === currentSlide ? styles.dotActive : ''}`}
-            onClick={() => goToSlide(index)}
-            aria-label={`Go to slide ${index + 1}`}
-          />
-        ))}
+        {/* Dots Indicator */}
+        <div className={styles.dotsContainer}>
+          {banners.map((banner, index) => (
+            <button
+              key={banner.id}
+              className={`${styles.dot} ${index === currentSlide ? styles.dotActive : ''}`}
+              onClick={() => goToSlide(index)}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
