@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
 import { Inter } from 'next/font/google';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { ToastProvider } from '@/contexts/ToastContext';
@@ -43,6 +44,7 @@ export default function RootLayout({
               {children}
               <ConditionalFooter />
               <Toast />
+              <SpeedInsights />
             </ToastProvider>
           </CartProvider>
         </AuthProvider>
