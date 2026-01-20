@@ -185,6 +185,12 @@
   text-transform: uppercase;
 }
 
+.orderSummaryText {
+  font-size: 1rem;
+  color: #333;
+  margin: 0;
+}
+
 /* Order Items */
 .orderItem {
   display: flex;
@@ -523,6 +529,66 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.orderRatingBlock {
+  margin-top: 1rem;
+}
+
+.detailedFeedbackReadOnly {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.detailedFeedbackRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detailedFeedbackStars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.detailedFeedbackStars .starFilled {
+  color: #f59e0b;
+}
+
+.detailedFeedbackStars .starEmpty {
+  color: #ddd;
+}
+
+.orderRowRate {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  background: #fef9c3bd;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #835800;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.orderRowRateIcon {
+  font-size: 1rem;
+  color: #ca8a04;
+  line-height: 1;
+}
+
+.orderRowRateArrow {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: auto;
+  flex-shrink: 0;
+  color: #ca8a04;
 }
 
 .deliveredActions {

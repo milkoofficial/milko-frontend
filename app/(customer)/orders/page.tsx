@@ -2,9 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import HowWasItModal from '@/components/HowWasItModal';
+import { useToast } from '@/contexts/ToastContext';
+import { useCart } from '@/contexts/CartContext';
 import styles from './page.module.css';
+
+function fmtDdMmYy(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)}`;
+}
 
 type OrderItem = {
   productName: string;
@@ -14,6 +23,7 @@ type OrderItem = {
   lineTotal: number;
   productId: number | null;
   imageUrl: string | null;
+  variationId?: number | null;
 };
 
 type MyOrder = {
@@ -35,13 +45,7 @@ function getDeliveryDisplay(order: MyOrder): string {
   // On its way: placed, confirmed, package_prepared, out_for_delivery
   if (['placed', 'confirmed', 'package_prepared', 'out_for_delivery'].includes(order.status)) return 'On its way';
   if (order.status === 'delivered') {
-    if (order.deliveryDate) {
-      try {
-        return new Date(order.deliveryDate).toLocaleDateString();
-      } catch {
-        return 'Delivered';
-      }
-    }
+    if (order.deliveryDate) return fmtDdMmYy(order.deliveryDate);
     return 'Delivered';
   }
   return '—';
@@ -59,6 +63,9 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<MyOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [ratingModalOrder, setRatingModalOrder] = useState<MyOrder | null>(null);
+  const { showToast } = useToast();
+  const { addItem } = useCart();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -130,27 +137,36 @@ export default function OrdersPage() {
         {displayRows.map(({ item, order }, idx) => {
           const deliveryDisplay = getDeliveryDisplay(order);
           const onTheWay = isOnTheWay(order);
-          const orderDate = order.createdAt
-            ? new Date(order.createdAt).toLocaleDateString()
-            : '—';
+          const orderDate = fmtDdMmYy(order.createdAt);
           const itemLabel = `Qty ${item.quantity}`;
           const variation = item.variationSize ? item.variationSize : null;
           return (
             <div key={`${order.id}-${idx}`} className={styles.orderRow}>
+              <button
+                type="button"
+                className={styles.orderNumberBadge}
+                onClick={() => {
+                  navigator.clipboard.writeText(order.orderNumber).then(() => showToast('Copied!', 'success')).catch(() => {});
+                }}
+              >
+                #{order.orderNumber}
+              </button>
               <div className={styles.orderRowTop}>
-                <div className={styles.orderRowImage}>
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt="" />
-                  ) : (
-                    <div className={styles.orderRowImagePlaceholder}>📦</div>
-                  )}
+                <div className={styles.orderRowImageWrap}>
+                  <div className={styles.orderRowImage}>
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="" />
+                    ) : (
+                      <div className={styles.orderRowImagePlaceholder}>📦</div>
+                    )}
+                  </div>
+                  <div className={styles.orderRowTotal}>₹{order.total.toFixed(2)}</div>
                 </div>
                 <div className={styles.orderRowDetails}>
                   <h3 className={styles.orderRowName}>{item.productName}</h3>
                   <p className={styles.orderRowMeta}>
                     <span>{itemLabel}</span>
                     {variation && <span>{variation}</span>}
-                    <span>Order #{order.orderNumber}</span>
                     <span>Ordered {orderDate}</span>
                   </p>
                   <p
@@ -187,12 +203,27 @@ export default function OrdersPage() {
                   )}
                   <div className={styles.orderRowActions}>
                     <Link href={`/orders/${order.id}`} className={styles.orderRowBtn}>View details</Link>
-                    <Link href="/products" className={styles.orderRowBtn}>
+                    <button
+                      type="button"
+                      className={styles.orderRowBtn}
+                      onClick={() => {
+                        order.items.forEach((it) => {
+                          if (it.productId != null) {
+                            addItem({
+                              productId: String(it.productId),
+                              quantity: it.quantity,
+                              variationId: it.variationId != null ? String(it.variationId) : undefined,
+                            });
+                          }
+                        });
+                        router.push('/cart');
+                      }}
+                    >
                       <svg className={styles.orderRowBtnIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                       </svg>
                       Buy again
-                    </Link>
+                    </button>
                   </div>
                 </>
               )}

@@ -1,14 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiClient, productsApi, contentApi } from '@/lib/api';
 import { Product } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
 import { useCart } from '@/contexts/CartContext';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
+import HowWasItModal from '@/components/HowWasItModal';
 import styles from './page.module.css';
 import Link from 'next/link';
+
+function fmtDdMmYy(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)}`;
+}
 
 type OrderItem = {
   productName: string;
@@ -47,6 +54,13 @@ type OrderDetail = {
   feedbackRating?: string | null;
   vatPercent?: number | null;
   vatAmount?: number | null;
+  cardLast4?: string | null;
+  cardNetwork?: string | null;
+  qualityStars?: number | null;
+  deliveryAgentStars?: number | null;
+  onTimeStars?: number | null;
+  valueForMoneyStars?: number | null;
+  wouldOrderAgain?: string | null;
 };
 
 // Tick SVG for completed steps
@@ -145,30 +159,30 @@ export default function OrderDetailsPage() {
   const [error, setError] = useState('');
   const [selectedRating, setSelectedRating] = useState<string | null>(null);
   const [feedbackLocked, setFeedbackLocked] = useState(false);
-  const [productRatings, setProductRatings] = useState<{ [key: number]: number }>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [helpSupportNumber, setHelpSupportNumber] = useState<string>('');
+  const [isHowWasItOpen, setIsHowWasItOpen] = useState(false);
   const { showToast } = useToast();
   const { addItem } = useCart();
 
-  useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        const data = await apiClient.get<OrderDetail>(`/api/orders/${orderId}`);
-        setOrder(data);
-      } catch (err: any) {
-        console.error('Failed to fetch order:', err);
-        setError(err.message || 'Failed to load order');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (orderId) {
-      fetchOrder();
+  const fetchOrder = useCallback(async (silent = false) => {
+    if (!orderId) return;
+    if (!silent) setLoading(true);
+    try {
+      const data = await apiClient.get<OrderDetail>(`/api/orders/${orderId}`);
+      setOrder(data);
+    } catch (err: any) {
+      console.error('Failed to fetch order:', err);
+      setError(err.message || 'Failed to load order');
+    } finally {
+      if (!silent) setLoading(false);
     }
   }, [orderId]);
+
+  useEffect(() => {
+    if (orderId) fetchOrder();
+  }, [orderId, fetchOrder]);
 
   useEffect(() => {
     if (order?.feedbackSubmitted && order.feedbackRating) {
@@ -227,63 +241,22 @@ export default function OrderDetailsPage() {
 
         <div className={styles.orderDateRow}>
           <span className={styles.orderDate}>
-            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+            {fmtDdMmYy(order.createdAt)}
           </span>
           <span className={styles.orderTotal}>
             {' • '}Qty: {totalQty}{variationStr} • ₹{order.total.toFixed(2)}
           </span>
         </div>
 
-        {/* ORDER SUMMARY */}
+        {/* ORDER SUMMARY — simple delivered/ordered text */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>ORDER SUMMARY</h2>
-          {order.items.map((item, idx) => (
-            <div key={idx} className={styles.orderItem}>
-              <div className={styles.orderItemImage}>
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.productName} />
-                ) : (
-                  <div className={styles.orderItemImagePlaceholder}>📦</div>
-                )}
-              </div>
-              <div className={styles.orderItemDetails}>
-                <h3 className={styles.orderItemName}>{item.productName}</h3>
-                <p className={styles.orderItemVariation}>{item.variationSize || ''}</p>
-              </div>
-            </div>
-          ))}
-
-          <div className={styles.pricingRow}>
-            <span>Subtotal</span>
-            <span>₹{order.subtotal.toFixed(2)}</span>
-          </div>
-          {order.vatPercent != null && order.vatAmount != null && (
-            <div className={styles.pricingRow}>
-              <span>VAT/GST ({order.vatPercent}%)</span>
-              <span>₹{order.vatAmount.toFixed(2)}</span>
-            </div>
-          )}
-          <div className={`${styles.pricingRow} ${styles.totalRow}`}>
-            <span>Total</span>
-            <span>₹{order.total.toFixed(2)}</span>
-          </div>
+          <p className={styles.orderSummaryText}>
+            {(order.deliveredAt || order.deliveryDate) ? `Delivered on ${fmtDdMmYy(order.deliveredAt || order.deliveryDate)}` : `Ordered on ${fmtDdMmYy(order.createdAt)}`}
+          </p>
         </section>
 
-        {/* CUSTOMER */}
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>CUSTOMER</h2>
-          <div className={styles.customerInfo}>
-            <div className={styles.customerAvatar}>
-              {order.customer.name.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h3 className={styles.customerName}>{order.customer.name}</h3>
-              <p className={styles.customerEmail}>{order.customer.email}</p>
-            </div>
-          </div>
-        </section>
-
-        {/* TIMELINE — all steps shown; completed = tick + normal, not yet completed = little gray */}
+        {/* TIMELINE — above Customer; all steps shown; completed = tick + normal, not yet = little gray */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>TIMELINE</h2>
           <div className={styles.timeline}>
@@ -302,6 +275,20 @@ export default function OrderDetailsPage() {
                 )}
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* CUSTOMER */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>CUSTOMER</h2>
+          <div className={styles.customerInfo}>
+            <div className={styles.customerAvatar}>
+              {order.customer.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h3 className={styles.customerName}>{order.customer.name}</h3>
+              <p className={styles.customerEmail}>{order.customer.email}</p>
+            </div>
           </div>
         </section>
 
@@ -384,13 +371,7 @@ export default function OrderDetailsPage() {
             </div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Order Date</span>
-              <span className={styles.detailValue}>
-                {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric'
-                }) : ''}
-              </span>
+              <span className={styles.detailValue}>{fmtDdMmYy(order.createdAt)}</span>
             </div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Product Total</span>
@@ -406,12 +387,24 @@ export default function OrderDetailsPage() {
               </span>
             </div>
             <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Platform fee</span>
+              <span className={styles.detailValue}>₹0</span>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Tax</span>
+              <span className={styles.detailValue}>₹0</span>
+            </div>
+            <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Order Amount</span>
               <span className={styles.detailValue}>₹{order.total.toFixed(2)}</span>
             </div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Payment Mode</span>
-              <span className={styles.detailValue}>{order.paymentMethod.toUpperCase()}</span>
+              <span className={styles.detailValue}>
+                {order.paymentMethod === 'online' && (order.cardLast4 || order.cardNetwork) ? (
+                  <>ONLINE{order.cardLast4 ? ` •••• ${order.cardLast4}` : ''}{order.cardNetwork ? ` ${order.cardNetwork}` : ''}</>
+                ) : order.paymentMethod === 'online' ? 'ONLINE' : 'COD'}
+              </span>
             </div>
           </div>
         </section>
@@ -453,26 +446,37 @@ export default function OrderDetailsPage() {
                     <p className={styles.productCardQuantity}>Qty: {item.quantity}</p>
                   </div>
                 </div>
-                
-                {order.status === 'delivered' && (
-                  <div className={styles.productRating}>
-                    <span className={styles.rateLabel}>Rate this product:</span>
-                    <div className={styles.stars}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          className={`${styles.star} ${productRatings[idx] >= star ? styles.starActive : ''}`}
-                          onClick={() => setProductRatings({ ...productRatings, [idx]: star })}
-                        >
-                          ★
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>
+          {/* Order-level rating: if already submitted HowWasIt show 5 rows read-only; else Rate + HowWasItModal */}
+          {order.status === 'delivered' && (
+            <div className={styles.orderRatingBlock}>
+              {order.qualityStars != null && order.qualityStars >= 1 ? (
+                <div className={styles.detailedFeedbackReadOnly}>
+                  <div className={styles.detailedFeedbackRow}><span>Quality of the product</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (order.qualityStars||0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
+                  <div className={styles.detailedFeedbackRow}><span>Delivery agent behaviour</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (order.deliveryAgentStars||0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
+                  <div className={styles.detailedFeedbackRow}><span>On time delivery</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (order.onTimeStars||0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
+                  <div className={styles.detailedFeedbackRow}><span>Value for money</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (order.valueForMoneyStars||0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
+                  <div className={styles.detailedFeedbackRow}><span>Would you order again</span><span>{order.wouldOrderAgain || '—'}</span></div>
+                </div>
+              ) : (
+                <div
+                  className={styles.orderRowRate}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setIsHowWasItOpen(true)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsHowWasItOpen(true); } }}
+                >
+                  <span className={styles.orderRowRateIcon} aria-hidden>★</span>
+                  <span>Rate this product</span>
+                  <svg className={styles.orderRowRateArrow} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              )}
+            </div>
+          )}
           {order.status === 'delivered' && (
             <div className={styles.deliveredActions}>
               <button
@@ -527,6 +531,13 @@ export default function OrderDetailsPage() {
           }}
         />
       )}
+
+      <HowWasItModal
+        isOpen={isHowWasItOpen}
+        onClose={() => setIsHowWasItOpen(false)}
+        order={order ? { id: order.id, items: order.items } : null}
+        onSubmitSuccess={() => fetchOrder(true)}
+      />
     </div>
   );
 }
