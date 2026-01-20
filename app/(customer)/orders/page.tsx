@@ -29,8 +29,9 @@ type MyOrder = {
 };
 
 function getDeliveryDisplay(order: MyOrder): string {
-  if (order.status === 'cancelled') return '—';
-  if (order.status === 'placed' || order.status === 'confirmed') return 'On its way';
+  if (order.status === 'cancelled' || order.status === 'refunded') return '—';
+  // On its way: placed, confirmed, package_prepared, out_for_delivery
+  if (['placed', 'confirmed', 'package_prepared', 'out_for_delivery'].includes(order.status)) return 'On its way';
   if (order.status === 'delivered') {
     if (order.deliveryDate) {
       try {
@@ -42,6 +43,10 @@ function getDeliveryDisplay(order: MyOrder): string {
     return 'Delivered';
   }
   return '—';
+}
+
+function isOnTheWay(order: MyOrder): boolean {
+  return ['placed', 'confirmed', 'package_prepared', 'out_for_delivery'].includes(order.status);
 }
 
 /**
@@ -121,7 +126,7 @@ export default function OrdersPage() {
       <div className={styles.ordersList}>
         {displayRows.map(({ item, order }, idx) => {
           const deliveryDisplay = getDeliveryDisplay(order);
-          const isOnTheWay = order.status === 'placed' || order.status === 'confirmed';
+          const onTheWay = isOnTheWay(order);
           const orderDate = order.createdAt
             ? new Date(order.createdAt).toLocaleDateString()
             : '—';
@@ -147,13 +152,14 @@ export default function OrdersPage() {
                   </p>
                   <p
                     className={`${styles.orderRowDelivery} ${
-                      isOnTheWay ? styles.orderRowDeliveryOnTheWay : ''
+                      onTheWay ? styles.orderRowDeliveryOnTheWay : ''
                     }`}
                   >
-                    {isOnTheWay ? 'On its way' : `Delivery: ${deliveryDisplay}`}
+                    {onTheWay ? 'On its way' : `Delivery: ${deliveryDisplay}`}
                   </p>
                 </div>
               </div>
+              {/* Delivered: Rate this product + View details + Buy again */}
               {order.status === 'delivered' && (
                 <>
                   <div className={styles.orderRowRate}>
@@ -173,6 +179,12 @@ export default function OrdersPage() {
                     </Link>
                   </div>
                 </>
+              )}
+              {/* On its way (or cancelled/refunded): only View details */}
+              {order.status !== 'delivered' && (
+                <div className={styles.orderRowActions}>
+                  <Link href={`/orders/${order.id}`} className={styles.orderRowBtn}>View details</Link>
+                </div>
               )}
             </div>
           );

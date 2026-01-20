@@ -302,21 +302,21 @@
 
 .tabButton {
   border: none;
-  background: transparent;
-  padding: 0.6rem 0.95rem;
-  font-weight: 800;
-  color: #475569;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+    background: transparent;
+    padding: 0.6rem 0.95rem;
+    font-weight: 800;
+    color: #494949;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    margin: 4px;
+    border-radius: 8px;
 }
 
-.tabButton:hover {
-  background: #f8fafc;
-}
+
 
 .tabButtonActive {
-  background: #0ea5e9;
-  color: #fff;
+  background: #e1e1e187;
+    color: #414141;
 }
 
 .badgeInfo {

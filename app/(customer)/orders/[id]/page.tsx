@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import styles from './page.module.css';
 import Link from 'next/link';
@@ -38,86 +38,105 @@ type OrderDetail = {
     email: string;
   };
   items: OrderItem[];
+  feedbackSubmitted?: boolean;
+  feedbackRating?: string | null;
 };
 
-// Timeline steps based on order status
+// Tick SVG for completed steps
+const TickIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className={styles.timelineSvg} aria-hidden>
+    <path fillRule="evenodd" clipRule="evenodd" d="M16.0303 8.96967C16.3232 9.26256 16.3232 9.73744 16.0303 10.0303L11.0303 15.0303C10.7374 15.3232 10.2626 15.3232 9.96967 15.0303L7.96967 13.0303C7.67678 12.7374 7.67678 12.2626 7.96967 11.9697C8.26256 11.6768 8.73744 11.6768 9.03033 11.9697L10.5 13.4393L12.7348 11.2045L14.9697 8.96967C15.2626 8.67678 15.7374 8.67678 16.0303 8.96967Z" fill="currentColor"/>
+  </svg>
+);
+
+// Icons for incomplete steps: order (clipboard), package (box), truck, delivery (home)
+const OrderIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.timelineSvg} aria-hidden>
+    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+  </svg>
+);
+const PackageIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.timelineSvg} aria-hidden>
+    <path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+    <line x1="12" y1="22.08" x2="12" y2="12"/>
+  </svg>
+);
+const TruckIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.timelineSvg} aria-hidden>
+    <path d="M1 3h15v13H1z"/>
+    <path d="M16 8h4l3 3v5h-7V8z"/>
+    <circle cx="5.5" cy="18.5" r="2.5"/>
+    <circle cx="18.5" cy="18.5" r="2.5"/>
+  </svg>
+);
+const DeliveryIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.timelineSvg} aria-hidden>
+    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+    <polyline points="9 22 9 12 15 12 15 22"/>
+  </svg>
+);
+
 function getTimelineSteps(order: OrderDetail) {
-  const steps = [];
+  const steps: { title: string; description: string; date: string; iconType: 'tick' | 'order' | 'package' | 'truck' | 'delivery'; completed: boolean }[] = [];
   
-  // Order confirmed
   steps.push({
     title: 'Order confirmed',
     description: 'Order placed and confirmed',
-    date: order.createdAt ? new Date(order.createdAt).toLocaleString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : '',
-    icon: '✅',
+    date: order.createdAt ? new Date(order.createdAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+    iconType: 'tick',
     completed: true
   });
 
-  // Package prepared
   const prepared = order.status === 'package_prepared' || order.status === 'out_for_delivery' || order.status === 'delivered';
   steps.push({
     title: 'Package prepared',
     description: 'Packed and handed to DHL Express',
-    date: order.packagePreparedAt ? new Date(order.packagePreparedAt).toLocaleString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : '',
-    icon: '🎁',
+    date: order.packagePreparedAt ? new Date(order.packagePreparedAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+    iconType: prepared ? 'tick' : 'package',
     completed: prepared
   });
 
-  // Out for delivery
   const outForDelivery = order.status === 'out_for_delivery' || order.status === 'delivered';
   steps.push({
     title: 'Out for delivery',
     description: 'Will be delivered today',
-    date: order.outForDeliveryAt ? new Date(order.outForDeliveryAt).toLocaleString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : '',
-    icon: '📍',
+    date: order.outForDeliveryAt ? new Date(order.outForDeliveryAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+    iconType: outForDelivery ? 'tick' : 'truck',
     completed: outForDelivery
   });
 
-  // Delivered
   const delivered = order.status === 'delivered';
   steps.push({
     title: 'Delivered',
     description: 'Package delivered successfully',
-    date: order.deliveredAt ? new Date(order.deliveredAt).toLocaleString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }) : '',
-    icon: '✅',
+    date: order.deliveredAt ? new Date(order.deliveredAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+    iconType: delivered ? 'tick' : 'delivery',
     completed: delivered
   });
 
   return steps;
 }
 
+function TimelineIcon({ iconType }: { iconType: 'tick' | 'order' | 'package' | 'truck' | 'delivery' }) {
+  switch (iconType) {
+    case 'tick': return <TickIcon />;
+    case 'order': return <OrderIcon />;
+    case 'package': return <PackageIcon />;
+    case 'truck': return <TruckIcon />;
+    case 'delivery': return <DeliveryIcon />;
+    default: return <TickIcon />;
+  }
+}
+
 export default function OrderDetailsPage() {
   const params = useParams();
-  const router = useRouter();
   const orderId = params?.id as string;
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedRating, setSelectedRating] = useState<string | null>(null);
+  const [feedbackLocked, setFeedbackLocked] = useState(false);
   const [productRatings, setProductRatings] = useState<{ [key: number]: number }>({});
 
   useEffect(() => {
@@ -138,6 +157,12 @@ export default function OrderDetailsPage() {
     }
   }, [orderId]);
 
+  useEffect(() => {
+    if (order?.feedbackSubmitted && order.feedbackRating) {
+      setSelectedRating(order.feedbackRating);
+    }
+  }, [order?.feedbackSubmitted, order?.feedbackRating]);
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -156,6 +181,9 @@ export default function OrderDetailsPage() {
   }
 
   const timelineSteps = getTimelineSteps(order);
+  // Show timeline only up to current status: placed/confirmed=1, package_prepared=2, out_for_delivery=3, delivered=4
+  const maxTimelineSteps = order.status === 'delivered' ? 4 : order.status === 'out_for_delivery' ? 3 : order.status === 'package_prepared' ? 2 : 1;
+  const visibleTimelineSteps = timelineSteps.slice(0, maxTimelineSteps);
   const isPaid = order.paymentStatus === 'paid' || order.paymentStatus === 'cod';
 
   return (
@@ -165,18 +193,23 @@ export default function OrderDetailsPage() {
         <div className={styles.header}>
           <h1 className={styles.orderTitle}>Order #{order.orderNumber}</h1>
           <div className={styles.statusBadge}>
+            <svg className={styles.statusBadgeTick} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+              <path fillRule="evenodd" clipRule="evenodd" d="M16.0303 8.96967C16.3232 9.26256 16.3232 9.73744 16.0303 10.0303L11.0303 15.0303C10.7374 15.3232 10.2626 15.3232 9.96967 15.0303L7.96967 13.0303C7.67678 12.7374 7.67678 12.2626 7.96967 11.9697C8.26256 11.6768 8.73744 11.6768 9.03033 11.9697L10.5 13.4393L12.7348 11.2045L14.9697 8.96967C15.2626 8.67678 15.7374 8.67678 16.0303 8.96967Z" fill="currentColor"/>
+            </svg>
             {isPaid ? 'Paid' : order.paymentStatus}
           </div>
-          <button className={styles.menuButton}>⋮</button>
         </div>
 
-        <p className={styles.orderDate}>
-          {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-          }) : ''} • ${order.total.toFixed(2)}
-        </p>
+        <div className={styles.orderDateRow}>
+          <span className={styles.orderDate}>
+            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            }) : ''}
+          </span>
+          <span className={styles.orderTotal}>₹{order.total.toFixed(2)}</span>
+        </div>
 
         {/* ORDER SUMMARY */}
         <section className={styles.section}>
@@ -225,21 +258,21 @@ export default function OrderDetailsPage() {
           </div>
         </section>
 
-        {/* TIMELINE */}
+        {/* TIMELINE — shown up to current status (e.g. out_for_delivery shows ticks until that step) */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>TIMELINE</h2>
           <div className={styles.timeline}>
-            {timelineSteps.map((step, idx) => (
+            {visibleTimelineSteps.map((step, idx) => (
               <div key={idx} className={styles.timelineStep}>
                 <div className={`${styles.timelineIcon} ${step.completed ? styles.timelineIconCompleted : ''}`}>
-                  {step.icon}
+                  <TimelineIcon iconType={step.iconType} />
                 </div>
                 <div className={styles.timelineContent}>
                   <h3 className={styles.timelineTitle}>{step.title}</h3>
                   <p className={styles.timelineDescription}>{step.description}</p>
                   {step.date && <p className={styles.timelineDate}>{step.date}</p>}
                 </div>
-                {idx < timelineSteps.length - 1 && (
+                {idx < visibleTimelineSteps.length - 1 && (
                   <div className={`${styles.timelineLine} ${step.completed ? styles.timelineLineCompleted : ''}`}></div>
                 )}
               </div>
@@ -247,30 +280,60 @@ export default function OrderDetailsPage() {
           </div>
         </section>
 
-        {/* RECOMMENDATION SECTION - Only show if delivered */}
+        {/* RECOMMENDATION SECTION - Only show if delivered. Locked after submit or if already submitted. */}
         {order.status === 'delivered' && (
           <section className={styles.section}>
             <h2 className={styles.recommendationTitle}>
-              How likely are you to recommend Jiomart to friends and family?
+              How likely are you to recommend Milko to friends and family?
             </h2>
             <div className={styles.ratingOptions}>
               <button
                 className={`${styles.ratingOption} ${selectedRating === 'least' ? styles.ratingOptionSelected : ''}`}
-                onClick={() => setSelectedRating('least')}
+                disabled={!!(order.feedbackSubmitted || feedbackLocked)}
+                onClick={async () => {
+                  if (order.feedbackSubmitted || feedbackLocked) return;
+                  setSelectedRating('least');
+                  try {
+                    await apiClient.post(`/api/orders/${orderId}/feedback`, { rating: 'least' });
+                    setFeedbackLocked(true);
+                  } catch {
+                    setSelectedRating(null);
+                  }
+                }}
               >
                 <span className={styles.ratingEmoji}>😔</span>
                 <span className={styles.ratingLabel}>Least likely</span>
               </button>
               <button
                 className={`${styles.ratingOption} ${selectedRating === 'neutral' ? styles.ratingOptionSelected : ''}`}
-                onClick={() => setSelectedRating('neutral')}
+                disabled={!!(order.feedbackSubmitted || feedbackLocked)}
+                onClick={async () => {
+                  if (order.feedbackSubmitted || feedbackLocked) return;
+                  setSelectedRating('neutral');
+                  try {
+                    await apiClient.post(`/api/orders/${orderId}/feedback`, { rating: 'neutral' });
+                    setFeedbackLocked(true);
+                  } catch {
+                    setSelectedRating(null);
+                  }
+                }}
               >
                 <span className={styles.ratingEmoji}>😐</span>
                 <span className={styles.ratingLabel}>Neutral</span>
               </button>
               <button
                 className={`${styles.ratingOption} ${selectedRating === 'most' ? styles.ratingOptionSelected : ''}`}
-                onClick={() => setSelectedRating('most')}
+                disabled={!!(order.feedbackSubmitted || feedbackLocked)}
+                onClick={async () => {
+                  if (order.feedbackSubmitted || feedbackLocked) return;
+                  setSelectedRating('most');
+                  try {
+                    await apiClient.post(`/api/orders/${orderId}/feedback`, { rating: 'most' });
+                    setFeedbackLocked(true);
+                  } catch {
+                    setSelectedRating(null);
+                  }
+                }}
               >
                 <span className={styles.ratingEmoji}>😊</span>
                 <span className={styles.ratingLabel}>Most Likely</span>
@@ -290,10 +353,6 @@ export default function OrderDetailsPage() {
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Order Number</span>
               <span className={styles.detailValue}>{order.orderNumber}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Shipment Number</span>
-              <span className={styles.detailValue}>{order.orderNumber}-01</span>
             </div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Order Date</span>
@@ -320,21 +379,6 @@ export default function OrderDetailsPage() {
             </div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Order Amount</span>
-              <span className={styles.detailValue}>₹{order.total.toFixed(2)}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Invoice Number</span>
-              <span className={styles.detailValue}>
-                T42I{order.orderNumber.substring(0, 10)}I
-                <button className={styles.downloadIcon} title="Download Invoice">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-                  </svg>
-                </button>
-              </span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Invoice Amount</span>
               <span className={styles.detailValue}>₹{order.total.toFixed(2)}</span>
             </div>
             <div className={styles.detailRow}>
