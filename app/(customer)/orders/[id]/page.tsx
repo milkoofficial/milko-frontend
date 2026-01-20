@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { apiClient } from '@/lib/api';
+import { apiClient, productsApi } from '@/lib/api';
+import { Product } from '@/types';
+import { useToast } from '@/contexts/ToastContext';
+import ProductDetailsModal from '@/components/ProductDetailsModal';
 import styles from './page.module.css';
 import Link from 'next/link';
 
@@ -40,6 +43,8 @@ type OrderDetail = {
   items: OrderItem[];
   feedbackSubmitted?: boolean;
   feedbackRating?: string | null;
+  vatPercent?: number | null;
+  vatAmount?: number | null;
 };
 
 // Tick SVG for completed steps
@@ -91,7 +96,7 @@ function getTimelineSteps(order: OrderDetail) {
   const prepared = order.status === 'package_prepared' || order.status === 'out_for_delivery' || order.status === 'delivered';
   steps.push({
     title: 'Package prepared',
-    description: 'Packed and handed to DHL Express',
+    description: 'Packed and handed to Milko Team',
     date: order.packagePreparedAt ? new Date(order.packagePreparedAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
     iconType: prepared ? 'tick' : 'package',
     completed: prepared
@@ -138,6 +143,9 @@ export default function OrderDetailsPage() {
   const [selectedRating, setSelectedRating] = useState<string | null>(null);
   const [feedbackLocked, setFeedbackLocked] = useState(false);
   const [productRatings, setProductRatings] = useState<{ [key: number]: number }>({});
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -181,10 +189,12 @@ export default function OrderDetailsPage() {
   }
 
   const timelineSteps = getTimelineSteps(order);
-  // Show timeline only up to current status: placed/confirmed=1, package_prepared=2, out_for_delivery=3, delivered=4
-  const maxTimelineSteps = order.status === 'delivered' ? 4 : order.status === 'out_for_delivery' ? 3 : order.status === 'package_prepared' ? 2 : 1;
-  const visibleTimelineSteps = timelineSteps.slice(0, maxTimelineSteps);
   const isPaid = order.paymentStatus === 'paid' || order.paymentStatus === 'cod';
+  const totalQty = order.items.reduce((s, i) => s + i.quantity, 0);
+  const variationStr = (() => {
+    const v = [...new Set(order.items.map((i) => i.variationSize).filter(Boolean))] as string[];
+    return v.length ? ` • ${v.join(', ')}` : '';
+  })();
 
   return (
     <div className={styles.container}>
@@ -202,13 +212,11 @@ export default function OrderDetailsPage() {
 
         <div className={styles.orderDateRow}>
           <span className={styles.orderDate}>
-            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric'
-            }) : ''}
+            {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
           </span>
-          <span className={styles.orderTotal}>₹{order.total.toFixed(2)}</span>
+          <span className={styles.orderTotal}>
+            {' • '}Qty: {totalQty}{variationStr} • ₹{order.total.toFixed(2)}
+          </span>
         </div>
 
         {/* ORDER SUMMARY */}
@@ -232,15 +240,17 @@ export default function OrderDetailsPage() {
 
           <div className={styles.pricingRow}>
             <span>Subtotal</span>
-            <span>${order.subtotal.toFixed(2)}</span>
+            <span>₹{order.subtotal.toFixed(2)}</span>
           </div>
-          <div className={styles.pricingRow}>
-            <span>VAT (20.00%)</span>
-            <span>${(order.subtotal * 0.2).toFixed(2)}</span>
-          </div>
+          {order.vatPercent != null && order.vatAmount != null && (
+            <div className={styles.pricingRow}>
+              <span>VAT/GST ({order.vatPercent}%)</span>
+              <span>₹{order.vatAmount.toFixed(2)}</span>
+            </div>
+          )}
           <div className={`${styles.pricingRow} ${styles.totalRow}`}>
             <span>Total</span>
-            <span>${order.total.toFixed(2)}</span>
+            <span>₹{order.total.toFixed(2)}</span>
           </div>
         </section>
 
@@ -258,12 +268,12 @@ export default function OrderDetailsPage() {
           </div>
         </section>
 
-        {/* TIMELINE — shown up to current status (e.g. out_for_delivery shows ticks until that step) */}
+        {/* TIMELINE — all steps shown; completed = tick + normal, not yet completed = little gray */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>TIMELINE</h2>
           <div className={styles.timeline}>
-            {visibleTimelineSteps.map((step, idx) => (
-              <div key={idx} className={styles.timelineStep}>
+            {timelineSteps.map((step, idx) => (
+              <div key={idx} className={`${styles.timelineStep} ${!step.completed ? styles.timelineStepIncomplete : ''}`}>
                 <div className={`${styles.timelineIcon} ${step.completed ? styles.timelineIconCompleted : ''}`}>
                   <TimelineIcon iconType={step.iconType} />
                 </div>
@@ -272,7 +282,7 @@ export default function OrderDetailsPage() {
                   <p className={styles.timelineDescription}>{step.description}</p>
                   {step.date && <p className={styles.timelineDate}>{step.date}</p>}
                 </div>
-                {idx < visibleTimelineSteps.length - 1 && (
+                {idx < timelineSteps.length - 1 && (
                   <div className={`${styles.timelineLine} ${step.completed ? styles.timelineLineCompleted : ''}`}></div>
                 )}
               </div>
@@ -339,6 +349,9 @@ export default function OrderDetailsPage() {
                 <span className={styles.ratingLabel}>Most Likely</span>
               </button>
             </div>
+            {(order.feedbackSubmitted || feedbackLocked) && selectedRating && (
+              <p className={styles.ratingThankYou}>Boht Boht Sukhriya</p>
+            )}
           </section>
         )}
 
@@ -394,7 +407,21 @@ export default function OrderDetailsPage() {
           <div className={styles.orderItemsList}>
             {order.items.map((item, idx) => (
               <div key={idx} className={styles.productCard}>
-                <div className={styles.productCardTop}>
+                <div
+                  className={`${styles.productCardTop} ${item.productId ? styles.productCardTopClickable : ''}`}
+                  role={item.productId ? 'button' : undefined}
+                  tabIndex={item.productId ? 0 : undefined}
+                  onClick={item.productId ? async () => {
+                    try {
+                      const p = await productsApi.getById(String(item.productId), true);
+                      setSelectedProduct(p);
+                      setIsProductModalOpen(true);
+                    } catch {
+                      showToast('Product not found', 'error');
+                    }
+                  } : undefined}
+                  onKeyDown={item.productId ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); (e.currentTarget as HTMLDivElement).click(); } } : undefined}
+                >
                   <div className={styles.productImageWrapper}>
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.productName} className={styles.productCardImage} />
@@ -433,6 +460,17 @@ export default function OrderDetailsPage() {
           </div>
         </section>
       </div>
+
+      {selectedProduct && (
+        <ProductDetailsModal
+          product={selectedProduct}
+          isOpen={isProductModalOpen}
+          onClose={() => {
+            setIsProductModalOpen(false);
+            setSelectedProduct(null);
+          }}
+        />
+      )}
     </div>
   );
 }
