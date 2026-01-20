@@ -81,8 +81,6 @@
 
 .statusBadge {
   padding: 0.35rem 0.75rem;
-  background: #d1fae5;
-  color: #065f46;
   border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -91,11 +89,35 @@
   gap: 0.3rem;
 }
 
+/* Paid: money received (green) */
+.statusBadgePaid {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Pending: until delivered and money received (light yellow) */
+.statusBadgePending {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+/* Cancelled: set by admin */
+.statusBadgeCancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Refunded: set by admin */
+.statusBadgeRefunded {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
 .statusBadgeTick {
-  width: 14px;
-  height: 14px;
+  width: 27px;
+  height: 27px;
   flex-shrink: 0;
-  margin: -7px -7px -7px -7px;
+  margin: -7px -6px -7px -8px;
 
 }
 
@@ -114,16 +136,31 @@
 }
 
 .orderTotal {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #000;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #757070;
+  margin-left: 4px;
 }
 
+/* Base for all timeline step SVGs */
 .timelineSvg {
-  width: 29px;
-  height: 29px;
   flex-shrink: 0;
   display: block;
+}
+
+/* Confirmed/completed step: tick or step icon, full emphasis */
+.timelineIconCompleted .timelineSvg {
+  width: 29px;
+  height: 29px;
+  color: #065f46;
+}
+
+/* Not confirmed: step icon, muted */
+.timelineStepIncomplete .timelineSvg {
+  width: 21px;
+  height: 21px;
+  color: #bbb;
+  opacity: 0.9;
 }
 
 /* Sections */
@@ -320,7 +357,7 @@
 }
 
 .timelineLineCompleted {
-  background: #10b981;
+  background: #d1fae5;
 }
 
 .timelineStep:last-child .timelineLine {
@@ -406,7 +443,7 @@
 
 .ratingThankYou {
   margin: 1rem 0 0 0;
-  font-size: 0.95rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #15803d;
   text-align: center;
