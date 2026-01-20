@@ -23,14 +23,14 @@
     left: 0;
     right: 0;
     z-index: 100;
-    background: #ffffffb8;
+    background: #ffffffc7;
     border-top: 1px solid #eee;
     padding: 0.5rem 0.5rem;
     padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
-    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.06);
+    
     margin: 0 5px 5px 5px;
     border-radius: 6px;
-    backdrop-filter: blur(30px);
+    backdrop-filter: blur(35px);
     border: 1px solid #ddd;
 }
 

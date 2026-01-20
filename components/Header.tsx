@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import styles from './Header.module.css';
 import { User, Product } from '@/types';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import { contentApi, productsApi } from '@/lib/api';
+import ProductDetailsModal from './ProductDetailsModal';
 
 /**
  * User Dropdown Component
@@ -139,7 +141,8 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
  */
 export default function Header() {
   const { isAuthenticated, user, logout, isAdmin } = useAuth();
-  const { itemCount } = useCart();
+  const { itemCount, addItem } = useCart();
+  const { showToast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState('');
@@ -150,6 +153,7 @@ export default function Header() {
   const [isSearchOverlayClosing, setIsSearchOverlayClosing] = useState(false);
   const searchOverlayInputRef = useRef<HTMLInputElement>(null);
   const searchOverlayCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [pincode, setPincode] = useState(['', '', '', '', '', '']);
   const [deliveryStatus, setDeliveryStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
@@ -353,7 +357,11 @@ export default function Header() {
       setTimeout(() => searchOverlayInputRef.current?.focus(), 50);
       const prev = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = prev; };
+      return () => {
+        // Don't restore if another overlay (e.g. ProductDetailsModal) has taken over body
+        if (document.body.style.position === 'fixed') return;
+        document.body.style.overflow = prev;
+      };
     }
   }, [isSearchOverlayOpen]);
 
@@ -539,13 +547,32 @@ export default function Header() {
                       <div className={styles.searchDropdownLoading}>Loading...</div>
                     ) : searchResults.length > 0 ? (
                       searchResults.slice(0, 8).map((p) => (
-                        <Link key={p.id} href={`/subscribe?productId=${p.id}`} className={styles.searchResultItem}>
+                        <div
+                          key={p.id}
+                          role="button"
+                          tabIndex={0}
+                          className={styles.searchResultItem}
+                          onClick={() => setSelectedProduct(p)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProduct(p); } }}
+                        >
                           {p.imageUrl && <img src={p.imageUrl} alt="" className={styles.searchResultImg} />}
                           <div className={styles.searchResultText}>
                             <span className={styles.searchResultName}>{p.name}</span>
                             <span className={styles.searchResultPrice}>₹{p.pricePerLitre} per litre</span>
                           </div>
-                        </Link>
+                          <button
+                            type="button"
+                            className={styles.searchResultAddBtn}
+                            aria-label="Add to cart"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addItem({ productId: p.id, quantity: 1 });
+                              showToast('Added to cart', 'success');
+                            }}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5V19M5 12H19" /></svg>
+                          </button>
+                        </div>
                       ))
                     ) : (
                       <div className={styles.searchDropdownEmpty}>No products match</div>
@@ -980,13 +1007,32 @@ export default function Header() {
             ) : searchQuery.trim() ? (
               searchResults.length > 0 ? (
                 searchResults.map((p) => (
-                  <Link key={p.id} href={`/subscribe?productId=${p.id}`} className={styles.searchOverlayRow} onClick={closeSearchOverlay}>
+                  <div
+                    key={p.id}
+                    role="button"
+                    tabIndex={0}
+                    className={styles.searchOverlayRow}
+                    onClick={() => { closeSearchOverlay(); setSelectedProduct(p); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeSearchOverlay(); setSelectedProduct(p); } }}
+                  >
                     {p.imageUrl ? <img src={p.imageUrl} alt="" className={styles.searchOverlayRowImg} /> : <div className={styles.searchOverlayRowImg} />}
                     <div className={styles.searchOverlayRowText}>
                       <span className={styles.searchOverlayRowName}>{p.name}</span>
                       <span className={styles.searchOverlayRowPrice}>₹{p.pricePerLitre} per litre</span>
                     </div>
-                  </Link>
+                    <button
+                      type="button"
+                      className={styles.searchOverlayRowAddBtn}
+                      aria-label="Add to cart"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addItem({ productId: p.id, quantity: 1 });
+                        showToast('Added to cart', 'success');
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5V19M5 12H19" /></svg>
+                    </button>
+                  </div>
                 ))
               ) : (
                 <p className={styles.searchOverlayStatus}>No products match</p>
@@ -996,6 +1042,15 @@ export default function Header() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Product details modal (from search results) */}
+      {selectedProduct && (
+        <ProductDetailsModal
+          product={selectedProduct}
+          isOpen={!!selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
       )}
 
       {/* Spacer so content doesn't go under fixed header (keep auth pages overlay) */}
