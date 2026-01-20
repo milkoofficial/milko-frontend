@@ -15,6 +15,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   contact: 'Contact Details',
   reviews: 'Reviews Settings',
   pincodes: 'Pincodes',
+  help_support: 'Help support number',
 };
 
 /**
@@ -78,6 +79,13 @@ export default function AdminContentEditPage() {
         setMetadata({ serviceablePincodes: [] });
         setServiceablePincodes([] as Array<{ pincode: string; deliveryTime: string }>);
         setIsActive(true);
+      } else if (contentType === 'help_support') {
+        setError('');
+        setContent(null);
+        setTitle('Help support number');
+        setContentText('Support contact for Need help button.');
+        setMetadata({ helpSupportNumber: '' });
+        setIsActive(true);
       } else {
         setError(error.message || 'Failed to load content');
       }
@@ -124,9 +132,14 @@ export default function AdminContentEditPage() {
         finalMetadata = { serviceablePincodes: withTime };
       }
 
+      // Handle help_support (Need help button: WhatsApp number or custom link)
+      if (contentType === 'help_support') {
+        finalMetadata = { helpSupportNumber: (metadata.helpSupportNumber || '').toString().trim() };
+      }
+
       await adminContentApi.update(contentType, {
-        title: contentType === 'pincodes' ? 'Pincode Settings' : title,
-        content: contentType === 'pincodes' ? 'Delivery pincode settings' : contentText,
+        title: contentType === 'pincodes' ? 'Pincode Settings' : contentType === 'help_support' ? 'Help support number' : title,
+        content: contentType === 'pincodes' ? 'Delivery pincode settings' : contentType === 'help_support' ? 'Support contact for Need help button.' : contentText,
         metadata: finalMetadata,
       });
 
@@ -181,7 +194,7 @@ export default function AdminContentEditPage() {
       )}
 
       <form onSubmit={handleSubmit} className={styles.form}>
-        {contentType !== 'pincodes' && (
+        {contentType !== 'pincodes' && contentType !== 'help_support' && (
           <div className={styles.formGroup}>
             <label className={styles.label}>
               Title *
@@ -258,6 +271,22 @@ export default function AdminContentEditPage() {
               />
               Require Admin Approval
             </label>
+          </div>
+        )}
+
+        {contentType === 'help_support' && (
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Number or link *</label>
+            <input
+              type="text"
+              value={metadata.helpSupportNumber || ''}
+              onChange={(e) => setMetadata({ ...metadata, helpSupportNumber: e.target.value })}
+              className={styles.input}
+              placeholder="e.g. 919876543210 or https://wa.me/919876543210 or https://t.me/username"
+            />
+            <div className={styles.helpText} style={{ marginTop: '0.5rem' }}>
+              Phone with country code (e.g. 919876543210) for WhatsApp, or a full URL (e.g. https://t.me/username) for Telegram or custom app.
+            </div>
           </div>
         )}
 
@@ -346,7 +375,7 @@ export default function AdminContentEditPage() {
               Add pincodes and delivery time (e.g. 1h, 2h, 15m, 30min). If no pincodes are added, delivery will be available for all pincodes.
             </div>
           </div>
-        ) : (
+        ) : contentType === 'help_support' ? null : (
           <div className={styles.formGroup}>
             <label className={styles.label}>
               Content {contentType === 'contact' ? '(Optional)' : '*'}

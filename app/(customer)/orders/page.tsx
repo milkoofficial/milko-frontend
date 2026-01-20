@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api';
+import HowWasItModal from '@/components/HowWasItModal';
 import styles from './page.module.css';
 
 type OrderItem = {
@@ -26,6 +27,7 @@ type MyOrder = {
   itemsCount: number;
   deliveryDate: string | null;
   items: OrderItem[];
+  qualityStars?: number | null;
 };
 
 function getDeliveryDisplay(order: MyOrder): string {
@@ -56,6 +58,7 @@ function isOnTheWay(order: MyOrder): boolean {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<MyOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ratingModalOrder, setRatingModalOrder] = useState<MyOrder | null>(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -159,16 +162,29 @@ export default function OrdersPage() {
                   </p>
                 </div>
               </div>
-              {/* Delivered: Rate this product + View details + Buy again */}
+              {/* Delivered: Rate this product (or You rated X star) + View details + Buy again */}
               {order.status === 'delivered' && (
                 <>
-                  <div className={styles.orderRowRate}>
-                    <span className={styles.orderRowRateIcon} aria-hidden>★</span>
-                    <span>Rate this product</span>
-                    <svg className={styles.orderRowRateArrow} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                      <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
+                  {order.qualityStars != null && order.qualityStars >= 1 ? (
+                    <div className={styles.orderRowRated}>
+                      <span className={styles.orderRowRateIcon} aria-hidden>★</span>
+                      <span>You rated {order.qualityStars} star{order.qualityStars !== 1 ? 's' : ''}</span>
+                    </div>
+                  ) : (
+                    <div
+                      className={styles.orderRowRate}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setRatingModalOrder(order)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRatingModalOrder(order); } }}
+                    >
+                      <span className={styles.orderRowRateIcon} aria-hidden>★</span>
+                      <span>Rate this product</span>
+                      <svg className={styles.orderRowRateArrow} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  )}
                   <div className={styles.orderRowActions}>
                     <Link href={`/orders/${order.id}`} className={styles.orderRowBtn}>View details</Link>
                     <Link href="/products" className={styles.orderRowBtn}>
@@ -199,6 +215,18 @@ export default function OrdersPage() {
           </Link>
         </div>
       )}
+
+      <HowWasItModal
+        isOpen={!!ratingModalOrder}
+        onClose={() => setRatingModalOrder(null)}
+        order={ratingModalOrder}
+        onSubmitSuccess={(qualityStars) => {
+          if (ratingModalOrder?.id) {
+            setOrders((prev) => prev.map((o) => (o.id === ratingModalOrder.id ? { ...o, qualityStars } : o)));
+          }
+          setRatingModalOrder(null);
+        }}
+      />
     </div>
   );
 }

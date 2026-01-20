@@ -20,6 +20,7 @@ const OTHER_OPTIONS = [
   { type: 'logo', label: 'Logo', path: '/admin/logo', description: 'Upload logo, set width' },
   { type: 'categories', label: 'Product Categories', path: '/admin/categories', description: 'Manage product categories' },
   { type: 'coupons', label: 'Coupons', path: '/admin/coupons', description: 'Manage discounts' },
+  { type: 'help_support', label: 'Help support number', path: '/admin/content/help_support', description: 'Number or link for Need help (WhatsApp, Telegram)' },
 ];
 
 function Icon({ name }: { name: string }) {
@@ -96,6 +97,12 @@ function Icon({ name }: { name: string }) {
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <path d="M9 9h6v6H9z" />
           <path d="M12 3v18M3 12h18" />
+        </svg>
+      );
+    case 'help_support':
+      return (
+        <svg viewBox="0 0 24 24" {...common}>
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
         </svg>
       );
     default:

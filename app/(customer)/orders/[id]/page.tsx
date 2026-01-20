@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { apiClient, productsApi } from '@/lib/api';
+import { useParams, useRouter } from 'next/navigation';
+import { apiClient, productsApi, contentApi } from '@/lib/api';
 import { Product } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
+import { useCart } from '@/contexts/CartContext';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
 import styles from './page.module.css';
 import Link from 'next/link';
@@ -12,6 +13,7 @@ import Link from 'next/link';
 type OrderItem = {
   productName: string;
   variationSize: string | null;
+  variationId?: number | null;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
@@ -136,6 +138,7 @@ function TimelineIcon({ iconType }: { iconType: 'tick' | 'order' | 'package' | '
 
 export default function OrderDetailsPage() {
   const params = useParams();
+  const router = useRouter();
   const orderId = params?.id as string;
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -145,7 +148,9 @@ export default function OrderDetailsPage() {
   const [productRatings, setProductRatings] = useState<{ [key: number]: number }>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [helpSupportNumber, setHelpSupportNumber] = useState<string>('');
   const { showToast } = useToast();
+  const { addItem } = useCart();
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -170,6 +175,12 @@ export default function OrderDetailsPage() {
       setSelectedRating(order.feedbackRating);
     }
   }, [order?.feedbackSubmitted, order?.feedbackRating]);
+
+  useEffect(() => {
+    contentApi.getByType('help_support').then((c) => {
+      setHelpSupportNumber((c?.metadata as { helpSupportNumber?: string })?.helpSupportNumber || '');
+    }).catch(() => setHelpSupportNumber(''));
+  }, []);
 
   if (loading) {
     return (
@@ -462,6 +473,47 @@ export default function OrderDetailsPage() {
               </div>
             ))}
           </div>
+          {order.status === 'delivered' && (
+            <div className={styles.deliveredActions}>
+              <button
+                type="button"
+                className={styles.deliveredActionBtn}
+                onClick={() => {
+                  const raw = (helpSupportNumber || '').trim();
+                  if (!raw) {
+                    showToast('Help number not configured', 'error');
+                    return;
+                  }
+                  if (/^https?:\/\//i.test(raw)) {
+                    window.open(raw, '_blank');
+                  } else {
+                    const digits = raw.replace(/\D/g, '');
+                    window.open(`https://wa.me/${digits || '0'}`, '_blank');
+                  }
+                }}
+              >
+                Need help
+              </button>
+              <button
+                type="button"
+                className={styles.deliveredActionBtn}
+                onClick={() => {
+                  order.items.forEach((it) => {
+                    if (it.productId != null) {
+                      addItem({
+                        productId: String(it.productId),
+                        quantity: it.quantity,
+                        variationId: it.variationId != null ? String(it.variationId) : undefined,
+                      });
+                    }
+                  });
+                  router.push('/cart');
+                }}
+              >
+                Buy again
+              </button>
+            </div>
+          )}
         </section>
       </div>
 

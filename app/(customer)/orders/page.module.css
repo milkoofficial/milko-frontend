@@ -161,6 +161,20 @@
   color: #835800;
   width: 100%;
   box-sizing: border-box;
+  cursor: pointer;
+}
+
+.orderRowRated {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  background: #f0fdf4;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #166534;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .orderRowRateArrow {
@@ -169,6 +183,7 @@
   margin-left: auto;
   flex-shrink: 0;
   color: #ca8a04;
+  margin-right: 2px;
 }
 
 .orderRowRateIcon {

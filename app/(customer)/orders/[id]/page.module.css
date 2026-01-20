@@ -157,8 +157,8 @@
 
 /* Not confirmed: step icon, muted */
 .timelineStepIncomplete .timelineSvg {
-  width: 21px;
-  height: 21px;
+  width: 19px;
+  height: 19px;
   color: #bbb;
   opacity: 0.9;
 }
@@ -523,6 +523,30 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.deliveredActions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.deliveredActionBtn {
+  flex: 1;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  background: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #000;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.deliveredActionBtn:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
 }
 
 .productCard {
