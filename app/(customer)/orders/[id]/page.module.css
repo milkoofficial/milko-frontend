@@ -189,6 +189,8 @@
   font-size: 1rem;
   color: #333;
   margin: 0;
+  font-weight: 800;
+
 }
 
 /* Order Items */
@@ -414,7 +416,7 @@
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  background: transparent;
+  background: #fff;
   border: none;
   cursor: pointer;
   padding: 0.75rem 1rem;
@@ -422,18 +424,22 @@
   transition: background 0.2s;
 }
 
-.ratingOption:hover {
+.ratingOption:hover:not(:disabled) {
   background: #f5f5f5;
 }
 
 .ratingOption:disabled {
   opacity: 0.7;
   cursor: not-allowed;
-  background: #f5f5f5;
+  background: #fff;
 }
 
 .ratingOptionSelected {
-  background: #e8f5e9;
+  background: #e5e5e5;
+}
+
+.ratingOptionSelected:disabled {
+  background: #e5e5e5;
 }
 
 .ratingEmoji {
@@ -599,6 +605,10 @@
 
 .deliveredActionBtn {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   padding: 0.85rem 1rem;
   border-radius: 10px;
   border: 1px solid #ddd;
@@ -608,6 +618,12 @@
   color: #000;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
+}
+
+.deliveredActionBtnIcon {
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
 }
 
 .deliveredActionBtn:hover {

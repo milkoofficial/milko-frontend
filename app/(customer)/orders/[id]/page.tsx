@@ -17,6 +17,16 @@ function fmtDdMmYy(iso: string | null | undefined): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)}`;
 }
 
+/** e.g. "20 Jan, 2026" for Delivered on / Ordered on */
+function fmtFullDate(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const day = d.getDate();
+  const month = d.toLocaleString('en-US', { month: 'short' });
+  const year = d.getFullYear();
+  return `${day} ${month}, ${year}`;
+}
+
 type OrderItem = {
   productName: string;
   variationSize: string | null;
@@ -252,7 +262,7 @@ export default function OrderDetailsPage() {
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>ORDER SUMMARY</h2>
           <p className={styles.orderSummaryText}>
-            {(order.deliveredAt || order.deliveryDate) ? `Delivered on ${fmtDdMmYy(order.deliveredAt || order.deliveryDate)}` : `Ordered on ${fmtDdMmYy(order.createdAt)}`}
+            {(order.deliveredAt || order.deliveryDate) ? `Delivered on ${fmtFullDate(order.deliveredAt || order.deliveryDate)}` : `Ordered on ${fmtFullDate(order.createdAt)}`}
           </p>
         </section>
 
@@ -496,6 +506,11 @@ export default function OrderDetailsPage() {
                   }
                 }}
               >
+                <svg className={styles.deliveredActionBtnIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
                 Need help
               </button>
               <button
@@ -514,6 +529,9 @@ export default function OrderDetailsPage() {
                   router.push('/cart');
                 }}
               >
+                <svg className={styles.deliveredActionBtnIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
                 Buy again
               </button>
             </div>

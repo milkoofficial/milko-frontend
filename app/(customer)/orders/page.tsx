@@ -15,6 +15,16 @@ function fmtDdMmYy(iso: string | null | undefined): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)}`;
 }
 
+/** e.g. "20 Jan, 2026" for delivery line */
+function fmtDeliveryDate(iso: string | null | undefined): string {
+  if (!iso) return 'Delivered';
+  const d = new Date(iso);
+  const day = d.getDate();
+  const month = d.toLocaleString('en-US', { month: 'short' });
+  const year = d.getFullYear();
+  return `${day} ${month}, ${year}`;
+}
+
 type OrderItem = {
   productName: string;
   variationSize: string | null;
@@ -45,7 +55,7 @@ function getDeliveryDisplay(order: MyOrder): string {
   // On its way: placed, confirmed, package_prepared, out_for_delivery
   if (['placed', 'confirmed', 'package_prepared', 'out_for_delivery'].includes(order.status)) return 'On its way';
   if (order.status === 'delivered') {
-    if (order.deliveryDate) return fmtDdMmYy(order.deliveryDate);
+    if (order.deliveryDate) return fmtDeliveryDate(order.deliveryDate);
     return 'Delivered';
   }
   return '—';
@@ -121,6 +131,31 @@ export default function OrdersPage() {
     }
   );
 
+  // Group by month: { key, label, rows } — label is "This month (January)" or "December 2025"
+  const monthGroups: { key: string; label: string; rows: { item: OrderItem; order: MyOrder }[] }[] = (() => {
+    const map = new Map<string, { label: string; rows: { item: OrderItem; order: MyOrder }[] }>();
+    const now = new Date();
+    const thisYear = now.getFullYear();
+    const thisMonth = now.getMonth();
+
+    for (const row of displayRows) {
+      const d = row.order.createdAt ? new Date(row.order.createdAt) : new Date();
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+      if (!map.has(key)) {
+        const monthName = d.toLocaleString('en-US', { month: 'long' });
+        const label = y === thisYear && m === thisMonth ? `This month (${monthName})` : `${monthName} ${y}`;
+        map.set(key, { label, rows: [] });
+      }
+      map.get(key)!.rows.push(row);
+    }
+
+    return Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, { label, rows }]) => ({ key, label, rows }));
+  })();
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -134,7 +169,14 @@ export default function OrdersPage() {
       <h1 className={styles.pageTitle}>My Orders</h1>
 
       <div className={styles.ordersList}>
-        {displayRows.map(({ item, order }, idx) => {
+        {monthGroups.map(({ key, label, rows }) => (
+          <div key={key} className={styles.monthGroup}>
+            <div className={styles.monthGroupHeader}>
+              <span className={styles.monthGroupLabel}>{label}</span>
+              <span className={styles.monthGroupCount}>{rows.length} items ordered</span>
+            </div>
+            <div className={styles.monthGroupRows}>
+            {rows.map(({ item, order }, idx) => {
           const deliveryDisplay = getDeliveryDisplay(order);
           const onTheWay = isOnTheWay(order);
           const orderDate = fmtDdMmYy(order.createdAt);
@@ -174,6 +216,11 @@ export default function OrdersPage() {
                       onTheWay ? styles.orderRowDeliveryOnTheWay : ''
                     }`}
                   >
+                    {onTheWay && (
+                      <svg className={styles.orderRowDeliveryIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                      </svg>
+                    )}
                     {onTheWay ? 'On its way' : `Delivery: ${deliveryDisplay}`}
                   </p>
                 </div>
@@ -236,6 +283,9 @@ export default function OrdersPage() {
             </div>
           );
         })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {orders.length === 0 && (
