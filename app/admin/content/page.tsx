@@ -17,8 +17,9 @@ const CONTENT_TYPES = [
 ];
 
 const OTHER_OPTIONS = [
-  { type: 'categories', label: 'Product Categories', path: '/admin/categories' },
-  { type: 'coupons', label: 'Coupons', path: '/admin/coupons' },
+  { type: 'logo', label: 'Logo', path: '/admin/logo', description: 'Upload logo, set width' },
+  { type: 'categories', label: 'Product Categories', path: '/admin/categories', description: 'Manage product categories' },
+  { type: 'coupons', label: 'Coupons', path: '/admin/coupons', description: 'Manage discounts' },
 ];
 
 function Icon({ name }: { name: string }) {
@@ -87,6 +88,14 @@ function Icon({ name }: { name: string }) {
         <svg viewBox="0 0 24 24" {...common}>
           <path d="M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z" />
           <path d="M7 8h10M7 12h10M7 16h6" />
+        </svg>
+      );
+    case 'logo':
+      return (
+        <svg viewBox="0 0 24 24" {...common}>
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M9 9h6v6H9z" />
+          <path d="M12 3v18M3 12h18" />
         </svg>
       );
     default:
@@ -202,7 +211,7 @@ export default function AdminContentPage() {
               <div>
                 <h3 className={styles.cardTitle}>{option.label}</h3>
                 <div className={styles.cardMeta}>
-                  <span className={styles.lastUpdated}>Manage product categories</span>
+                  <span className={styles.lastUpdated}>{option.description || 'Manage'}</span>
                 </div>
               </div>
             </div>

@@ -112,6 +112,9 @@ export const API_ENDPOINTS = {
       UPDATE: (type: string) => `/api/admin/content/${type}`,
       TOGGLE_STATUS: (type: string) => `/api/admin/content/${type}/status`,
     },
+    LOGO: {
+      UPLOAD: '/api/admin/logo',
+    },
     COUPONS: {
       LIST: '/api/admin/coupons',
       CREATE: '/api/admin/coupons',

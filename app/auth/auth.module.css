@@ -1,4 +1,16 @@
-/* Auth Page Styles - Mobile Only */
+/* Auth Page Styles */
+
+.authLogoText {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  letter-spacing: -0.5px;
+}
+
+.authLogoImg {
+  max-height: 48px;
+  object-fit: contain;
+}
 
 /* Mobile: White background, no padding, no box shadow */
 @media (max-width: 767px) {

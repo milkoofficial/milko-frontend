@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isAdminDomain, getPostLoginRedirect } from '@/lib/utils/domain';
 import Link from 'next/link';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
+import Logo from '@/components/Logo';
 import styles from '../auth.module.css';
 
 function GoogleIcon() {
@@ -108,18 +109,9 @@ export default function SignUpPage() {
       padding: '1rem'
     }}>
       {/* Logo */}
-      <div style={{ 
-        marginBottom: '2rem',
-        textAlign: 'center'
-      }}>
-        <h1 style={{ 
-          fontSize: '2rem',
-          fontWeight: 600,
-          color: '#1a1a1a',
-          letterSpacing: '-0.5px',
-          margin: 0
-        }}>
-          Milko
+      <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+        <h1 style={{ margin: 0 }}>
+          <Logo textClassName={styles.authLogoText} imageClassName={styles.authLogoImg} />
         </h1>
       </div>
 

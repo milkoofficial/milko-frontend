@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Logo from './Logo';
 import styles from './Footer.module.css';
 
 export default function Footer() {
@@ -13,7 +14,7 @@ export default function Footer() {
           {/* Company Info */}
           <div className={styles.footerSection}>
             <Link href="/" className={styles.logo}>
-              Milko
+              <Logo textClassName={styles.logoText} imageClassName={styles.logoImg} />
             </Link>
             <p className={styles.description}>
               Fresh milk delivered daily to your doorstep. 

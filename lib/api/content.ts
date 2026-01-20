@@ -62,4 +62,18 @@ export const adminContentApi = {
       isActive,
     });
   },
+
+  /**
+   * Upload or update logo (image to Cloudinary, width in metadata)
+   * FormData: 'image' (file, optional), 'widthPx' (number, optional)
+   */
+  uploadLogo: async (formData: FormData): Promise<SiteContent> => {
+    const instance = apiClient.getInstance();
+    const res = await instance.post<{ success: boolean; data: SiteContent }>(
+      API_ENDPOINTS.ADMIN.LOGO.UPLOAD,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return res.data.data;
+  },
 };

@@ -11,6 +11,7 @@ import { User, Product } from '@/types';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import { contentApi, productsApi } from '@/lib/api';
 import ProductDetailsModal from './ProductDetailsModal';
+import Logo from './Logo';
 
 /**
  * User Dropdown Component
@@ -154,6 +155,8 @@ export default function Header() {
   const searchOverlayInputRef = useRef<HTMLInputElement>(null);
   const searchOverlayCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [pincode, setPincode] = useState(['', '', '', '', '', '']);
   const [deliveryStatus, setDeliveryStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
@@ -372,6 +375,18 @@ export default function Header() {
     };
   }, []);
 
+  // Desktop: close search dropdown when clicking outside (left click)
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // only left button
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target as Node)) {
+        setIsSearchDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, []);
+
   // If we land on /#membership (e.g., from another route), scroll after the page renders.
   // Only scroll once when the hash is first detected, not on every render or scroll.
   useEffect(() => {
@@ -497,9 +512,7 @@ export default function Header() {
               {isLoading ? (
                 <div className={`${styles.logoShimmer} ${styles.shimmer}`}></div>
               ) : (
-                <div className={styles.logoText}>
-                  Milko
-                </div>
+                <Logo textClassName={styles.logoText} imageClassName={styles.logoImg} />
               )}
             </Link>
           )}
@@ -509,7 +522,7 @@ export default function Header() {
             isLoading ? (
               <div className={`${styles.searchShimmer} ${styles.shimmer}`}></div>
             ) : (
-              <div className={styles.searchWrap}>
+              <div className={styles.searchWrap} ref={searchWrapRef}>
                 <form onSubmit={handleSearch} className={styles.searchForm}>
                   {!isSearching && (
                     <div className={styles.searchIcon}>
@@ -528,7 +541,7 @@ export default function Header() {
                     placeholder="Search Dairy products..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={ensureProducts}
+                    onFocus={() => { ensureProducts(); setIsSearchDropdownOpen(true); }}
                     className={styles.searchInput}
                     disabled={isSearching}
                   />
@@ -541,7 +554,7 @@ export default function Header() {
                     </div>
                   )}
                 </form>
-                {searchQuery.trim() && (
+                {searchQuery.trim() && isSearchDropdownOpen && (
                   <div className={styles.searchDropdown}>
                     {isSearchProductsLoading ? (
                       <div className={styles.searchDropdownLoading}>Loading...</div>

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isAdminDomain, getPostLoginRedirect } from '@/lib/utils/domain';
 import Link from 'next/link';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
+import Logo from '@/components/Logo';
 import styles from '../auth.module.css';
 
 function GoogleIcon() {
@@ -126,18 +127,9 @@ function LoginForm() {
       padding: '3rem',
     }}>
       {/* Logo */}
-      <div style={{ 
-        marginBottom: '2rem',
-        textAlign: 'center'
-      }}>
-        <h1 style={{ 
-          fontSize: '2rem',
-          fontWeight: 600,
-          color: '#1a1a1a',
-          letterSpacing: '-0.5px',
-          margin: 0
-        }}>
-          Milko
+      <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+        <h1 style={{ margin: 0 }}>
+          <Logo textClassName={styles.authLogoText} imageClassName={styles.authLogoImg} />
         </h1>
       </div>
 
@@ -332,7 +324,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className={styles.authContainer} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f5f5f5', padding: '3rem' }}>
-          <div style={{ marginBottom: '2rem', textAlign: 'center' }}><h1 style={{ fontSize: '2rem', fontWeight: 600, color: '#1a1a1a', margin: 0 }}>Milko</h1></div>
+          <div style={{ marginBottom: '2rem', textAlign: 'center' }}><h1 style={{ margin: 0 }}><Logo textClassName={styles.authLogoText} imageClassName={styles.authLogoImg} /></h1></div>
           <div style={{ background: 'white', padding: '2.5rem', borderRadius: '12px', width: '100%', maxWidth: '440px', textAlign: 'center', color: '#666' }}>Loading…</div>
         </div>
       }
