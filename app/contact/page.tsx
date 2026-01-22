@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { contentApi, SiteContent } from '@/lib/api';
 import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
-import MobileBackToAccount from '@/components/MobileBackToAccount';
 import styles from './page.module.css';
 
 /**
@@ -45,7 +44,6 @@ export default function ContactPage() {
   if (!content) {
     return (
       <div className={styles.container}>
-        <MobileBackToAccount />
         <h1>Contact Us</h1>
         <p>Contact information not available.</p>
       </div>
@@ -56,7 +54,6 @@ export default function ContactPage() {
 
   return (
     <div className={styles.container}>
-      <MobileBackToAccount />
       <h1 className={styles.title}>{content.title}</h1>
       
       <div className={styles.contactInfo}>

@@ -491,31 +491,51 @@ export default function Header() {
       >
         {/* First Row: Logo and Icons - hidden on mobile when scrolled (only search row stays sticky) */}
         <div className={`${styles.headerRow} ${isScrolled ? styles.headerRowScrolled : ''} ${isScrolled ? styles.headerRowHiddenOnScroll : ''}`}>
-          {/* Mobile when serviceable: lightning + "1hr to pincode" in place of logo; else Logo */}
-          {isMobile && savedPincode && savedDeliveryStatus === 'available' ? (
-            <button
-              type="button"
-              className={`${styles.deliveryAtLogo} ${styles.deliveryIconAvailable}`}
-              onClick={() => setIsAddressModalOpen(true)}
-              aria-label="Delivery to pincode"
-            >
-              <svg className={styles.deliveryAtLogoIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-              </svg>
-              <div className={styles.deliveryAtLogoText}>
-                <span className={styles.deliverToTime}>{formatDeliveryTimeDisplay(getDeliveryTimeFor(savedPincode))}</span>
-                <span className={styles.deliverToAddress}>to {savedPincode}</span>
-              </div>
-            </button>
-          ) : (
-            <Link href="/" className={`${styles.logo} ${isScrolled ? styles.logoHiddenMobile : ''}`}>
-              {isLoading ? (
-                <div className={`${styles.logoShimmer} ${styles.shimmer}`}></div>
-              ) : (
-                <Logo textClassName={styles.logoText} imageClassName={styles.logoImg} />
-              )}
-            </Link>
-          )}
+          {/* Container for Back Button and Logo/DeliveryAtLogo */}
+          <div className={styles.logoContainer}>
+            {/* Back Button - Show when not on homepage, mobile only */}
+            {isMobile && pathname !== '/' && (
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => router.back()}
+                aria-label="Go back"
+              >
+                <svg className={styles.backButtonIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            
+            {/* Mobile when serviceable: lightning + "1hr to pincode" in place of logo; else Logo */}
+            {isMobile && savedPincode && savedDeliveryStatus === 'available' ? (
+              <button
+                type="button"
+                className={`${styles.deliveryAtLogo} ${styles.deliveryIconAvailable} ${pathname === '/' ? styles.logoOnHomepage : ''}`}
+                onClick={() => setIsAddressModalOpen(true)}
+                aria-label="Delivery to pincode"
+              >
+                <svg className={styles.deliveryAtLogoIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+                <div className={styles.deliveryAtLogoText}>
+                  <span className={styles.deliverToTime}>{formatDeliveryTimeDisplay(getDeliveryTimeFor(savedPincode))}</span>
+                  <span className={styles.deliverToAddress}>to {savedPincode}</span>
+                </div>
+              </button>
+            ) : (
+              <Link 
+                href="/" 
+                className={`${styles.logo} ${isScrolled ? styles.logoHiddenMobile : ''} ${pathname === '/' ? styles.logoOnHomepage : ''}`}
+              >
+                {isLoading ? (
+                  <div className={`${styles.logoShimmer} ${styles.shimmer}`}></div>
+                ) : (
+                  <Logo textClassName={styles.logoText} imageClassName={styles.logoImg} />
+                )}
+              </Link>
+            )}
+          </div>
 
           {/* Desktop Search Bar - Hide on auth pages */}
           {!isAuthPage ? (
@@ -839,7 +859,23 @@ export default function Header() {
           {isLoading ? (
             <div className={`${styles.searchShimmer} ${styles.shimmer}`}></div>
           ) : (
-            <form onSubmit={handleSearch} className={styles.searchForm}>
+            <>
+              {/* Back Button on Mobile Search Row when scrolled */}
+              {isMobile && isScrolled && pathname !== '/' && (
+                <div className={styles.logoContainer}>
+                  <button
+                    type="button"
+                    className={styles.backButton}
+                    onClick={() => router.back()}
+                    aria-label="Go back"
+                  >
+                    <svg className={styles.backButtonIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+              <form onSubmit={handleSearch} className={styles.searchForm}>
             {!isSearching && (
               <div className={styles.searchIcon}>
                 <svg viewBox="0 -0.5 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -870,6 +906,7 @@ export default function Header() {
               </div>
             )}
           </form>
+            </>
           )}
         </div>
       ) : null}

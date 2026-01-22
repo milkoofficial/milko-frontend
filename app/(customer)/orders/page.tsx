@@ -221,7 +221,7 @@ export default function OrdersPage() {
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                       </svg>
                     )}
-                    {onTheWay ? 'On its way' : `Delivery: ${deliveryDisplay}`}
+                    {onTheWay ? <span>On its way</span> : `Delivery: ${deliveryDisplay}`}
                   </p>
                 </div>
               </div>

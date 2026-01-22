@@ -4,7 +4,6 @@ import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import MobileBackToAccount from '@/components/MobileBackToAccount';
 
 /**
  * Customer Layout
@@ -25,8 +24,6 @@ export default function CustomerLayout({
     router.push('/auth/login');
   };
 
-  const showBackToAccount = pathname === '/dashboard' || pathname === '/orders' || pathname === '/subscriptions';
-
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
   }
@@ -39,7 +36,6 @@ export default function CustomerLayout({
     <div>
       {/* Header is now global in root layout */}
       <main>
-        {showBackToAccount && <MobileBackToAccount />}
         {children}
       </main>
     </div>

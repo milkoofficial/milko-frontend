@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { subscriptionsApi, productsApi } from '@/lib/api';
-import MobileBackToAccount from '@/components/MobileBackToAccount';
 import { Subscription, Product } from '@/types';
 
 interface PurchasedProduct {
@@ -86,7 +85,6 @@ export default function ReviewsPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <MobileBackToAccount />
       <h1>My Reviews</h1>
       
       {purchasedProducts.length === 0 ? (

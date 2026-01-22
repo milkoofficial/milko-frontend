@@ -24,13 +24,14 @@
   flex-shrink: 0;
   display: block;
   color: #10b981;
-  margin-top: -3px;
+
   margin-right: -13px;
 }
 
 .ratingValue {
   color: #10b981;
   font-weight: 600;
+  margin-top: 2px;
 }
 
 /* Color buckets - now only for star color */

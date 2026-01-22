@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
-import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
@@ -15,10 +15,41 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import Toast from '@/components/Toast';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 
-const inter = Inter({ 
-  subsets: ['latin'],
+const cabinetGrotesk = localFont({
+  src: [
+    {
+      path: '../fonts/CabinetGrotesk-Light.woff2',
+      weight: '300',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/CabinetGrotesk-Regular.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/CabinetGrotesk-Medium.woff2',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/CabinetGrotesk-Bold.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/CabinetGrotesk-Extrabold.woff2',
+      weight: '800',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/CabinetGrotesk-Black.woff2',
+      weight: '900',
+      style: 'normal',
+    },
+  ],
+  variable: '--font-cabinet-grotesk',
   display: 'swap',
-  variable: '--font-inter',
 });
 
 export const metadata: Metadata = {
@@ -34,8 +65,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" className={cabinetGrotesk.variable} suppressHydrationWarning>
+      <body className={cabinetGrotesk.className}>
         <AuthProvider>
           <CartProvider>
             <ToastProvider>

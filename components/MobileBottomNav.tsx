@@ -8,7 +8,7 @@ import styles from './MobileBottomNav.module.css';
 const navItems = [
   { href: '/', label: 'Home', icon: 'home' },
   { href: '/products', label: 'Shop', icon: 'shop' },
-  { href: '/products', label: 'Categories', icon: 'categories' },
+  { href: '/subscriptions', label: 'Subscription', icon: 'subscription' },
   { href: '/orders', label: 'Orders', icon: 'orders' },
 ] as const;
 
@@ -30,13 +30,12 @@ function NavIcon({ name, active }: { name: (typeof navItems)[number]['icon']; ac
           <path d="M16 10a4 4 0 0 1-8 0" />
         </svg>
       );
-    case 'categories':
+    case 'subscription':
       return (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-          <rect x="14" y="14" width="7" height="7" rx="1" />
+          <path d="M1 4v6h6" />
+          <path d="M23 20v-6h-6" />
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
         </svg>
       );
     case 'orders':

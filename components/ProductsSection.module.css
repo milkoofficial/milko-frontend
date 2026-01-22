@@ -10,12 +10,12 @@
 
 .sectionTitle {
   font-size: 2rem;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
   margin-bottom: 2.5rem;
   color: black;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  letter-spacing: -2px;;
+  letter-spacing: -1px;;
 }
 
 .loading {
@@ -332,11 +332,14 @@
   flex-shrink: 0;
 }
 
+/* Separate class for empty star icons - completely independent styling */
 .starIconEmpty {
   width: 18px;
   height: 18px;
   color: #cbd5e1;
   flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .productDescription {
