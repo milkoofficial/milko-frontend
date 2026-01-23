@@ -8,6 +8,8 @@
   letter-spacing: -0.2px;
   white-space: nowrap;
   user-select: none;
+  margin-top: -1px;
+  margin-right: 2px;
 }
 
 .sm {
@@ -26,6 +28,7 @@
   color: #10b981;
 
   margin-right: -13px;
+  margin-top: -1.9px;
 }
 
 .ratingValue {

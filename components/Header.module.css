@@ -942,9 +942,33 @@
   border: none;
   cursor: pointer;
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
+  line-height: 1;
+}
+
+.membershipButton .buttonIcon {
+  flex-shrink: 0;
+  display: block;
+  margin: 0;
+  padding: 0;
+  align-self: center;
+}
+
+/* Fix text alignment - ensure text aligns properly with icon */
+.membershipButton {
+  align-items: center;
+}
+
+.membershipButton > *:not(.buttonIcon) {
+  line-height: 1.2;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0;
+  padding: 0;
+  align-self: center;
 }
 
 .membershipButton:hover {
