@@ -118,9 +118,13 @@ export default function Banner({ autoSlideInterval = 5000 }: BannerProps) {
   // Hide banner on mobile for cart page
   const shouldHideOnMobile = pathname === '/cart' && isMobile;
 
-  // Don't render if loading or no banners
+  // Show skeleton loading effect
   if (loading) {
-    return null;
+    return (
+      <div className={`${styles.bannerOuter} ${pathname === '/cart' ? styles.hideOnMobile : ''}`}>
+        <div className={styles.bannerSkeleton}></div>
+      </div>
+    );
   }
 
   if (banners.length === 0) {

@@ -20,6 +20,7 @@ export default function AdminLogoPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [widthPx, setWidthPx] = useState(WIDTH_DEFAULT);
+  const [widthPxMobile, setWidthPxMobile] = useState(WIDTH_DEFAULT);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -34,6 +35,13 @@ export default function AdminLogoPage() {
       const w = data?.metadata?.widthPx;
       if (typeof w === 'number' && w >= WIDTH_MIN && w <= WIDTH_MAX) {
         setWidthPx(w);
+      }
+      const wMobile = data?.metadata?.widthPxMobile;
+      if (typeof wMobile === 'number' && wMobile >= WIDTH_MIN && wMobile <= WIDTH_MAX) {
+        setWidthPxMobile(wMobile);
+      } else if (typeof w === 'number' && w >= WIDTH_MIN && w <= WIDTH_MAX) {
+        // Default mobile width to desktop width if not set
+        setWidthPxMobile(w);
       }
     } catch {
       setLogo(null);
@@ -66,6 +74,7 @@ export default function AdminLogoPage() {
       const formData = new FormData();
       if (imageFile) formData.append('image', imageFile);
       formData.append('widthPx', String(widthPx));
+      formData.append('widthPxMobile', String(widthPxMobile));
 
       await adminContentApi.uploadLogo(formData);
       showToast('Logo saved successfully', 'success');
@@ -153,7 +162,35 @@ export default function AdminLogoPage() {
             />
           </div>
           <p className={styles.helpText}>
-            Between {WIDTH_MIN} and {WIDTH_MAX} pixels. This controls how wide the logo appears in the header, auth pages and footer.
+            Between {WIDTH_MIN} and {WIDTH_MAX} pixels. This controls how wide the logo appears on desktop in the header, auth pages and footer.
+          </p>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label className={styles.label}>Logo width for mobile (px)</label>
+          <div className={styles.widthRow}>
+            <input
+              type="range"
+              min={WIDTH_MIN}
+              max={WIDTH_MAX}
+              value={widthPxMobile}
+              onChange={(e) => setWidthPxMobile(parseInt(e.target.value, 10))}
+              className={styles.widthSlider}
+            />
+            <input
+              type="number"
+              min={WIDTH_MIN}
+              max={WIDTH_MAX}
+              value={widthPxMobile}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!Number.isNaN(v)) setWidthPxMobile(Math.max(WIDTH_MIN, Math.min(WIDTH_MAX, v)));
+              }}
+              className={styles.widthInput}
+            />
+          </div>
+          <p className={styles.helpText}>
+            Between {WIDTH_MIN} and {WIDTH_MAX} pixels. This controls how wide the logo appears on mobile devices (screens smaller than 768px).
           </p>
         </div>
 

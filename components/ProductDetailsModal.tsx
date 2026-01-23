@@ -10,6 +10,7 @@ import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './ProductDetailsModal.module.css';
+import howWasItStyles from './HowWasItModal.module.css';
 import RatingBadge from '@/components/ui/RatingBadge';
 import { toSafeHtml } from '@/lib/utils/sanitizeHtml';
 
@@ -366,10 +367,76 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   // Reviews should only show real, approved customer reviews
   const reviews = (displayProduct.reviews || []).filter((r: ProductReview) => r.isApproved);
 
-  // Calculate average rating
-  const averageRating = reviews.length > 0
-    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-    : 0;
+  // Get feedback aggregates (from order feedback)
+  const feedback = displayProduct.feedbackAggregates;
+  
+  // Calculate average rating from "Quality of the product" only (for circular badge)
+  const qualityRating = feedback?.qualityStars ?? null;
+  
+  // Helper function to render stars (similar to HowWasItModal, but non-interactive)
+  const renderStars = (rating: number | null) => {
+    const avgRating = rating ?? 0;
+    const fullStars = Math.floor(avgRating);
+    const hasHalfStar = avgRating % 1 >= 0.5 && avgRating > 0 && fullStars < 5;
+    const roundedRating = Math.round(avgRating);
+    
+    return (
+      <div 
+        className={howWasItStyles.stars} 
+        data-level={avgRating >= 1 && avgRating <= 5 ? roundedRating : undefined}
+        style={{ pointerEvents: 'none' }}
+      >
+        {[1, 2, 3, 4, 5].map((n) => {
+          const isFull = n <= fullStars;
+          const isHalf = n === fullStars + 1 && hasHalfStar;
+          const isActive = isFull || isHalf;
+          const starClass = `${howWasItStyles.star}${isActive ? ` ${howWasItStyles.starActive}` : ''}`;
+          
+          if (isHalf) {
+            // Render half star - show left half filled
+            return (
+              <span
+                key={n}
+                className={starClass}
+                style={{
+                  cursor: 'default',
+                  position: 'relative',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '50%',
+                    overflow: 'hidden',
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    height: '100%',
+                  }}
+                >
+                  <span className={howWasItStyles.starActive}>★</span>
+                </span>
+                <span style={{ opacity: 0.3 }}>★</span>
+              </span>
+            );
+          }
+          
+          return (
+            <span
+              key={n}
+              className={starClass}
+              style={{
+                cursor: 'default',
+                opacity: isFull ? 1 : 0.3,
+              }}
+            >
+              ★
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
 
   const safeQty = Math.max(1, Math.min(99, quantity));
   const descriptionHtml = toSafeHtml(displayProduct.description || '');
@@ -907,51 +974,113 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
               />
             </div>
 
-            {/* Reviews Section */}
-            {reviews.length > 0 ? (
-              <div className={styles.reviewsSection}>
-                <h3 className={styles.sectionTitle}>Customer Reviews</h3>
-                <div className={styles.reviewsList}>
-                  {reviews.map((review) => {
-                    const reviewDate = new Date(review.createdAt);
-                    const daysAgo = Math.floor((Date.now() - reviewDate.getTime()) / (1000 * 60 * 60 * 24));
-                    const dateText = daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
-                    
-                    return (
-                      <div key={review.id} className={styles.reviewItem}>
-                        <div className={styles.reviewHeader}>
-                          <div className={styles.reviewerInfo}>
-                            <div className={styles.reviewerAvatar}>
-                              {review.reviewerName.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className={styles.reviewerNameRow}>
-                                <div className={styles.reviewerName}>{review.reviewerName}</div>
-                                <span className={styles.verifiedBadge}>Verified</span>
-                              </div>
-                              <div className={styles.reviewRating}>
-                                <RatingBadge rating={review.rating} size="sm" />
-                              </div>
-                            </div>
+            {/* Review Summary Section - New Layout */}
+            <div className={styles.reviewSummarySection}>
+              <h3 className={styles.sectionTitle}>Customer Reviews</h3>
+              {/* Top: 50-50 Split Section */}
+              <div className={styles.reviewSummaryContent}>
+                {/* Left: Rating Number with Star and Count */}
+                <div className={styles.reviewSummaryLeft}>
+                  <div className={styles.ratingCardNumberRow}>
+                    {(() => {
+                      const rating = qualityRating ?? 0;
+                      // Color based on rating: dull gray for 0, dark green for 4-5, orange for 3, red for 1-2
+                      let ratingColor = '#dc2626'; // red for low ratings
+                      if (rating === 0) {
+                        ratingColor = '#9ca3af'; // dull light gray for no ratings
+                      } else if (rating >= 4) {
+                        ratingColor = '#14532d'; // dark green for high ratings
+                      } else if (rating >= 3) {
+                        ratingColor = '#ea580c'; // orange for medium ratings
+                      }
+                      
+                      return (
+                        <>
+                          <span 
+                            className={styles.ratingCardNumber}
+                            style={{ color: ratingColor }}
+                          >
+                            {rating.toFixed(1)}
+                          </span>
+                          <svg 
+                            className={styles.ratingCardStar} 
+                            viewBox="0 0 24 24" 
+                            fill="currentColor" 
+                            aria-hidden="true"
+                            style={{ color: ratingColor }}
+                          >
+                            <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.562.562 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.563.563 0 00-.182-.557L3.04 10.385a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345l2.125-5.111z" />
+                          </svg>
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className={styles.ratingCardCount}>
+                    Based on {feedback?.qualityCount ?? 0} review{feedback?.qualityCount !== 1 ? 's' : ''}
+                  </div>
+                </div>
+
+                {/* Right: Rating Distribution Progress Bars */}
+                <div className={styles.reviewSummaryRightTop}>
+                  <div className={styles.ratingDistribution}>
+                    {[5, 4, 3, 2, 1].map((starLevel) => {
+                      const count = feedback?.ratingDistribution?.[starLevel as keyof typeof feedback.ratingDistribution] ?? 0;
+                      const total = feedback?.qualityCount || 1;
+                      const percentage = total > 0 ? (count / total) * 100 : 0;
+                      
+                      // Color based on rating: green for 5-4, orange for 3-2, red for 1
+                      let barColor = '#10b981'; // green
+                      if (starLevel === 3 || starLevel === 2) {
+                        barColor = '#ea580c'; // orange
+                      } else if (starLevel === 1) {
+                        barColor = '#dc2626'; // red
+                      }
+                      
+                      return (
+                        <div key={starLevel} className={styles.ratingBarRow}>
+                          <div className={styles.ratingBarLabel}>
+                            <span>{starLevel}</span>
+                            <svg className={styles.ratingBarStarIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.562.562 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.563.563 0 00-.182-.557L3.04 10.385a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345l2.125-5.111z" />
+                            </svg>
                           </div>
-                          <div className={styles.reviewDate}>{dateText}</div>
+                          <div className={styles.ratingBarContainer}>
+                            <div 
+                              className={styles.ratingBar}
+                              style={{ 
+                                width: `${percentage}%`,
+                                background: barColor
+                              }}
+                            ></div>
+                          </div>
+                          <div className={styles.ratingBarCount}>{count}</div>
                         </div>
-                        {review.comment && (
-                          <p className={styles.reviewText}>{review.comment}</p>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            ) : (
-              <div className={styles.reviewsSection}>
-                <h3 className={styles.sectionTitle}>Customer Reviews</h3>
-                <p className={styles.descriptionText} style={{ color: '#999', fontStyle: 'italic' }}>
-                  No reviews yet. Be the first to review this product!
-                </p>
+
+              {/* Bottom: 100% Width Section - Detailed Rating Categories */}
+              <div className={styles.reviewSummaryRight}>
+                <div className={howWasItStyles.starRow}>
+                  <div className={howWasItStyles.subTitle}>Quality of the product</div>
+                  {renderStars(feedback?.qualityStars ?? null)}
+                </div>
+                <div className={howWasItStyles.starRow}>
+                  <div className={howWasItStyles.subTitle}>Delivery agent behaviour</div>
+                  {renderStars(feedback?.deliveryAgentStars ?? null)}
+                </div>
+                <div className={howWasItStyles.starRow}>
+                  <div className={howWasItStyles.subTitle}>On time delivery</div>
+                  {renderStars(feedback?.onTimeStars ?? null)}
+                </div>
+                <div className={howWasItStyles.starRow}>
+                  <div className={howWasItStyles.subTitle}>Value for money</div>
+                  {renderStars(feedback?.valueForMoneyStars ?? null)}
+                </div>
               </div>
-            )}
+            </div>
 
             {/* Related Products / Other Offerings */}
             {loadingRelated ? (

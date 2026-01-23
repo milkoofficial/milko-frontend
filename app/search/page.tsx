@@ -100,7 +100,7 @@ function SearchContent() {
                 <h1 className={styles.sectionTitle}>
                   Search results for &quot;{query}&quot;
                 </h1>
-                <p style={{ color: '#666', marginBottom: '2rem', textAlign: 'center' }}>
+                <p style={{ color: 'black', marginBottom: '2rem', marginTop: '-37px', textAlign: 'center' }}>
                   Found {products.length} product{products.length !== 1 ? 's' : ''}
                 </p>
                 <div className={styles.productsGrid}>

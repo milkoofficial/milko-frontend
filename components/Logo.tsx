@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { contentApi } from '@/lib/api';
+import styles from './Logo.module.css';
 
 export interface LogoProps {
   /** Class for the text fallback (e.g. "Milko") */
@@ -15,9 +16,10 @@ export interface LogoProps {
 /**
  * Renders the site logo from content (Cloudinary) or fallback text.
  * Fetches /api/content/logo; if metadata.imageUrl exists, shows img with metadata.widthPx.
+ * Uses different widths for mobile and desktop.
  */
 export default function Logo({ textClassName, imageClassName, fallbackText = 'Milko' }: LogoProps) {
-  const [config, setConfig] = useState<{ imageUrl: string; widthPx?: number } | null>(null);
+  const [config, setConfig] = useState<{ imageUrl: string; widthPx?: number; widthPxMobile?: number } | null>(null);
 
   useEffect(() => {
     contentApi
@@ -26,7 +28,12 @@ export default function Logo({ textClassName, imageClassName, fallbackText = 'Mi
         const url = c?.metadata?.imageUrl;
         if (typeof url === 'string' && url) {
           const w = c?.metadata?.widthPx;
-          setConfig({ imageUrl: url, widthPx: typeof w === 'number' ? w : 120 });
+          const wMobile = c?.metadata?.widthPxMobile;
+          setConfig({ 
+            imageUrl: url, 
+            widthPx: typeof w === 'number' ? w : 120,
+            widthPxMobile: typeof wMobile === 'number' ? wMobile : (typeof w === 'number' ? w : 120)
+          });
         }
       })
       .catch(() => setConfig(null));
@@ -37,8 +44,11 @@ export default function Logo({ textClassName, imageClassName, fallbackText = 'Mi
       <img
         src={config.imageUrl}
         alt="Logo"
-        style={{ width: config.widthPx ?? 120, height: 'auto', display: 'block' }}
-        className={imageClassName}
+        className={`${styles.logoImage} ${imageClassName || ''}`}
+        style={{
+          '--logo-width-desktop': `${config.widthPx ?? 120}px`,
+          '--logo-width-mobile': `${config.widthPxMobile ?? config.widthPx ?? 120}px`,
+        } as React.CSSProperties}
       />
     );
   }

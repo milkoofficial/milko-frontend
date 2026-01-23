@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
     LOGOUT: '/api/auth/logout',
     ME: '/api/auth/me',
     REFRESH: '/api/auth/refresh',
+    EXCHANGE_TOKEN: '/api/auth/exchange-token',
   },
   // Products
   PRODUCTS: {

@@ -76,6 +76,16 @@ export const authApi = {
   },
 
   /**
+   * Exchange Supabase token for our JWT token (for OAuth users)
+   */
+  exchangeToken: async (supabaseToken: string): Promise<{ token: string }> => {
+    const response = await apiClient.post<{ token: string }>(API_ENDPOINTS.AUTH.EXCHANGE_TOKEN, {
+      token: supabaseToken,
+    });
+    return response;
+  },
+
+  /**
    * Logout (clear local storage)
    */
   logout: async (): Promise<void> => {

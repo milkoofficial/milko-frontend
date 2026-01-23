@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { tokenStorage } from '@/lib/utils/storage';
+import { authApi } from '@/lib/api';
 
 const RETURN_TO_KEY = 'milko_return_after_auth';
 
@@ -54,7 +55,15 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        tokenStorage.set(session.access_token);
+        // Exchange Supabase token for our JWT token with 700-day expiration
+        try {
+          const exchangeResult = await authApi.exchangeToken(session.access_token);
+          tokenStorage.set(exchangeResult.token);
+        } catch (exchangeError) {
+          console.error('[AUTH] Token exchange failed, using Supabase token:', exchangeError);
+          // Fallback to Supabase token if exchange fails
+          tokenStorage.set(session.access_token);
+        }
 
         const returnTo = typeof window !== 'undefined'
           ? localStorage.getItem(RETURN_TO_KEY)

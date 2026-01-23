@@ -1,8 +1,29 @@
 /* Banner Component Styles */
 
+/* Shimmer Animation */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
 /* Outer wrapper: on mobile, padding on all sides so you can tweak for an inset effect */
 .bannerOuter {
   width: 100%;
+}
+
+/* Banner Skeleton Loading Effect */
+.bannerSkeleton {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite;
+  overflow: hidden;
 }
 
 .bannerContainer {
@@ -159,6 +180,11 @@
     height: 300px;
     border-radius: 12px;
     touch-action: pan-y; /* allow vertical scroll, we handle horizontal swipe for sliding */
+  }
+
+  .bannerSkeleton {
+    height: 210px;
+    border-radius: 12px;
   }
 
   .bannerTitle {

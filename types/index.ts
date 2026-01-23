@@ -48,6 +48,18 @@ export interface ProductReview {
   updatedAt: string;
 }
 
+export interface ProductFeedbackAggregates {
+  qualityStars: number | null;
+  deliveryAgentStars: number | null;
+  onTimeStars: number | null;
+  valueForMoneyStars: number | null;
+  qualityCount: number;
+  deliveryAgentCount: number;
+  onTimeCount: number;
+  valueForMoneyCount: number;
+  ratingDistribution?: { 1: number; 2: number; 3: number; 4: number; 5: number };
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -68,6 +80,7 @@ export interface Product {
   images?: ProductImage[];
   variations?: ProductVariation[];
   reviews?: ProductReview[];
+  feedbackAggregates?: ProductFeedbackAggregates;
 }
 
 // Subscription Types
