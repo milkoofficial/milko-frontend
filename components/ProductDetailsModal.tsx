@@ -373,6 +373,11 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   // Calculate average rating from "Quality of the product" only (for circular badge)
   const qualityRating = feedback?.qualityStars ?? null;
   
+  // Calculate average rating from reviews (fallback for product header display)
+  const averageRating = reviews.length > 0
+    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+    : (qualityRating ?? 0);
+  
   // Helper function to render stars (similar to HowWasItModal, but non-interactive)
   const renderStars = (rating: number | null) => {
     const avgRating = rating ?? 0;
