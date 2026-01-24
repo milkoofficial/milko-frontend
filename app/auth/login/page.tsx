@@ -207,6 +207,25 @@ function LoginForm() {
             />
           </div>
 
+          {/* Forgot Password Link */}
+          <div style={{
+            textAlign: 'right',
+            marginBottom: '1rem',
+            marginTop: '-0.8rem',
+          }}>
+            <Link
+              href="/auth/reset-password"
+              style={{
+                color: '#0070f3',
+                fontSize: '0.875rem',
+                textDecoration: 'none',
+                fontWeight: 500,
+              }}
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           {/* Login Button */}
           <button
             type="submit"
