@@ -112,6 +112,8 @@ export const API_ENDPOINTS = {
     },
     ORDER_DELIVERIES: {
       LIST: '/api/admin/order-deliveries',
+      DETAIL: (id: string) => `/api/admin/orders/${id}`,
+      PENDING_COUNT: '/api/admin/orders/pending-count',
     },
     BANNERS: {
       LIST: '/api/admin/banners',
