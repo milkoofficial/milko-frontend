@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
+import { adminOrdersApi } from '@/lib/api';
 import styles from './AdminSidebar.module.css';
 
 interface MenuItem {
@@ -24,6 +25,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const userDropdownRef = useRef<HTMLDivElement>(null);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
   const menuItems: MenuItem[] = [
     {
@@ -126,6 +128,24 @@ export default function AdminSidebar() {
     },
   ];
 
+  // Fetch pending orders count for badge
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      try {
+        const data = await adminOrdersApi.getPendingCount();
+        setPendingOrdersCount(data.count || 0);
+      } catch (error) {
+        console.error('Failed to fetch pending orders count:', error);
+        setPendingOrdersCount(0);
+      }
+    };
+
+    fetchPendingCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchPendingCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -176,6 +196,9 @@ export default function AdminSidebar() {
           >
             <span className={styles.navIcon}>{item.icon}</span>
             <span className={styles.navLabel}>{item.name}</span>
+            {item.path === '/admin/orders' && pendingOrdersCount > 0 && (
+              <span className={styles.navBadge}>{pendingOrdersCount}</span>
+            )}
           </Link>
         ))}
       </nav>

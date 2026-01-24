@@ -56,6 +56,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const [membershipFrequency, setMembershipFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('daily');
   const [membershipQuantity, setMembershipQuantity] = useState('1');
   const [membershipDuration, setMembershipDuration] = useState('30');
+  const [showRatingDetailsPopup, setShowRatingDetailsPopup] = useState(false);
 
   const isDeliverable = (pin: string) => {
     const cleaned = (pin || '').trim();
@@ -419,9 +420,13 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                     height: '100%',
                   }}
                 >
-                  <span className={howWasItStyles.starActive}>★</span>
+                  <svg className={howWasItStyles.starIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.562.562 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.563.563 0 00-.182-.557L3.04 10.385a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345l2.125-5.111z" />
+                  </svg>
                 </span>
-                <span style={{ opacity: 0.3 }}>★</span>
+                <svg className={howWasItStyles.starIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ opacity: 0.3 }}>
+                  <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.562.562 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.563.563 0 00-.182-.557L3.04 10.385a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345l2.125-5.111z" />
+                </svg>
               </span>
             );
           }
@@ -435,7 +440,9 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                 opacity: isFull ? 1 : 0.3,
               }}
             >
-              ★
+              <svg className={howWasItStyles.starIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.562.562 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.563.563 0 00-.182-.557L3.04 10.385a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345l2.125-5.111z" />
+              </svg>
             </span>
           );
         })}
@@ -1023,6 +1030,12 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                   <div className={styles.ratingCardCount}>
                     Based on {feedback?.qualityCount ?? 0} review{feedback?.qualityCount !== 1 ? 's' : ''}
                   </div>
+                  <button 
+                    className={styles.showMoreButton}
+                    onClick={() => setShowRatingDetailsPopup(true)}
+                  >
+                    Show more
+                  </button>
                 </div>
 
                 {/* Right: Rating Distribution Progress Bars */}
@@ -1066,25 +1079,41 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                 </div>
               </div>
 
-              {/* Bottom: 100% Width Section - Detailed Rating Categories */}
-              <div className={styles.reviewSummaryRight}>
-                <div className={howWasItStyles.starRow}>
-                  <div className={howWasItStyles.subTitle}>Quality of the product</div>
-                  {renderStars(feedback?.qualityStars ?? null)}
+              {/* Rating Details Popup */}
+              {showRatingDetailsPopup && (
+                <div className={styles.ratingDetailsPopupOverlay} onClick={() => setShowRatingDetailsPopup(false)}>
+                  <div className={styles.ratingDetailsPopup} onClick={(e) => e.stopPropagation()}>
+                    <button 
+                      className={styles.ratingDetailsPopupClose}
+                      onClick={() => setShowRatingDetailsPopup(false)}
+                      aria-label="Close"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                    <h3 className={styles.ratingDetailsPopupTitle}>Rating Details</h3>
+                    <div className={styles.ratingDetailsContent}>
+                      <div className={howWasItStyles.starRow}>
+                        <div className={howWasItStyles.subTitle}>Quality of the product</div>
+                        {renderStars(feedback?.qualityStars ?? null)}
+                      </div>
+                      <div className={howWasItStyles.starRow}>
+                        <div className={howWasItStyles.subTitle}>Delivery agent behaviour</div>
+                        {renderStars(feedback?.deliveryAgentStars ?? null)}
+                      </div>
+                      <div className={howWasItStyles.starRow}>
+                        <div className={howWasItStyles.subTitle}>On time delivery</div>
+                        {renderStars(feedback?.onTimeStars ?? null)}
+                      </div>
+                      <div className={howWasItStyles.starRow}>
+                        <div className={howWasItStyles.subTitle}>Value for money</div>
+                        {renderStars(feedback?.valueForMoneyStars ?? null)}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className={howWasItStyles.starRow}>
-                  <div className={howWasItStyles.subTitle}>Delivery agent behaviour</div>
-                  {renderStars(feedback?.deliveryAgentStars ?? null)}
-                </div>
-                <div className={howWasItStyles.starRow}>
-                  <div className={howWasItStyles.subTitle}>On time delivery</div>
-                  {renderStars(feedback?.onTimeStars ?? null)}
-                </div>
-                <div className={howWasItStyles.starRow}>
-                  <div className={howWasItStyles.subTitle}>Value for money</div>
-                  {renderStars(feedback?.valueForMoneyStars ?? null)}
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Related Products / Other Offerings */}
