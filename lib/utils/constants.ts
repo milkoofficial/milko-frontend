@@ -114,6 +114,9 @@ export const API_ENDPOINTS = {
       LIST: '/api/admin/order-deliveries',
       DETAIL: (id: string) => `/api/admin/orders/${id}`,
       PENDING_COUNT: '/api/admin/orders/pending-count',
+      MARK_OUT_FOR_DELIVERY: (id: string) => `/api/admin/orders/${id}/mark-out-for-delivery`,
+      MARK_DELIVERED: (id: string) => `/api/admin/orders/${id}/mark-delivered`,
+      MARK_FULFILLED: (id: string) => `/api/admin/orders/${id}/mark-fulfilled`,
     },
     BANNERS: {
       LIST: '/api/admin/banners',
