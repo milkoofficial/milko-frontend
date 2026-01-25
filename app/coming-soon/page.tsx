@@ -48,7 +48,9 @@ export default function ComingSoonPage() {
     setShowModal(true);
   };
 
-  if (authLoading || isAdmin) {
+  // Don't render this page for admins (they get redirected to /).
+  // IMPORTANT: Do NOT block customers while auth is loading, otherwise the page appears blank.
+  if (isAdmin) {
     return null;
   }
 
@@ -63,8 +65,8 @@ export default function ComingSoonPage() {
     if (password.trim() === adminPanelPassword.trim()) {
       setBypassCookie();
       setShowModal(false);
-      router.push('/');
-      window.location.reload();
+      // Hard redirect so the cookie is definitely included and middleware lets us through
+      window.location.href = '/';
     } else {
       setError('Incorrect password. Please try again.');
       setPassword('');
