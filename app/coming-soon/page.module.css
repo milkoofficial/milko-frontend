@@ -1,0 +1,163 @@
+.wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  padding: 2rem 1rem;
+}
+
+.main {
+  text-align: center;
+  max-width: 420px;
+}
+
+.lottieWrap {
+  width: 100%;
+  max-width: 280px;
+  height: 200px;
+  margin: 0 auto;
+}
+
+.lottieWrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+}
+
+.title {
+  font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin: 0 0 0.5rem;
+    background: linear-gradient(#ab4f00, #6a0077);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    line-height: 39px;
+    padding: 0px 10px 7px 10px;
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: #666;
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+
+.accessLink {
+  font-size: 0.9rem;
+  color: #666;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s;
+}
+
+.accessLink:hover {
+  color: #000;
+}
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(255 255 255 / 39%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1rem;
+  backdrop-filter: blur(14px);
+}
+
+.modal {
+  background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem 1.75rem;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: none;
+    border: 1px solid #ddd;
+}
+
+.modalTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: #1a1a1a;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #000;
+}
+
+.input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.modalActions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.cancelBtn,
+.submitBtn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.cancelBtn {
+  background: #f0f0f0;
+  color: #333;
+  border: none;
+}
+
+.cancelBtn:hover:not(:disabled) {
+  background: #e5e5e5;
+}
+
+.submitBtn {
+  background: #000;
+  color: #fff;
+  border: none;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: #333;
+}
+
+.cancelBtn:disabled,
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

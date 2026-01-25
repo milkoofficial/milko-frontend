@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 import { API_ENDPOINTS } from '@/lib/utils/constants';
-import { tokenStorage, userStorage } from '@/lib/utils/storage';
+import { tokenStorage, userStorage, clearAuth } from '@/lib/utils/storage';
 import { AuthResponse, User } from '@/types';
 
 /**
@@ -95,8 +95,7 @@ export const authApi = {
       // Even if API call fails, clear local storage
       console.error('Logout API error:', error);
     } finally {
-      tokenStorage.remove();
-      userStorage.remove();
+      clearAuth();
     }
   },
 };

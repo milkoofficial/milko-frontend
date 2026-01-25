@@ -22,6 +22,10 @@ export default function ConditionalHeader() {
     }
   }, [isAdminRoute]);
 
+  if (pathname === '/coming-soon') {
+    return null;
+  }
+
   if (isAdminRoute) {
     // Don't show admin header if password is not verified
     // Admin routes now use sidebar instead of header

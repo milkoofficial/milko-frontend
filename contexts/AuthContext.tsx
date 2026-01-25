@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthResponse, User } from '@/types';
-import { userStorage, tokenStorage } from '@/lib/utils/storage';
+import { userStorage, tokenStorage, adminCookie } from '@/lib/utils/storage';
 import { authApi } from '@/lib/api';
 import { supabase } from '@/lib/supabase/client';
 
@@ -71,6 +71,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     initAuth();
   }, []);
+
+  // Sync admin cookie for coming-soon middleware: set when logged-in admin, clear otherwise
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isAdmin = user?.role?.toLowerCase() === 'admin';
+    if (isAdmin) {
+      adminCookie.set();
+    } else {
+      adminCookie.remove();
+    }
+  }, [user]);
 
   const login = async (email: string, password: string) => {
     const response = await authApi.login(email, password);

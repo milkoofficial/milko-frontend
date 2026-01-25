@@ -149,3 +149,8 @@ export const STORAGE_KEYS = {
   USER: 'milko_user',
 } as const;
 
+// Coming Soon bypass cookie (set when user enters admin panel password)
+export const COMING_SOON_BYPASS_COOKIE = 'milko_coming_soon_bypass';
+
+// Admin access cookie (set when logged-in user is admin; lets middleware allow access during coming-soon)
+export const MILKO_ADMIN_COOKIE = 'milko_admin_access';

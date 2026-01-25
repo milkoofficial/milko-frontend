@@ -66,8 +66,9 @@ export default function MobileBottomNav() {
 
   const isAuth = pathname?.startsWith('/auth');
   const isAdmin = pathname?.startsWith('/admin');
+  const isComingSoon = pathname === '/coming-soon';
 
-  if (!isMobile || isAuth || isAdmin) return null;
+  if (!isMobile || isAuth || isAdmin || isComingSoon) return null;
 
   return (
     <>

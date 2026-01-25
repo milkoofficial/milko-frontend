@@ -15,6 +15,7 @@ export default function ConditionalFooter() {
 
   const isAuthRoute = pathname?.startsWith('/auth');
   const isAdminRoute = pathname?.startsWith('/admin');
+  const isComingSoon = pathname === '/coming-soon';
 
   useEffect(() => {
     const check = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 768);
@@ -23,7 +24,7 @@ export default function ConditionalFooter() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  if (isAuthRoute || isAdminRoute) {
+  if (isAuthRoute || isAdminRoute || isComingSoon) {
     return null;
   }
 

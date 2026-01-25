@@ -105,6 +105,13 @@ function Icon({ name }: { name: string }) {
           <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
         </svg>
       );
+    case 'coming_soon':
+      return (
+        <svg viewBox="0 0 24 24" {...common}>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      );
     default:
       return (
         <svg viewBox="0 0 24 24" {...common}>
@@ -130,6 +137,7 @@ export default function AdminContentPage() {
   const router = useRouter();
   const [contentList, setContentList] = useState<SiteContent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [comingSoonToggling, setComingSoonToggling] = useState(false);
 
   useEffect(() => {
     fetchContent();
@@ -148,6 +156,21 @@ export default function AdminContentPage() {
 
   const handleEdit = (type: string) => {
     router.push(`/admin/content/${type}`);
+  };
+
+  const comingSoon = contentList.find((c) => c.contentType === 'coming_soon');
+  const comingSoonEnabled = comingSoon?.isActive ?? false;
+
+  const handleComingSoonToggle = async () => {
+    setComingSoonToggling(true);
+    try {
+      await adminContentApi.toggleStatus('coming_soon', !comingSoonEnabled);
+      await fetchContent();
+    } catch (error) {
+      console.error('Failed to toggle Coming Soon mode:', error);
+    } finally {
+      setComingSoonToggling(false);
+    }
   };
 
   if (loading) {
@@ -232,6 +255,36 @@ export default function AdminContentPage() {
             </div>
           </div>
         ))}
+
+        {/* Coming Soon Mode — toggle only */}
+        <div className={styles.contentCard}>
+          <div className={styles.cardHeader}>
+            <IconBadge type="coming_soon" />
+            <div>
+              <h3 className={styles.cardTitle}>Coming Soon Mode</h3>
+              <div className={styles.cardMeta}>
+                <span className={comingSoonEnabled ? styles.activeBadge : styles.inactiveBadge}>
+                  {comingSoonEnabled ? 'On' : 'Off'}
+                </span>
+                <span className={styles.lastUpdated}>
+                  {comingSoon !== undefined
+                    ? 'Show "We are coming" page to customers. Admins bypass via password.'
+                    : 'Run DB migration: add_coming_soon_site_content.sql'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className={styles.cardActions}>
+            <button
+              type="button"
+              className={styles.toggleButton}
+              onClick={handleComingSoonToggle}
+              disabled={comingSoonToggling || comingSoon === undefined}
+            >
+              {comingSoonToggling ? 'Updating…' : comingSoonEnabled ? 'Turn off' : 'Turn on'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

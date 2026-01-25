@@ -1,5 +1,7 @@
-import { STORAGE_KEYS } from './constants';
+import { STORAGE_KEYS, MILKO_ADMIN_COOKIE } from './constants';
 import { User } from '@/types';
+
+const ADMIN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
 /**
  * Token Management
@@ -46,10 +48,26 @@ export const userStorage = {
 };
 
 /**
+ * Admin cookie – set when user is logged-in admin so middleware can allow access during coming-soon.
+ * Middleware cannot read localStorage; it checks this cookie.
+ */
+export const adminCookie = {
+  set: (): void => {
+    if (typeof window === 'undefined') return;
+    document.cookie = `${MILKO_ADMIN_COOKIE}=1; path=/; max-age=${ADMIN_COOKIE_MAX_AGE}; samesite=lax`;
+  },
+  remove: (): void => {
+    if (typeof window === 'undefined') return;
+    document.cookie = `${MILKO_ADMIN_COOKIE}=; path=/; max-age=0; samesite=lax`;
+  },
+};
+
+/**
  * Clear all auth data
  */
 export const clearAuth = (): void => {
   tokenStorage.remove();
   userStorage.remove();
+  adminCookie.remove();
 };
 
