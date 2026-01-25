@@ -64,6 +64,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Exclude static assets in /public (including .lottie) from middleware.
+    // Otherwise, when coming-soon is ON, the animation file request (e.g. /animations/*.lottie)
+    // gets redirected to /coming-soon and the Lottie won't load for customers.
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|lottie|json|wasm)$).*)',
   ],
 };
