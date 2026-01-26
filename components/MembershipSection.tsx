@@ -223,7 +223,7 @@ export default function MembershipSection() {
               </li>
               <li className={styles.benefitItem}>
                 <span className={styles.benefitIcon}>💰</span>
-                <span className={styles.benefitText}>Adulteration proven? ₹5,100 paid to the customer.</span>
+                <span className={styles.benefitText}>Proof of Adulteration? We’ll pay you ₹5100.</span>
               </li>
             </ul>
           </div>
