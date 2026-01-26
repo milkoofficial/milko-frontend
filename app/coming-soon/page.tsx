@@ -100,7 +100,7 @@ export default function ComingSoonPage() {
       </main>
 
       <p className={styles.tagline}>
-        "Kya Apke Doodh Me Shampoo Hai?"
+        &ldquo;Kya Apke Doodh Me Shampoo Hai?&rdquo;
       </p>
 
       <div className={styles.infoSection}>
@@ -108,7 +108,7 @@ export default function ComingSoonPage() {
           In 2012, a survey by FSSAI was filed as an affidavit in the Supreme court, in response to a PIL by a group of citizens seeking a report on the adulteration of milk in India.
         </p>
         <p className={styles.highlight}>
-          "According to the survey, 68.4 percent of the milk in the country was found to be adulterated and unsafe for consumption."
+          &ldquo;According to the survey, 68.4 percent of the milk in the country was found to be adulterated and unsafe for consumption.&rdquo;
         </p>
         <p className={styles.infoText}>
           The components of these synthetic milk could prove to be life-threatening for diabetic patients and can even cause cancer and heart problems.
