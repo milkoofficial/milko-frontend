@@ -1,0 +1,66 @@
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: #000;
+  background: #ffffff;
+  letter-spacing: -0.2px;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-cabinet-grotesk), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Apply Cabinet Grotesk font and letter-spacing to all text elements */
+* {
+  font-family: var(--font-cabinet-grotesk), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  letter-spacing: -0.2px;
+}
+
+/* Ensure all text elements use Cabinet Grotesk */
+h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea, select, label {
+  font-family: var(--font-cabinet-grotesk), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Heading font sizes - increased by 1px from defaults */
+h1 {
+  font-size: 33px; /* default: 32px (2em) + 1px */
+  letter-spacing: -1.5px;
+}
+
+h2 {
+  font-size: 25px; /* default: 24px (1.5em) + 1px */
+}
+
+h3 {
+  font-size: 19.72px; /* default: 18.72px (1.17em) + 1px */
+}
+
+h4 {
+  font-size: 17px; /* default: 16px (1em) + 1px */
+}
+
+h5 {
+  font-size: 14.28px; /* default: 13.28px (0.83em) + 1px */
+}
+
+h6 {
+  font-size: 11.72px; /* default: 10.72px (0.67em) + 1px */
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Cabinet Grotesk font is applied via className in layout.tsx */
+/* Light mode only - no dark mode */
+

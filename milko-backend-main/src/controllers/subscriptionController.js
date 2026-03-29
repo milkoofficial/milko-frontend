@@ -1,0 +1,200 @@
+const subscriptionService = require('../services/subscriptionService');
+const subscriptionModel = require('../models/subscription');
+const { ValidationError } = require('../utils/errors');
+const { getPayment: getRazorpayPayment } = require('../config/razorpay');
+
+/**
+ * Subscription Controller
+ * Handles subscription HTTP requests
+ */
+
+/**
+ * Get all subscriptions for current user
+ * GET /api/subscriptions
+ */
+const getMySubscriptions = async (req, res, next) => {
+  try {
+    const subscriptions = await subscriptionModel.getSubscriptionsByUserId(req.user.id);
+
+    res.json({
+      success: true,
+      data: subscriptions,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get subscription by ID
+ * GET /api/subscriptions/:id
+ */
+const getSubscriptionById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const subscription = await subscriptionModel.getSubscriptionById(id);
+
+    // Check authorization
+    if (subscription.userId !== req.user.id && req.user.role !== 'admin') {
+      throw new ValidationError('Unauthorized');
+    }
+
+    res.json({
+      success: true,
+      data: subscription,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Create new subscription
+ * POST /api/subscriptions
+ */
+const createSubscription = async (req, res, next) => {
+  try {
+    const { productId, litresPerDay, durationMonths, deliveryTime } = req.body;
+
+    if (!productId || !litresPerDay || !durationMonths || !deliveryTime) {
+      throw new ValidationError('All fields are required');
+    }
+
+    const result = await subscriptionService.createSubscription({
+      userId: req.user.id,
+      productId,
+      litresPerDay,
+      durationMonths,
+      deliveryTime,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: result,
+      message: 'Subscription created. Please complete payment.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Pause subscription
+ * POST /api/subscriptions/:id/pause
+ */
+const pauseSubscription = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const subscription = await subscriptionService.pauseSubscription(id, req.user.id);
+
+    res.json({
+      success: true,
+      data: subscription,
+      message: 'Subscription paused',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Resume subscription
+ * POST /api/subscriptions/:id/resume
+ */
+const resumeSubscription = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const subscription = await subscriptionService.resumeSubscription(id, req.user.id);
+
+    res.json({
+      success: true,
+      data: subscription,
+      message: 'Subscription resumed',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Cancel subscription
+ * POST /api/subscriptions/:id/cancel
+ */
+const cancelSubscription = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const subscription = await subscriptionService.cancelSubscription(id, req.user.id);
+
+    res.json({
+      success: true,
+      data: subscription,
+      message: 'Subscription cancelled',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Cancel today's delivery (skip delivery for today, extend end date by +1 day)
+ * POST /api/subscriptions/:id/cancel-today
+ */
+const cancelTodaysDelivery = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const subscription = await subscriptionService.cancelTodaysDelivery(id, req.user.id);
+
+    res.json({
+      success: true,
+      data: subscription,
+      message: "Today's delivery cancelled",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Verify Razorpay payment and activate subscription
+ * POST /api/subscriptions/verify-payment
+ * Body: { razorpay_order_id, razorpay_payment_id }
+ */
+const verifyPayment = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    const { razorpay_order_id: razorpayOrderId, razorpay_payment_id: razorpayPaymentId } = req.body || {};
+    if (!userId) throw new ValidationError('User not found');
+    if (!razorpayOrderId || !razorpayPaymentId) {
+      throw new ValidationError('razorpay_order_id and razorpay_payment_id are required');
+    }
+
+    const payment = await getRazorpayPayment(razorpayPaymentId);
+    if (payment.status !== 'captured') {
+      return res.status(400).json({ success: false, error: 'Payment not captured' });
+    }
+    if (payment.order_id !== razorpayOrderId) {
+      return res.status(400).json({ success: false, error: 'Order ID mismatch' });
+    }
+
+    const sub = await subscriptionModel.getSubscriptionsByUserId(userId);
+    const match = sub.find((s) => s.razorpaySubscriptionId === razorpayOrderId);
+    if (!match) return res.status(404).json({ success: false, error: 'Subscription not found' });
+
+    const updated = await subscriptionService.activateSubscription(match.id);
+
+    res.json({ success: true, data: updated, message: 'Payment verified' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getMySubscriptions,
+  getSubscriptionById,
+  createSubscription,
+  pauseSubscription,
+  resumeSubscription,
+  cancelSubscription,
+  cancelTodaysDelivery,
+  verifyPayment,
+};
