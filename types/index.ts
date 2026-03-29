@@ -96,11 +96,35 @@ export interface Subscription {
   startDate: string;
   endDate: string;
   razorpaySubscriptionId?: string;
+  totalQty?: number;
+  deliveredQty?: number;
+  remainingQty?: number;
+  perUnitPrice?: number;
+  totalAmount?: number;
+  totalAmountPaid?: number;
+  walletUsed?: number;
+  purchasedAt?: string;
+  cancelledAt?: string;
   createdAt: string;
   updatedAt: string;
   // Extended fields from joins (for admin view)
   userName?: string;
   userEmail?: string;
+}
+
+// Wallet Types
+export interface WalletTransaction {
+  id: string;
+  type: 'credit' | 'debit';
+  amount: number;
+  source: 'razorpay' | 'refund' | 'purchase' | 'subscription';
+  referenceId?: string | null;
+  createdAt?: string | null;
+}
+
+export interface WalletSummary {
+  balance: number;
+  transactions: WalletTransaction[];
 }
 
 // Delivery Schedule Types
@@ -148,6 +172,7 @@ export interface RazorpayOrder {
   amount: number;
   currency: string;
   orderId: string;
+  key?: string;
 }
 
 export interface SubscriptionCreateRequest {

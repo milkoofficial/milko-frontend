@@ -44,11 +44,18 @@ export const API_ENDPOINTS = {
   SUBSCRIPTIONS: {
     LIST: '/api/subscriptions',
     CREATE: '/api/subscriptions',
+    VERIFY_PAYMENT: '/api/subscriptions/verify-payment',
     DETAIL: (id: string) => `/api/subscriptions/${id}`,
     PAUSE: (id: string) => `/api/subscriptions/${id}/pause`,
     RESUME: (id: string) => `/api/subscriptions/${id}/resume`,
     CANCEL: (id: string) => `/api/subscriptions/${id}/cancel`,
+    CANCEL_TODAY: (id: string) => `/api/subscriptions/${id}/cancel-today`,
     PAUSE_DATE: (id: string) => `/api/subscriptions/${id}/pause-date`,
+  },
+  WALLET: {
+    SUMMARY: '/api/wallet',
+    TOPUP: '/api/wallet/topup',
+    VERIFY_TOPUP: '/api/wallet/verify-topup',
   },
   // Banners
   BANNERS: {

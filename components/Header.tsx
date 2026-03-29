@@ -9,7 +9,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import styles from './Header.module.css';
 import { User, Product } from '@/types';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
-import { contentApi, productsApi } from '@/lib/api';
+import { contentApi, productsApi, walletApi } from '@/lib/api';
 import ProductDetailsModal from './ProductDetailsModal';
 import Logo from './Logo';
 
@@ -21,6 +21,11 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { showToast } = useToast();
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletTx, setWalletTx] = useState<Array<{ id: string; type: 'credit' | 'debit'; amount: number; source: string; createdAt?: string | null }>>([]);
+  const [walletAmount, setWalletAmount] = useState('');
+  const [walletLoading, setWalletLoading] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -38,6 +43,83 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setWalletLoading(true);
+    walletApi
+      .getSummary()
+      .then((w) => {
+        if (cancelled) return;
+        setWalletBalance(w.balance);
+        setWalletTx((w.transactions || []).slice(0, 5));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setWalletBalance(null);
+        setWalletTx([]);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setWalletLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  const loadRazorpayScript = (): Promise<void> => {
+    if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Failed to load Razorpay'));
+      document.head.appendChild(s);
+    });
+  };
+
+  const handleAddMoney = async () => {
+    const amt = Math.round(Number(walletAmount) * 100) / 100;
+    if (!Number.isFinite(amt) || amt <= 0) {
+      showToast('Enter a valid amount', 'error');
+      return;
+    }
+    try {
+      const order = await walletApi.createTopupOrder(amt);
+      await loadRazorpayScript();
+      const Razorpay = (window as unknown as { Razorpay: new (o: unknown) => { open: () => void } }).Razorpay;
+      const rzp = new Razorpay({
+        key: order.key,
+        order_id: order.razorpayOrderId,
+        currency: order.currency || 'INR',
+        name: 'Milko',
+        description: 'Add money to wallet',
+        handler: async function (resp: { razorpay_payment_id: string; razorpay_order_id: string }) {
+          try {
+            const v = await walletApi.verifyTopup({
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+            });
+            setWalletBalance(v.balance);
+            setWalletAmount('');
+            const refreshed = await walletApi.getSummary();
+            setWalletTx((refreshed.transactions || []).slice(0, 5));
+            showToast('Wallet topped up', 'success');
+          } catch (e) {
+            showToast((e as { message?: string })?.message || 'Wallet top-up failed', 'error');
+          }
+        },
+      });
+      rzp.open();
+    } catch (e) {
+      showToast((e as { message?: string })?.message || 'Failed to start top-up', 'error');
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -83,6 +165,40 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
       </button>
       {isOpen && (
         <div className={styles.dropdownMenu}>
+          <div className={styles.walletSection}>
+            <div className={styles.walletHeader}>
+              <span className={styles.walletTitle}>Wallet</span>
+              <span className={styles.walletBalance}>
+                {walletLoading ? 'Loading...' : walletBalance !== null ? `₹${walletBalance.toFixed(2)}` : '--'}
+              </span>
+            </div>
+            <div className={styles.walletActions}>
+              <input
+                className={styles.walletAmountInput}
+                inputMode="decimal"
+                placeholder="Amount"
+                value={walletAmount}
+                onChange={(e) => setWalletAmount(e.target.value)}
+              />
+              <button type="button" className={styles.walletAddButton} onClick={handleAddMoney}>
+                Add Money
+              </button>
+            </div>
+            {walletTx.length > 0 && (
+              <div className={styles.walletTransactions}>
+                {walletTx.map((t) => (
+                  <div key={t.id} className={styles.walletTxRow}>
+                    <span className={styles.walletTxLeft}>
+                      {t.source}
+                    </span>
+                    <span className={styles.walletTxRight}>
+                      {t.type === 'credit' ? '+' : '-'}₹{t.amount.toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <Link href="/dashboard" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
             <svg className={styles.dropdownIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -456,6 +572,11 @@ export default function Header() {
     e.preventDefault();
     if (searchQuery.trim()) {
       setIsSearching(true);
+      if (!isMobile) {
+        setIsSearchDropdownOpen(false);
+        const input = searchWrapRef.current?.querySelector('input') as HTMLInputElement | null;
+        input?.blur();
+      }
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
       setTimeout(() => setIsSearching(false), 1000);
     }
@@ -1142,4 +1263,3 @@ export default function Header() {
     </>
   );
 }
-

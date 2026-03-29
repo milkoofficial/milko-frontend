@@ -63,24 +63,69 @@ export default function SubscribePage() {
     if (!productId) return;
 
     setSubmitting(true);
+    let openedRazorpay = false;
     try {
-      // Create subscription and get Razorpay order
-      const razorpayOrder = await subscriptionsApi.create({
+      const result = await subscriptionsApi.create({
         productId,
         litresPerDay,
         durationMonths,
         deliveryTime,
       });
 
-      // TODO: Integrate Razorpay checkout
-      // For now, just show success message
-      alert('Subscription created! Payment integration pending.');
-      router.push('/dashboard');
+      if (!result.razorpayOrder) {
+        alert('Subscription activated using wallet.');
+        router.push('/subscriptions');
+        return;
+      }
+
+      const loadRazorpayScript = (): Promise<void> => {
+        if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
+          return Promise.resolve();
+        }
+        return new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          s.async = true;
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Failed to load Razorpay'));
+          document.head.appendChild(s);
+        });
+      };
+
+      await loadRazorpayScript();
+      const Razorpay = (window as unknown as { Razorpay: new (o: unknown) => { open: () => void } }).Razorpay;
+      const rzp = new Razorpay({
+        key: result.razorpayOrder.key,
+        order_id: result.razorpayOrder.orderId,
+        currency: result.razorpayOrder.currency || 'INR',
+        name: 'Milko',
+        description: 'Subscription payment',
+        handler: async function (resp: { razorpay_payment_id: string; razorpay_order_id: string }) {
+          try {
+            await subscriptionsApi.verifyPayment({
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+            });
+            alert('Subscription activated!');
+            router.push('/subscriptions');
+          } catch (err) {
+            console.error(err);
+            alert('Payment verification failed. Please contact support.');
+          } finally {
+            setSubmitting(false);
+          }
+        },
+        modal: {
+          ondismiss: () => setSubmitting(false),
+        },
+      });
+      openedRazorpay = true;
+      rzp.open();
     } catch (error) {
       console.error('Failed to create subscription:', error);
       alert('Failed to create subscription. Please try again.');
     } finally {
-      setSubmitting(false);
+      if (!openedRazorpay) setSubmitting(false);
     }
   };
 
@@ -173,4 +218,3 @@ export default function SubscribePage() {
     </div>
   );
 }
-

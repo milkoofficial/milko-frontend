@@ -22,10 +22,10 @@ export const subscriptionsApi = {
 
   /**
    * Create new subscription
-   * Returns Razorpay order details for payment
+   * Returns subscription and optional Razorpay order details for payment
    */
-  create: async (data: SubscriptionCreateRequest): Promise<RazorpayOrder> => {
-    return apiClient.post<RazorpayOrder>(API_ENDPOINTS.SUBSCRIPTIONS.CREATE, data);
+  create: async (data: SubscriptionCreateRequest): Promise<{ subscription: Subscription; razorpayOrder: RazorpayOrder | null }> => {
+    return apiClient.post<{ subscription: Subscription; razorpayOrder: RazorpayOrder | null }>(API_ENDPOINTS.SUBSCRIPTIONS.CREATE, data);
   },
 
   /**
@@ -47,6 +47,14 @@ export const subscriptionsApi = {
    */
   cancel: async (id: string): Promise<Subscription> => {
     return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.CANCEL(id));
+  },
+
+  cancelToday: async (id: string): Promise<Subscription> => {
+    return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.CANCEL_TODAY(id));
+  },
+
+  verifyPayment: async (payload: { razorpay_order_id: string; razorpay_payment_id: string }): Promise<Subscription> => {
+    return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.VERIFY_PAYMENT, payload);
   },
 
   /**
@@ -89,4 +97,3 @@ export const adminSubscriptionsApi = {
     return apiClient.post<Subscription>(API_ENDPOINTS.ADMIN.SUBSCRIPTIONS.RESUME(id));
   },
 };
-

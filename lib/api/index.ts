@@ -16,5 +16,5 @@ export type { Coupon, CreateCouponInput, UpdateCouponInput } from './coupons';
 export { addressesApi } from './addresses';
 export type { CreateAddressInput, UpdateAddressInput } from './addresses';
 export { adminOrdersApi } from './adminOrders';
+export { walletApi } from './wallet';
 export { apiClient } from './client';
-

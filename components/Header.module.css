@@ -1137,6 +1137,85 @@
   padding: 4px;
 }
 
+.walletSection {
+  padding: 10px 10px 6px 10px;
+  border-bottom: 1px solid #e5e5e5;
+  margin-bottom: 4px;
+}
+
+.walletHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.walletTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.walletBalance {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0b9c6b;
+}
+
+.walletActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.walletAmountInput {
+  width: 90px;
+  padding: 8px 10px;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.walletAddButton {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.walletTransactions {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.walletTxRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #444;
+}
+
+.walletTxLeft {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.walletTxRight {
+  font-weight: 700;
+  color: #111;
+}
+
 .userDropdownMobile .dropdownMenu {
   right: 0;
 }
@@ -1616,5 +1695,4 @@
 .modalDoneButtonError:active:not(:disabled) {
   background: #bd2130;
 }
-
 

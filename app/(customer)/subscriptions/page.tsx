@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { subscriptionsApi } from '@/lib/api';
 import { Subscription } from '@/types';
 import Link from 'next/link';
+import styles from './page.module.css';
+import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/contexts/ToastContext';
 
 /**
  * My Subscriptions Page
@@ -12,12 +15,20 @@ import Link from 'next/link';
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Subscription | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { addItem } = useCart();
+  const { showToast } = useToast();
+
+  const refresh = async () => {
+    const data = await subscriptionsApi.getAll();
+    setSubscriptions(data);
+  };
 
   useEffect(() => {
     const fetchSubscriptions = async () => {
       try {
-        const data = await subscriptionsApi.getAll();
-        setSubscriptions(data);
+        await refresh();
       } catch (error) {
         console.error('Failed to fetch subscriptions:', error);
       } finally {
@@ -33,8 +44,13 @@ export default function SubscriptionsPage() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>My Subscriptions</h1>
+    <div className={styles.container}>
+      <div className={styles.titleRow}>
+        <h1 className={styles.title}>My Subscriptions</h1>
+        <Link href="/#membership" className={styles.primaryButton}>
+          Browse Subscriptions
+        </Link>
+      </div>
       
       {subscriptions.length === 0 ? (
         <div style={{ marginTop: '2rem', textAlign: 'center' }}>
@@ -53,7 +69,7 @@ export default function SubscriptionsPage() {
             </g>
           </svg>
           <p>You don&apos;t have any subscriptions yet.</p>
-          <Link 
+          <Link
             href="/#membership"
             style={{
               display: 'inline-block',
@@ -66,7 +82,7 @@ export default function SubscriptionsPage() {
               fontSize: '0.95rem',
               fontWeight: '600',
               transition: 'background-color 0.2s',
-              letterSpacing: '-0.2px'
+              letterSpacing: '-0.2px',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = '#333';
@@ -79,61 +95,140 @@ export default function SubscriptionsPage() {
           </Link>
         </div>
       ) : (
-        <div style={{ marginTop: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <div></div>
-            <Link 
-              href="/#membership"
-              style={{
-                display: 'inline-block',
-                padding: '0.875rem 1.75rem',
-                background: '#000',
-                color: '#fff',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                fontSize: '0.95rem',
-                fontWeight: '600',
-                transition: 'background-color 0.2s',
-                letterSpacing: '-0.2px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#333';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#000';
-              }}
-            >
-              Browse Subscriptions
-            </Link>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {subscriptions.map((subscription) => (
-              <div key={subscription.id} style={{ 
-                border: '1px solid #e0e0e0', 
-                borderRadius: '8px', 
-                padding: '1.5rem',
-                background: '#fff'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                  <div>
-                    <h3>{subscription.product?.name || 'Product'}</h3>
-                    <p>Quantity: {subscription.litresPerDay} litres/day</p>
-                    <p>Delivery Time: {subscription.deliveryTime}</p>
-                    <p>Status: <strong>{subscription.status}</strong></p>
-                    <p>Start: {new Date(subscription.startDate).toLocaleDateString()}</p>
-                    <p>End: {new Date(subscription.endDate).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <Link 
-                      href={`/subscriptions/${subscription.id}`}
-                      style={{ color: '#0070f3' }}
-                    >
-                      View Details
-                    </Link>
+        <div className={styles.grid}>
+          {subscriptions.map((s) => {
+            const statusClass =
+              s.status === 'active'
+                ? `${styles.statusPill} ${styles.statusActive}`
+                : s.status === 'cancelled'
+                  ? `${styles.statusPill} ${styles.statusCancelled}`
+                  : styles.statusPill;
+            const orderId = s.razorpaySubscriptionId || s.id;
+            return (
+              <div key={s.id} className={styles.card}>
+                <div className={styles.cardTop}>
+                  {s.product?.imageUrl ? (
+                    <img src={s.product.imageUrl} alt={s.product?.name || 'Product'} className={styles.image} />
+                  ) : (
+                    <div className={styles.image} />
+                  )}
+                  <div className={styles.meta}>
+                    <h3 className={styles.productName}>{s.product?.name || 'Product'}</h3>
+                    <p className={styles.subText}>Quantity: {s.litresPerDay}L/day</p>
+                    <p className={styles.subText}>Order ID: {orderId}</p>
+                    <p className={styles.subText}>Ends: {new Date(s.endDate).toLocaleDateString()}</p>
+                    <div className={styles.statusRow}>
+                      <span className={statusClass}>{s.status}</span>
+                    </div>
                   </div>
                 </div>
+                <div className={styles.actions}>
+                  <button className={styles.button} onClick={() => setSelected(s)}>
+                    View Details
+                  </button>
+                  <button
+                    className={`${styles.button} ${styles.primaryButton}`}
+                    onClick={() => {
+                      addItem({ productId: s.productId, quantity: 1 });
+                      showToast('Added to cart', 'success');
+                    }}
+                  >
+                    Buy This
+                  </button>
+                </div>
               </div>
-            ))}
+            );
+          })}
+        </div>
+      )}
+
+      {selected && (
+        <div className={styles.modalOverlay} onClick={() => setSelected(null)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Subscription Details</h2>
+              <button className={styles.closeButton} onClick={() => setSelected(null)} aria-label="Close">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Product</span>
+                <span className={styles.detailValue}>{selected.product?.name || 'Product'}</span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Quantity</span>
+                <span className={styles.detailValue}>{selected.litresPerDay}L/day</span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Delivery Start</span>
+                <span className={styles.detailValue}>{new Date(selected.startDate).toLocaleDateString()}</span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Expiry</span>
+                <span className={styles.detailValue}>{new Date(selected.endDate).toLocaleDateString()}</span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Purchased/Renewed</span>
+                <span className={styles.detailValue}>
+                  {new Date(selected.purchasedAt || selected.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Delivery Time</span>
+                <span className={styles.detailValue}>{selected.deliveryTime}</span>
+              </div>
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Total Paid</span>
+                <span className={styles.detailValue}>
+                  ₹{(selected.totalAmountPaid ?? selected.totalAmount ?? 0).toFixed(2)}
+                </span>
+              </div>
+            </div>
+            {(selected.status === 'active' || selected.status === 'paused') && (
+              <div className={styles.modalActions}>
+                <button
+                  className={styles.secondaryButton}
+                  disabled={busy}
+                  onClick={async () => {
+                    try {
+                      setBusy(true);
+                      const updated = await subscriptionsApi.cancelToday(selected.id);
+                      showToast("Today's delivery cancelled", 'success');
+                      setSelected(updated);
+                      await refresh();
+                    } catch (e) {
+                      showToast((e as { message?: string })?.message || 'Failed to cancel today', 'error');
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Cancel Today&apos;s Delivery
+                </button>
+                <button
+                  className={styles.dangerButton}
+                  disabled={busy}
+                  onClick={async () => {
+                    try {
+                      setBusy(true);
+                      const updated = await subscriptionsApi.cancel(selected.id);
+                      showToast('Subscription cancelled', 'success');
+                      setSelected(updated);
+                      await refresh();
+                    } catch (e) {
+                      showToast((e as { message?: string })?.message || 'Failed to cancel subscription', 'error');
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Cancel Subscription
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

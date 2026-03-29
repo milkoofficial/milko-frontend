@@ -1682,7 +1682,6 @@ margin-left: -11px;
     overflow-y: auto;
     overflow-x: hidden;
   }
-  
   .imageNavButton {
     width: 35px;
     height: 35px;
@@ -1717,10 +1716,12 @@ margin-left: -11px;
   .mainImage {
     height: 250px;
     position: relative !important;
+    top: auto !important;
     width: 100% !important;
     border-radius: 12px;
     overflow: hidden;
     background: #f0f0f0;
+    touch-action: pan-y !important;
   }
 
   .productTitle {
@@ -1736,3 +1737,10 @@ margin-left: -11px;
   }
 }
 
+@media (min-width: 640px) {
+.modalContent {
+width: 98% !Important;
+
+
+}
+}
