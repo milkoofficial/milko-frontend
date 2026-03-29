@@ -1,0 +1,12 @@
+.logoImage {
+  height: auto;
+  display: block;
+  width: var(--logo-width-mobile);
+}
+
+/* Desktop: use desktop width */
+@media (min-width: 768px) {
+  .logoImage {
+    width: var(--logo-width-desktop);
+  }
+}
