@@ -1,0 +1,30 @@
+/* Auth Page Styles */
+
+.authLogoText {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  letter-spacing: -0.5px;
+}
+
+.authLogoImg {
+  max-height: 48px;
+  object-fit: contain;
+}
+
+/* Mobile: White background, no padding, no box shadow */
+@media (max-width: 767px) {
+  .authContainer {
+    background: #ffffff !important;
+    padding: 28px 0px !important;
+  }
+
+  .authCard {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0rem 1.5rem !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+

@@ -1,0 +1,64 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: #1a1a1a;
+}
+
+.contactInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.contactItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: #f9f9f9;
+  border-radius: 12px;
+}
+
+.contactIcon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.contactLabel {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.contactValue {
+  font-size: 1.25rem;
+  color: #1a1a1a;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.contactValue:hover {
+  color: #0070f3;
+  text-decoration: underline;
+}
+
+.content {
+  line-height: 1.8;
+  color: #333;
+  font-size: 1.1rem;
+  margin-top: 2rem;
+}
+
+.content p {
+  margin-bottom: 1rem;
+}
