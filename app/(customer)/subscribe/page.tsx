@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { productsApi, subscriptionsApi } from '@/lib/api';
+import { productsApi, subscriptionsApi, contentApi, walletApi } from '@/lib/api';
 import { Product } from '@/types';
 import styles from './SubscribePage.module.css';
 
@@ -22,6 +22,18 @@ export default function SubscribePage() {
   const [deliveryTime, setDeliveryTime] = useState('08:00');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'wallet'>('online');
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [pincodeStatus, setPincodeStatus] = useState<'checking' | 'missing' | 'available' | 'unavailable'>('checking');
+  const [savedPincode, setSavedPincode] = useState('');
+  const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime?: string }> | null>(null);
+
+  const isDeliverable = (pin: string) => {
+    const cleaned = (pin || '').trim();
+    if (cleaned.length !== 6) return false;
+    if (!serviceablePincodes || serviceablePincodes.length === 0) return true;
+    return serviceablePincodes.some((e) => (typeof e === 'string' ? e : e.pincode) === cleaned);
+  };
 
   useEffect(() => {
     // Get pre-filled values from URL params
@@ -70,9 +82,84 @@ export default function SubscribePage() {
     fetchProduct();
   }, [productId, router, searchParams]);
 
+  useEffect(() => {
+    const loadWallet = async () => {
+      try {
+        const w = await walletApi.getSummary();
+        setWalletBalance(w.balance || 0);
+      } catch {
+        setWalletBalance(0);
+      }
+    };
+    loadWallet();
+  }, []);
+
+  useEffect(() => {
+    const syncPincodeState = async () => {
+      let list: Array<{ pincode: string; deliveryTime?: string }> | null = null;
+      try {
+        const cfg = await contentApi.getByType('pincodes');
+        const meta = (cfg?.metadata || {}) as any;
+        let parsed: Array<{ pincode: string; deliveryTime?: string }> = [];
+        if (Array.isArray(meta.serviceablePincodes)) {
+          parsed = meta.serviceablePincodes
+            .map((el: any) =>
+              typeof el === 'string'
+                ? { pincode: el.trim(), deliveryTime: '1h' }
+                : { pincode: (el.pincode || el).toString().trim(), deliveryTime: (el.deliveryTime || '1h').toString().trim() || '1h' }
+            )
+            .filter((x: { pincode: string }) => x.pincode.length === 6);
+        } else if (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()) {
+          parsed = [{ pincode: meta.serviceablePincode.trim(), deliveryTime: '1h' }];
+        }
+        list = parsed.length > 0 ? parsed : null;
+        setServiceablePincodes(list);
+      } catch {
+        setServiceablePincodes(null);
+        list = null;
+      }
+
+      const pin = localStorage.getItem('milko_delivery_pincode') || '';
+      setSavedPincode(pin);
+      if (pin.length !== 6) {
+        setPincodeStatus('missing');
+        return;
+      }
+      if (!list || list.length === 0) {
+        setPincodeStatus('available');
+      } else {
+        const ok = list.some((e) => e.pincode === pin.trim());
+        setPincodeStatus(ok ? 'available' : 'unavailable');
+      }
+    };
+
+    syncPincodeState();
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'milko_delivery_pincode' || e.key === 'milko_delivery_status') {
+        syncPincodeState();
+      }
+    };
+    const onPincodeUpdated = () => syncPincodeState();
+
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('milko:pincode-updated', onPincodeUpdated as EventListener);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('milko:pincode-updated', onPincodeUpdated as EventListener);
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productId) return;
+    if (pincodeStatus === 'missing') {
+      window.dispatchEvent(new CustomEvent('milko:open-pincode-modal'));
+      return;
+    }
+    if (pincodeStatus !== 'available') {
+      return;
+    }
 
     setSubmitting(true);
     let openedRazorpay = false;
@@ -83,6 +170,7 @@ export default function SubscribePage() {
         frequency,
         durationMonths,
         deliveryTime,
+        paymentMethod,
       });
 
       if (!result.razorpayOrder) {
@@ -140,7 +228,7 @@ export default function SubscribePage() {
       rzp.open();
     } catch (error) {
       console.error('Failed to create subscription:', error);
-      alert('Failed to create subscription. Please try again.');
+      alert((error as { message?: string })?.message || 'Failed to create subscription. Please try again.');
     } finally {
       if (!openedRazorpay) setSubmitting(false);
     }
@@ -154,6 +242,10 @@ export default function SubscribePage() {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Product not found</div>;
   }
 
+  const subscriptionTotal = product.pricePerLitre * litresPerDay * 30 * durationMonths;
+  const walletUsedPreview = Math.max(0, Math.min(walletBalance, subscriptionTotal));
+  const onlineDuePreview = Math.max(0, Math.round((subscriptionTotal - walletUsedPreview) * 100) / 100);
+
   return (
     <div className={styles.pageWrap}>
       <div className={styles.card}>
@@ -164,6 +256,29 @@ export default function SubscribePage() {
         <p className={styles.subtitle}>Set your delivery plan below</p>
 
         <form onSubmit={handleSubmit} className={styles.form}>
+          {pincodeStatus === 'missing' && (
+            <div className={styles.totalsBox}>
+              <p className={styles.totalLine}>
+                Please add your pincode before subscribing.
+              </p>
+              <button
+                type="button"
+                className={styles.button}
+                onClick={() => window.dispatchEvent(new CustomEvent('milko:open-pincode-modal'))}
+                style={{ marginTop: 10 }}
+              >
+                Add Pincode
+              </button>
+            </div>
+          )}
+          {pincodeStatus === 'unavailable' && (
+            <div className={styles.totalsBox}>
+              <p className={styles.totalLine}>
+                Delivery is not available for pincode {savedPincode || 'selected'}.
+              </p>
+            </div>
+          )}
+
           <div className={styles.field}>
             <label className={styles.label} htmlFor="frequency">
               Frequency
@@ -246,12 +361,46 @@ export default function SubscribePage() {
             </p>
             <p className={styles.totalLine} style={{ marginTop: 8 }}>
               Total for {durationMonths} month(s):{' '}
-              <strong>₹{product.pricePerLitre * litresPerDay * 30 * durationMonths}</strong>
+              <strong>₹{subscriptionTotal}</strong>
             </p>
           </div>
 
-          <button type="submit" disabled={submitting} className={styles.button}>
-            {submitting ? 'Processing...' : 'Proceed to Payment'}
+          <div className={styles.field}>
+            <label className={styles.label}>Payment method</label>
+            <div className={styles.controlWrap} style={{ display: 'block' }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <input
+                  type="radio"
+                  name="subscriptionPaymentMethod"
+                  value="online"
+                  checked={paymentMethod === 'online'}
+                  onChange={() => setPaymentMethod('online')}
+                />
+                <span>Pay full amount online (₹{subscriptionTotal.toFixed(2)})</span>
+              </label>
+
+              {walletBalance > 0 && (
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <input
+                    type="radio"
+                    name="subscriptionPaymentMethod"
+                    value="wallet"
+                    checked={paymentMethod === 'wallet'}
+                    onChange={() => setPaymentMethod('wallet')}
+                    style={{ marginTop: 3 }}
+                  />
+                  <span>
+                    {onlineDuePreview > 0
+                      ? `Use your wallet to pay ₹${walletUsedPreview.toFixed(2)} + ₹${onlineDuePreview.toFixed(2)} through online`
+                      : `Use your wallet to pay ₹${walletUsedPreview.toFixed(2)}`}
+                  </span>
+                </label>
+              )}
+            </div>
+          </div>
+
+          <button type="submit" disabled={submitting || pincodeStatus !== 'available'} className={styles.button}>
+            {submitting ? 'Processing...' : pincodeStatus === 'missing' ? 'Add Pincode to Continue' : pincodeStatus === 'unavailable' ? 'Pincode Not Deliverable' : 'Proceed to Payment'}
           </button>
         </form>
       </div>
