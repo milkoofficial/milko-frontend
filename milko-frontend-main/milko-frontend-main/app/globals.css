@@ -16,18 +16,18 @@ body {
   letter-spacing: -0.2px;
   margin: 0;
   padding: 0;
-  font-family: var(--font-cabinet-grotesk), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
-/* Apply Cabinet Grotesk font and letter-spacing to all text elements */
+/* Apply Inter/system font and letter-spacing to all text elements */
 * {
-  font-family: var(--font-cabinet-grotesk), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   letter-spacing: -0.2px;
 }
 
-/* Ensure all text elements use Cabinet Grotesk */
+/* Ensure all text elements use Inter/system font */
 h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea, select, label {
-  font-family: var(--font-cabinet-grotesk), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 /* Heading font sizes - increased by 1px from defaults */
@@ -61,6 +61,6 @@ a {
   text-decoration: none;
 }
 
-/* Cabinet Grotesk font is applied via className in layout.tsx */
+/* Font is applied globally via app/globals.css */
 /* Light mode only - no dark mode */
 

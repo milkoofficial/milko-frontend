@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { productsApi, subscriptionsApi } from '@/lib/api';
 import { Product } from '@/types';
+import styles from './SubscribePage.module.css';
 
 /**
  * Subscribe Page
@@ -16,6 +17,7 @@ export default function SubscribePage() {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [litresPerDay, setLitresPerDay] = useState(1);
+  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('daily');
   const [durationMonths, setDurationMonths] = useState(1);
   const [deliveryTime, setDeliveryTime] = useState('08:00');
   const [loading, setLoading] = useState(true);
@@ -26,6 +28,7 @@ export default function SubscribePage() {
     const litersParam = searchParams.get('liters');
     const daysParam = searchParams.get('days');
     const monthsParam = searchParams.get('months');
+    const frequencyParam = searchParams.get('frequency');
     
     if (litersParam) {
       setLitresPerDay(parseFloat(litersParam));
@@ -36,6 +39,15 @@ export default function SubscribePage() {
       // Convert days to months (approximate)
       const days = parseInt(daysParam);
       setDurationMonths(Math.ceil(days / 30));
+    }
+
+    if (
+      frequencyParam === 'daily' ||
+      frequencyParam === 'weekly' ||
+      frequencyParam === 'monthly' ||
+      frequencyParam === 'quarterly'
+    ) {
+      setFrequency(frequencyParam);
     }
 
     if (!productId) {
@@ -68,12 +80,17 @@ export default function SubscribePage() {
       const result = await subscriptionsApi.create({
         productId,
         litresPerDay,
+        frequency,
         durationMonths,
         deliveryTime,
       });
 
       if (!result.razorpayOrder) {
-        alert('Subscription activated using wallet.');
+        if (result.subscription.status === 'active') {
+          alert('Subscription activated using wallet.');
+        } else {
+          alert('Subscription created, but payment is unavailable (Razorpay not configured). Please recharge your wallet or try later.');
+        }
         router.push('/subscriptions');
         return;
       }
@@ -138,83 +155,106 @@ export default function SubscribePage() {
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '600px', margin: '0 auto' }}>
-      <h1>Subscribe to {product.name}</h1>
-      <p style={{ marginTop: '0.5rem', color: '#666' }}>₹{product.pricePerLitre} per litre</p>
-
-      <form onSubmit={handleSubmit} style={{ marginTop: '2rem' }}>
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-            Litres per day
-          </label>
-          <input
-            type="number"
-            min="1"
-            max="10"
-            value={litresPerDay}
-            onChange={(e) => setLitresPerDay(Number(e.target.value))}
-            required
-            style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
-          />
+    <div className={styles.pageWrap}>
+      <div className={styles.card}>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>Subscribe to {product.name}</h1>
+          <div className={styles.pricePill}>₹{product.pricePerLitre} per litre</div>
         </div>
+        <p className={styles.subtitle}>Set your delivery plan below</p>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-            Duration (months)
-          </label>
-          <select
-            value={durationMonths}
-            onChange={(e) => setDurationMonths(Number(e.target.value))}
-            required
-            style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
-          >
-            <option value={1}>1 month</option>
-            <option value={3}>3 months</option>
-            <option value={6}>6 months</option>
-            <option value={12}>12 months</option>
-          </select>
-        </div>
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="frequency">
+              Frequency
+            </label>
+            <div className={styles.controlWrap}>
+              <select
+                id="frequency"
+                className={styles.select}
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value as 'daily' | 'weekly' | 'monthly' | 'quarterly')}
+                required
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+              </select>
+              <svg className={styles.selectArrow} viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-            Delivery Time
-          </label>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="litresPerDay">
+              Litres per day
+            </label>
+            <input
+              id="litresPerDay"
+              className={styles.input}
+              type="number"
+              min="1"
+              max="10"
+              value={litresPerDay}
+              onChange={(e) => setLitresPerDay(Number(e.target.value))}
+              required
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="durationMonths">
+              Duration (months)
+            </label>
+            <div className={styles.controlWrap}>
+              <select
+                id="durationMonths"
+                className={styles.select}
+                value={durationMonths}
+                onChange={(e) => setDurationMonths(Number(e.target.value))}
+                required
+              >
+                <option value={1}>1 month</option>
+                <option value={3}>3 months</option>
+                <option value={6}>6 months</option>
+                <option value={12}>12 months</option>
+              </select>
+              <svg className={styles.selectArrow} viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="deliveryTime">
+              Delivery Time
+            </label>
           <input
+            id="deliveryTime"
+            className={styles.input}
             type="time"
             value={deliveryTime}
             onChange={(e) => setDeliveryTime(e.target.value)}
             required
-            style={{ width: '100%', padding: '0.75rem', border: '1px solid #ddd', borderRadius: '4px' }}
           />
-        </div>
+          </div>
 
-        <div style={{ 
-          padding: '1rem', 
-          background: '#f5f5f5', 
-          borderRadius: '4px', 
-          marginBottom: '1.5rem' 
-        }}>
-          <p><strong>Total per day:</strong> ₹{product.pricePerLitre * litresPerDay}</p>
-          <p><strong>Total for {durationMonths} month(s):</strong> ₹{product.pricePerLitre * litresPerDay * 30 * durationMonths}</p>
-        </div>
+          <div className={styles.totalsBox}>
+            <p className={styles.totalLine}>
+              Total per day: <strong>₹{product.pricePerLitre * litresPerDay}</strong>
+            </p>
+            <p className={styles.totalLine} style={{ marginTop: 8 }}>
+              Total for {durationMonths} month(s):{' '}
+              <strong>₹{product.pricePerLitre * litresPerDay * 30 * durationMonths}</strong>
+            </p>
+          </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            background: submitting ? '#ccc' : '#0070f3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '1rem',
-            cursor: submitting ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {submitting ? 'Processing...' : 'Proceed to Payment'}
-        </button>
-      </form>
+          <button type="submit" disabled={submitting} className={styles.button}>
+            {submitting ? 'Processing...' : 'Proceed to Payment'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

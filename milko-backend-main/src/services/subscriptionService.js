@@ -1,6 +1,6 @@
 const subscriptionModel = require('../models/subscription');
 const productModel = require('../models/product');
-const { createOrder } = require('../config/razorpay');
+const { createOrder, hasRazorpayKeys } = require('../config/razorpay');
 const { ValidationError, NotFoundError } = require('../utils/errors');
 const { getClient } = require('../config/database');
 const walletService = require('./walletService');
@@ -64,18 +64,25 @@ const createSubscription = async (subscriptionData) => {
 
     let razorpayOrder = null;
     if (remainingAmount > 0) {
-      razorpayOrder = await createOrder({
-        amount: Math.round(remainingAmount * 100),
-        currency: 'INR',
-        receipt: `milko_sub_${userId}_${Date.now()}`,
-        notes: {
-          userId,
-          productId,
-          litresPerDay,
-          durationMonths,
-          deliveryTime,
-        },
-      });
+      if (hasRazorpayKeys) {
+        razorpayOrder = await createOrder({
+          amount: Math.round(remainingAmount * 100),
+          currency: 'INR',
+          receipt: `milko_sub_${userId}_${Date.now()}`,
+          notes: {
+            userId,
+            productId,
+            litresPerDay,
+            durationMonths,
+            deliveryTime,
+          },
+        });
+      } else {
+        // Dev/local environment: create the subscription record, but skip payment order.
+        // The subscription will remain in `pending` state until wallet covers the balance
+        // or Razorpay is configured.
+        razorpayOrder = null;
+      }
     }
 
     const subRes = await client.query(
@@ -132,13 +139,15 @@ const createSubscription = async (subscriptionData) => {
     const subscription = await subscriptionModel.getSubscriptionById(subscriptionId);
     return {
       subscription,
-      razorpayOrder: {
-        id: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        orderId: razorpayOrder.id,
-        key: process.env.RAZORPAY_KEY_ID,
-      },
+      razorpayOrder: razorpayOrder
+        ? {
+            id: razorpayOrder.id,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
+            orderId: razorpayOrder.id,
+            key: process.env.RAZORPAY_KEY_ID,
+          }
+        : null,
     };
   } catch (e) {
     await client.query('ROLLBACK');

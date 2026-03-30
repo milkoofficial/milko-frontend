@@ -24,30 +24,78 @@ const createTopupOrder = async (req, res, next) => {
   try {
     const userId = req.user?.id;
     if (!userId) throw new ValidationError('User not found');
-    if (!hasRazorpayKeys) {
-      throw new ValidationError('Online payment is not available. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
-    }
-
     const amount = normalizeAmount(req.body?.amount);
     if (!amount) throw new ValidationError('Invalid amount');
 
-    const razorpayOrder = await createRazorpayOrder({
-      amount: Math.round(amount * 100),
-      currency: 'INR',
-      receipt: `milko_wallet_${userId}_${Date.now()}`,
-      notes: { wallet_topup: '1', user_id: userId },
-    });
+    // Dev/local fallback: allow wallet top-up without Razorpay integration.
+    // This ensures wallet can be used for testing orders/subscriptions even when payment keys are missing.
+    const canManualTopup = process.env.NODE_ENV !== 'production';
 
-    res.status(201).json({
-      success: true,
-      data: {
-        razorpayOrderId: razorpayOrder.id,
-        key: process.env.RAZORPAY_KEY_ID,
-        currency: razorpayOrder.currency || 'INR',
-        amount: razorpayOrder.amount,
-      },
-      message: 'Open Razorpay to complete wallet top-up',
-    });
+    if (!hasRazorpayKeys) {
+      if (!canManualTopup) {
+        throw new ValidationError('Online payment is not available. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
+      }
+
+      const result = await walletService.creditWallet({
+        userId,
+        amount,
+        source: 'razorpay',
+        referenceId: `manual_wallet_topup_${Date.now()}`,
+      });
+
+      return res.status(201).json({
+        success: true,
+        data: {
+          manual: true,
+          credited: result.credited,
+          balance: result.balance,
+          currency: 'INR',
+          amount,
+        },
+        message: 'Wallet topped up (manual mode)',
+      });
+    }
+
+    try {
+      const razorpayOrder = await createRazorpayOrder({
+        amount: Math.round(amount * 100),
+        currency: 'INR',
+        receipt: `milko_wallet_${userId}_${Date.now()}`,
+        notes: { wallet_topup: '1', user_id: userId },
+      });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          razorpayOrderId: razorpayOrder.id,
+          key: process.env.RAZORPAY_KEY_ID,
+          currency: razorpayOrder.currency || 'INR',
+          amount: razorpayOrder.amount,
+        },
+        message: 'Open Razorpay to complete wallet top-up',
+      });
+    } catch (e) {
+      if (!canManualTopup) throw e;
+
+      const result = await walletService.creditWallet({
+        userId,
+        amount,
+        source: 'razorpay',
+        referenceId: `manual_wallet_topup_${Date.now()}`,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          manual: true,
+          credited: result.credited,
+          balance: result.balance,
+          currency: 'INR',
+          amount,
+        },
+        message: 'Wallet topped up (manual mode)',
+      });
+    }
   } catch (e) {
     next(e);
   }

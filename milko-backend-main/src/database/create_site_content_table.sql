@@ -27,5 +27,7 @@ INSERT INTO site_content (content_type, title, content, metadata) VALUES
   -- deliveryTime: "1h", "2h", "15m", "30m" etc. (displayed as 1hr, 2hr, 15m in header)
   ('pincodes', 'Pincode Settings', 'Delivery pincode settings', '{"serviceablePincodes": []}'),
   -- logo: metadata.imageUrl (Cloudinary), metadata.imagePublicId, metadata.widthPx (40–320)
-  ('logo', 'Logo', '', '{"widthPx": 120}')
+  ('logo', 'Logo', '', '{"widthPx": 120}'),
+  -- homepage_products: metadata.rows = number of rows to show on homepage "Our Products"
+  ('homepage_products', 'Homepage Products Rows', 'Homepage products section settings.', '{"rows": 1}')
 ON CONFLICT (content_type) DO NOTHING;

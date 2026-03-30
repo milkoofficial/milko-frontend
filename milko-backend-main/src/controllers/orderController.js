@@ -26,7 +26,7 @@ const createOrder = async (req, res, next) => {
     if (!deliveryAddress) throw new ValidationError('Delivery address is required');
 
     const method = (paymentMethod || 'cod').toString().toLowerCase();
-    if (method !== 'cod' && method !== 'online') throw new ValidationError('Invalid payment method');
+    if (method !== 'cod' && method !== 'online' && method !== 'wallet') throw new ValidationError('Invalid payment method');
 
     // Compute item pricing server-side
     const computedItems = [];
@@ -143,32 +143,39 @@ const createOrder = async (req, res, next) => {
     }
 
     await orderModel.ensureOrdersSchema();
-    await walletService.ensureWalletSchema();
+    if (method === 'wallet') {
+      await walletService.ensureWalletSchema();
+    }
 
     const client = await getClient();
     try {
       await client.query('BEGIN');
 
-      const balRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
-      const walletBalance = balRes.rows.length > 0 ? parseFloat(balRes.rows[0].wallet_balance || 0) : 0;
+      let walletUsed = 0;
+      let remaining = total;
 
-      const walletUsed = Math.max(0, Math.min(walletBalance, total));
-      const remaining = Math.max(0, Math.round((total - walletUsed) * 100) / 100);
+      if (method === 'wallet') {
+        const balRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+        const walletBalance = balRes.rows.length > 0 ? parseFloat(balRes.rows[0].wallet_balance || 0) : 0;
 
-      if (walletUsed > 0) {
-        await client.query(
-          `UPDATE users SET wallet_balance = wallet_balance - $1, updated_at = NOW() WHERE id = $2`,
-          [walletUsed, userId]
-        );
+        walletUsed = Math.max(0, Math.min(walletBalance, total));
+        remaining = Math.max(0, Math.round((total - walletUsed) * 100) / 100);
 
-        await client.query(
-          `
-          INSERT INTO wallet_transactions (user_id, type, amount, source, reference_id)
-          VALUES ($1, 'debit', $2, 'purchase', $3)
-          ON CONFLICT DO NOTHING
-          `,
-          [userId, walletUsed, id]
-        );
+        if (walletUsed > 0) {
+          await client.query(
+            `UPDATE users SET wallet_balance = wallet_balance - $1, updated_at = NOW() WHERE id = $2`,
+            [walletUsed, userId]
+          );
+
+          await client.query(
+            `
+            INSERT INTO wallet_transactions (user_id, type, amount, source, reference_id)
+            VALUES ($1, 'debit', $2, 'purchase', $3)
+            ON CONFLICT DO NOTHING
+            `,
+            [userId, walletUsed, id]
+          );
+        }
       }
 
       let razorpayOrderId = null;
@@ -185,7 +192,7 @@ const createOrder = async (req, res, next) => {
         razorpayOrderId = rp.id;
       }
 
-      const paymentMethodFinal = remaining > 0 ? 'online' : 'wallet';
+      const paymentMethodFinal = method === 'wallet' ? (walletUsed > 0 ? 'wallet' : 'online') : 'online';
       const paymentStatusFinal = remaining > 0 ? 'pending' : 'paid';
 
       await client.query(
@@ -261,7 +268,7 @@ const createOrder = async (req, res, next) => {
           paymentStatus: 'paid',
           walletUsed: Math.round(walletUsed * 100) / 100,
         },
-        message: 'Order paid using wallet',
+        message: paymentMethodFinal === 'wallet' ? 'Order paid using wallet' : 'Order paid',
       });
     } catch (e) {
       await client.query('ROLLBACK');
