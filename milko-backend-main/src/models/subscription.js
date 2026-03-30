@@ -172,7 +172,30 @@ const getSubscriptionById = async (subscriptionId) => {
     [subscriptionId]
   );
 
-  return transformSubscription(result.rows[0] || null);
+  const row = result.rows[0];
+  if (!row) return null;
+
+  const sub = transformSubscription(row);
+
+  const schedulesRes = await query(
+    `SELECT delivery_date::text AS delivery_date, status
+     FROM delivery_schedules
+     WHERE subscription_id = $1
+     ORDER BY delivery_date`,
+    [subscriptionId]
+  );
+  const deliverySchedules = schedulesRes.rows.map((r) => ({
+    deliveryDate: r.delivery_date,
+    status: r.status,
+  }));
+
+  const pausedRes = await query(
+    `SELECT date::text AS d FROM paused_dates WHERE subscription_id = $1`,
+    [subscriptionId]
+  );
+  const pausedDates = pausedRes.rows.map((r) => r.d);
+
+  return { ...sub, deliverySchedules, pausedDates };
 };
 
 /**

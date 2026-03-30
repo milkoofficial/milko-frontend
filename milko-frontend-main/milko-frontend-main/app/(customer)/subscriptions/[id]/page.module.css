@@ -1,0 +1,546 @@
+/* Subscription details — aligned with order details: shell + white card */
+
+.container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.content {
+  max-width: 750px;
+  width: 100%;
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin: 2rem 1rem;
+  box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.2);
+  border: 1px solid #ddd;
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem 2rem;
+  font-size: 1.1rem;
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    #999 0%,
+    #bbb 20%,
+    #e8e8e8 50%,
+    #bbb 80%,
+    #999 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: loadingShimmer 2.8s ease-in-out infinite;
+}
+
+@keyframes loadingShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.error {
+  text-align: center;
+  padding: 2rem;
+  color: #dc3545;
+  font-size: 1rem;
+}
+
+.backLink {
+  display: inline-block;
+  margin: 1rem auto;
+  text-align: center;
+  color: #0070f3;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 3px;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0;
+  flex: 1;
+  letter-spacing: -1.1px;
+}
+
+.statusBadge {
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.statusBadgeActive {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.statusBadgePaused {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.statusBadgePending {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.statusBadgeExpired {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.statusBadgeCancelled,
+.statusBadgeFailed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.statusBadgeTick {
+  width: 27px;
+  height: 27px;
+  flex-shrink: 0;
+  margin: -7px -6px -7px -8px;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  margin: 0 0 1.75rem 0;
+}
+
+.metaText {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+}
+
+.metaMuted {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #757070;
+  margin-left: 4px;
+}
+
+/* Sections */
+.section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #999;
+  letter-spacing: 0;
+  margin: 0 0 1rem 0;
+  text-transform: uppercase;
+}
+
+/* Product row */
+.productRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.productThumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f0f0f0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.productThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.productThumbPlaceholder {
+  font-size: 1.5rem;
+}
+
+.productBlockName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000;
+  margin: 0 0 0.25rem 0;
+}
+
+.productBlockMeta {
+  font-size: 0.85rem;
+  color: #999;
+  margin: 0;
+}
+
+/* Order details grid (same feel as orders) */
+.detailsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detailRow:last-child {
+  border-bottom: none;
+}
+
+.detailLabel {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 400;
+}
+
+.detailValue {
+  font-size: 0.9rem;
+  color: #000;
+  font-weight: 500;
+  text-align: right;
+}
+
+.copyValueBtn {
+  border: 0px solid #e5e5e5;
+  background: #f1f1f1ab;
+  color: #000;
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  max-width: min(100%, 220px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copyValueBtn:hover {
+  background: #f0f0f0;
+}
+
+/* Calendar */
+.calendarHint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.5rem;
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  color: #555;
+  line-height: 1.4;
+}
+
+.calendarHintItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #efefef91;
+    padding: 2px 7px;
+    border-radius: 5px;
+
+}
+
+.calendarHintDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* Match calendar cell colours */
+.calendarHintDotDelivered {
+  background: #059669;
+}
+
+.calendarHintDotScheduled {
+  background: #0284c7;
+}
+
+.calendarHintDotCancelled {
+  background: #dc2626;
+}
+
+.calendarHintDotPaused {
+  background: #9ca3af;
+}
+
+.calendarList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 5px;
+}
+
+.calendarCard {
+  border-radius: 12px;
+  padding: 8px 0;
+  
+}
+
+.calendarMonth {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 0.5rem;
+}
+
+.weekLabels {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin-bottom: 0.3rem;
+}
+
+.weekLabels span {
+  text-align: center;
+  font-size: 0.72rem;
+  color: #666;
+  font-weight: 700;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.dayCell {
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  font-size: 0.78rem;
+  color: #222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+.dayMuted {
+  opacity: 0.38;
+  background: #fafafa !important;
+  border-color: #fafafa !important;
+  color: #aaa !important;
+}
+
+/* In-month but outside subscription start–end */
+.dayOutOfRange {
+  background: #f3f4f6;
+  border-color: #f3f4f6;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.dayDelivered {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  color: #065f46;
+  font-weight: 700;
+}
+
+.dayPending {
+  background: #e0f2fe;
+  border-color: #e0f2fe;
+  color: #0369a1;
+  font-weight: 600;
+}
+
+.dayCancelled {
+  background: #fee2e2;
+  border-color: #fee2e2;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.dayPaused {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.dayToday {
+  box-shadow: inset 0 0 0 2px #111;
+}
+
+.autoPayText {
+  margin: 0;
+  color: #333;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.autoPayActions {
+  margin-top: 1rem;
+}
+
+.autoPayButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.autoPayButton:hover {
+  background: #333;
+}
+
+.actionRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.secondaryButton,
+.dangerButton {
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: 1px solid #111;
+  background: #fff;
+  color: #111;
+  font-family: inherit;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.dangerButton {
+  color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.stateInner {
+  max-width: 750px;
+  width: 100%;
+  margin: 2rem 1rem;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #ddd;
+  box-shadow: 0 1px 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile: white page background */
+@media (max-width: 767px) {
+  .container {
+    background: #fff;
+  }
+
+  .content {
+    margin: 0;
+    border-radius: 0;
+    padding: 1.5rem 1rem;
+    min-height: 100vh;
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
+  }
+
+  .pageTitle {
+    font-size: 1.25rem;
+  }
+
+  .statusBadge {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .metaText,
+  .metaMuted {
+    font-size: 0.85rem;
+  }
+
+  .detailLabel,
+  .detailValue {
+    font-size: 0.85rem;
+  }
+
+  .detailRow {
+    padding: 0.75rem 0;
+  }
+
+  .productThumb {
+    width: 56px;
+    height: 56px;
+  }
+
+  .actionRow {
+    grid-template-columns: 1fr;
+  }
+
+  .stateInner {
+    margin: 0;
+    border-radius: 0;
+    min-height: 100vh;
+    border: none;
+    box-shadow: none;
+  }
+}

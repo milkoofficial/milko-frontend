@@ -107,6 +107,13 @@ export interface Subscription {
   cancelledAt?: string;
   createdAt: string;
   updatedAt: string;
+  // Per-day delivery rows (when subscription detail includes schedules)
+  deliverySchedules?: Array<{
+    deliveryDate: string;
+    status: 'pending' | 'delivered' | 'skipped' | 'cancelled';
+  }>;
+  /** YYYY-MM-DD dates with no delivery (pauses); may not have a delivery_schedules row */
+  pausedDates?: string[];
   // Extended fields from joins (for admin view)
   userName?: string;
   userEmail?: string;
