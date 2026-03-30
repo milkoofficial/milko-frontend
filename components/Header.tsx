@@ -539,6 +539,13 @@ export default function Header() {
     }
   }, [isAddressModalOpen]);
 
+  // Allow other pages/components to open the header pincode modal
+  useEffect(() => {
+    const onOpen = () => setIsAddressModalOpen(true);
+    window.addEventListener('milko:open-pincode-modal', onOpen as EventListener);
+    return () => window.removeEventListener('milko:open-pincode-modal', onOpen as EventListener);
+  }, []);
+
   // Check pincode delivery availability
   const checkPincodeDelivery = async () => {
     const fullPincode = pincode.join('');
@@ -561,6 +568,11 @@ export default function Header() {
       localStorage.setItem('milko_delivery_status', 'available');
       setSavedPincode(fullPincode);
       setSavedDeliveryStatus('available');
+      window.dispatchEvent(
+        new CustomEvent('milko:pincode-updated', {
+          detail: { pincode: fullPincode, status: 'available' },
+        })
+      );
       setIsAddressModalOpen(false);
     } else if (deliveryStatus === 'unavailable') {
       // Save unavailable status
@@ -568,6 +580,11 @@ export default function Header() {
       localStorage.setItem('milko_delivery_status', 'unavailable');
       setSavedPincode(fullPincode);
       setSavedDeliveryStatus('unavailable');
+      window.dispatchEvent(
+        new CustomEvent('milko:pincode-updated', {
+          detail: { pincode: fullPincode, status: 'unavailable' },
+        })
+      );
       // Close the modal when pincode is unavailable
       setIsAddressModalOpen(false);
     }
