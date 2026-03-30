@@ -69,31 +69,23 @@ const createSubscription = async (subscriptionData) => {
 
     let razorpayOrder = null;
     if (remainingAmount > 0) {
-      if (hasRazorpayKeys) {
-        try {
-          razorpayOrder = await createOrder({
-            amount: Math.round(remainingAmount * 100),
-            currency: 'INR',
-            receipt: `milko_sub_${userId}_${Date.now()}`,
-            notes: {
-              userId,
-              productId,
-              litresPerDay,
-              durationMonths,
-              deliveryTime,
-            },
-          });
-        } catch (err) {
-          // Keep subscription in pending mode instead of failing the request.
-          // This mirrors wallet-topup graceful behavior when payment gateway is unavailable.
-          razorpayOrder = null;
-        }
-      } else {
-        // Dev/local environment: create the subscription record, but skip payment order.
-        // The subscription will remain in `pending` state until wallet covers the balance
-        // or Razorpay is configured.
-        razorpayOrder = null;
+      if (!hasRazorpayKeys) {
+        throw new ValidationError('Online payment is not available. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
       }
+
+      razorpayOrder = await createOrder({
+        amount: Math.round(remainingAmount * 100),
+        currency: 'INR',
+        // Razorpay receipt max length is 40 chars.
+        receipt: `sub_${Date.now()}_${String(userId).replace(/-/g, '').slice(0, 8)}`,
+        notes: {
+          userId,
+          productId,
+          litresPerDay,
+          durationMonths,
+          deliveryTime,
+        },
+      });
     }
 
     const subRes = await client.query(

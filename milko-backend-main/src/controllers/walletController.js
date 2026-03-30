@@ -60,7 +60,8 @@ const createTopupOrder = async (req, res, next) => {
       const razorpayOrder = await createRazorpayOrder({
         amount: Math.round(amount * 100),
         currency: 'INR',
-        receipt: `milko_wallet_${userId}_${Date.now()}`,
+        // Razorpay receipt max length is 40 chars.
+        receipt: `wlt_${Date.now()}_${String(userId).replace(/-/g, '').slice(0, 8)}`,
         notes: { wallet_topup: '1', user_id: userId },
       });
 
