@@ -959,6 +959,17 @@
   flex-shrink: 0;
 }
 
+.walletPaymentInfo {
+  margin-top: 0.15rem;
+  padding: 0.7rem 0.85rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  color: #00835d;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
 .summaryButtonWrapper {
   margin-top: 1rem;
   display: flex;
