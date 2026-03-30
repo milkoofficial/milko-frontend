@@ -181,6 +181,7 @@ export interface SubscriptionCreateRequest {
   durationMonths: number;
   deliveryTime: string;
   frequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  paymentMethod?: 'online' | 'wallet';
 }
 
 // Address Types

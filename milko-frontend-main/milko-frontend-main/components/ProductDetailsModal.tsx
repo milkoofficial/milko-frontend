@@ -966,9 +966,27 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
 
                     {/* Subscribe Now Button */}
                     <Link
-                      href={`/subscribe?productId=${displayProduct.id}&liters=${membershipQuantity}&days=${membershipDuration}&months=${Math.ceil(parseInt(membershipDuration) / 30)}&frequency=${membershipFrequency}`}
+                      href={pincode.length === 6 && isPincodeAvailable === true
+                        ? `/subscribe?productId=${displayProduct.id}&liters=${membershipQuantity}&days=${membershipDuration}&months=${Math.ceil(parseInt(membershipDuration) / 30)}&frequency=${membershipFrequency}`
+                        : '#'}
                       className={styles.membershipSubscribeButton}
-                      onClick={() => onClose()}
+                      onClick={(e) => {
+                        if (pincode.length !== 6) {
+                          e.preventDefault();
+                          window.dispatchEvent(new CustomEvent('milko:open-pincode-modal'));
+                          return;
+                        }
+                        if (isPincodeAvailable !== true) {
+                          e.preventDefault();
+                          return;
+                        }
+                        onClose();
+                      }}
+                      style={{
+                        opacity: (pincode.length === 6 && isPincodeAvailable === true) ? 1 : 0.5,
+                        cursor: (pincode.length === 6 && isPincodeAvailable === true) ? 'pointer' : 'not-allowed',
+                        pointerEvents: 'auto',
+                      }}
                     >
                       Subscribe Now
                     </Link>

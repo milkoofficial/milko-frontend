@@ -17,7 +17,7 @@ const walletService = require('./walletService');
  * @returns {Promise<Object>} Subscription and Razorpay order
  */
 const createSubscription = async (subscriptionData) => {
-  const { userId, productId, litresPerDay, durationMonths, deliveryTime } = subscriptionData;
+  const { userId, productId, litresPerDay, durationMonths, deliveryTime, paymentMethod = 'wallet' } = subscriptionData;
 
   // Validate product exists and is active
   const product = await productModel.getProductById(productId);
@@ -50,10 +50,15 @@ const createSubscription = async (subscriptionData) => {
   try {
     await client.query('BEGIN');
 
-    const balRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
-    const walletBalance = balRes.rows.length > 0 ? parseFloat(balRes.rows[0].wallet_balance || 0) : 0;
-    const walletUsed = Math.max(0, Math.min(walletBalance, totalAmount));
-    const remainingAmount = Math.max(0, Math.round((totalAmount - walletUsed) * 100) / 100);
+    let walletUsed = 0;
+    let remainingAmount = totalAmount;
+
+    if (paymentMethod === 'wallet') {
+      const balRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+      const walletBalance = balRes.rows.length > 0 ? parseFloat(balRes.rows[0].wallet_balance || 0) : 0;
+      walletUsed = Math.max(0, Math.min(walletBalance, totalAmount));
+      remainingAmount = Math.max(0, Math.round((totalAmount - walletUsed) * 100) / 100);
+    }
 
     if (walletUsed > 0) {
       await client.query(`UPDATE users SET wallet_balance = wallet_balance - $1, updated_at = NOW() WHERE id = $2`, [
@@ -65,18 +70,24 @@ const createSubscription = async (subscriptionData) => {
     let razorpayOrder = null;
     if (remainingAmount > 0) {
       if (hasRazorpayKeys) {
-        razorpayOrder = await createOrder({
-          amount: Math.round(remainingAmount * 100),
-          currency: 'INR',
-          receipt: `milko_sub_${userId}_${Date.now()}`,
-          notes: {
-            userId,
-            productId,
-            litresPerDay,
-            durationMonths,
-            deliveryTime,
-          },
-        });
+        try {
+          razorpayOrder = await createOrder({
+            amount: Math.round(remainingAmount * 100),
+            currency: 'INR',
+            receipt: `milko_sub_${userId}_${Date.now()}`,
+            notes: {
+              userId,
+              productId,
+              litresPerDay,
+              durationMonths,
+              deliveryTime,
+            },
+          });
+        } catch (err) {
+          // Keep subscription in pending mode instead of failing the request.
+          // This mirrors wallet-topup graceful behavior when payment gateway is unavailable.
+          razorpayOrder = null;
+        }
       } else {
         // Dev/local environment: create the subscription record, but skip payment order.
         // The subscription will remain in `pending` state until wallet covers the balance

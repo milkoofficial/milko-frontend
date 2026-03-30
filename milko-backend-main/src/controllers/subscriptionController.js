@@ -54,10 +54,14 @@ const getSubscriptionById = async (req, res, next) => {
  */
 const createSubscription = async (req, res, next) => {
   try {
-    const { productId, litresPerDay, durationMonths, deliveryTime } = req.body;
+    const { productId, litresPerDay, durationMonths, deliveryTime, paymentMethod } = req.body;
 
     if (!productId || !litresPerDay || !durationMonths || !deliveryTime) {
       throw new ValidationError('All fields are required');
+    }
+    const method = (paymentMethod || 'wallet').toString().toLowerCase();
+    if (method !== 'wallet' && method !== 'online') {
+      throw new ValidationError('Invalid payment method');
     }
 
     const result = await subscriptionService.createSubscription({
@@ -66,6 +70,7 @@ const createSubscription = async (req, res, next) => {
       litresPerDay,
       durationMonths,
       deliveryTime,
+      paymentMethod: method,
     });
 
     res.status(201).json({
