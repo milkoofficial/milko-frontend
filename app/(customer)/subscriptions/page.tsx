@@ -15,8 +15,6 @@ import { useToast } from '@/contexts/ToastContext';
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Subscription | null>(null);
-  const [busy, setBusy] = useState(false);
   const { addItem } = useCart();
   const { showToast } = useToast();
 
@@ -47,9 +45,6 @@ export default function SubscriptionsPage() {
     <div className={styles.container}>
       <div className={styles.titleRow}>
         <h1 className={styles.title}>My Subscriptions</h1>
-        <Link href="/#membership" className={styles.primaryButton}>
-          Browse Subscriptions
-        </Link>
       </div>
       
       {subscriptions.length === 0 ? (
@@ -97,37 +92,62 @@ export default function SubscriptionsPage() {
       ) : (
         <div className={styles.grid}>
           {subscriptions.map((s) => {
-            const statusClass =
-              s.status === 'active'
-                ? `${styles.statusPill} ${styles.statusActive}`
-                : s.status === 'cancelled'
-                  ? `${styles.statusPill} ${styles.statusCancelled}`
-                  : styles.statusPill;
+            const end = new Date(s.endDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const endDateOnly = new Date(end);
+            endDateOnly.setHours(0, 0, 0, 0);
+            const isExpired = endDateOnly < today || s.status === 'expired' || s.status === 'cancelled';
+            const statusClass = isExpired
+              ? `${styles.statusPill} ${styles.statusExpired}`
+              : `${styles.statusPill} ${styles.statusActive}`;
+            const displayStatus = isExpired ? 'Expired' : 'Active';
+            const formattedEndDate = end.toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            });
+            const msPerDay = 24 * 60 * 60 * 1000;
+            const daysLeftRaw = Math.ceil((endDateOnly.getTime() - today.getTime()) / msPerDay);
+            const daysLeft = Math.max(0, daysLeftRaw);
             const orderId = s.razorpaySubscriptionId || s.id;
+            const unitPrice = Number(
+              s.perUnitPrice ??
+              s.product?.sellingPrice ??
+              s.product?.pricePerLitre ??
+              0
+            );
             return (
               <div key={s.id} className={styles.card}>
                 <div className={styles.cardTop}>
-                  {s.product?.imageUrl ? (
-                    <img src={s.product.imageUrl} alt={s.product?.name || 'Product'} className={styles.image} />
-                  ) : (
-                    <div className={styles.image} />
-                  )}
+                  <div className={styles.imageCol}>
+                    {s.product?.imageUrl ? (
+                      <img
+                        src={s.product.imageUrl}
+                        alt={s.product?.name || 'Product'}
+                        className={styles.imageTag}
+                      />
+                    ) : (
+                      <div className={styles.imagePlaceholder} />
+                    )}
+                    <div className={styles.imagePrice}>₹{unitPrice.toFixed(2)}</div>
+                  </div>
                   <div className={styles.meta}>
-                    <h3 className={styles.productName}>{s.product?.name || 'Product'}</h3>
-                    <p className={styles.subText}>Quantity: {s.litresPerDay}L/day</p>
-                    <p className={styles.subText}>Order ID: {orderId}</p>
-                    <p className={styles.subText}>Ends: {new Date(s.endDate).toLocaleDateString()}</p>
-                    <div className={styles.statusRow}>
-                      <span className={statusClass}>{s.status}</span>
+                    <div className={styles.metaHeader}>
+                      <h3 className={styles.productName}>{s.product?.name || 'Product'}</h3>
+                      <span className={statusClass}>{displayStatus}</span>
                     </div>
+                    <p className={styles.subText}>Quantity: {s.litresPerDay}L/day</p>
+                    <p className={styles.subText}>Ends: {formattedEndDate}</p>
+                    <p className={styles.subText}>Remaining: {daysLeft} days left</p>
                   </div>
                 </div>
                 <div className={styles.actions}>
-                  <button className={styles.button} onClick={() => setSelected(s)}>
+                  <Link href={`/subscriptions/${s.id}`} className={styles.viewDetailsButton}>
                     View Details
-                  </button>
+                  </Link>
                   <button
-                    className={`${styles.button} ${styles.primaryButton}`}
+                    className={styles.buyThisButton}
                     onClick={() => {
                       addItem({ productId: s.productId, quantity: 1 });
                       showToast('Added to cart', 'success');
@@ -139,97 +159,6 @@ export default function SubscriptionsPage() {
               </div>
             );
           })}
-        </div>
-      )}
-
-      {selected && (
-        <div className={styles.modalOverlay} onClick={() => setSelected(null)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Subscription Details</h2>
-              <button className={styles.closeButton} onClick={() => setSelected(null)} aria-label="Close">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Product</span>
-                <span className={styles.detailValue}>{selected.product?.name || 'Product'}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Quantity</span>
-                <span className={styles.detailValue}>{selected.litresPerDay}L/day</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Delivery Start</span>
-                <span className={styles.detailValue}>{new Date(selected.startDate).toLocaleDateString()}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Expiry</span>
-                <span className={styles.detailValue}>{new Date(selected.endDate).toLocaleDateString()}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Purchased/Renewed</span>
-                <span className={styles.detailValue}>
-                  {new Date(selected.purchasedAt || selected.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Delivery Time</span>
-                <span className={styles.detailValue}>{selected.deliveryTime}</span>
-              </div>
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Total Paid</span>
-                <span className={styles.detailValue}>
-                  ₹{(selected.totalAmountPaid ?? selected.totalAmount ?? 0).toFixed(2)}
-                </span>
-              </div>
-            </div>
-            {(selected.status === 'active' || selected.status === 'paused') && (
-              <div className={styles.modalActions}>
-                <button
-                  className={styles.secondaryButton}
-                  disabled={busy}
-                  onClick={async () => {
-                    try {
-                      setBusy(true);
-                      const updated = await subscriptionsApi.cancelToday(selected.id);
-                      showToast("Today's delivery cancelled", 'success');
-                      setSelected(updated);
-                      await refresh();
-                    } catch (e) {
-                      showToast((e as { message?: string })?.message || 'Failed to cancel today', 'error');
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  Cancel Today&apos;s Delivery
-                </button>
-                <button
-                  className={styles.dangerButton}
-                  disabled={busy}
-                  onClick={async () => {
-                    try {
-                      setBusy(true);
-                      const updated = await subscriptionsApi.cancel(selected.id);
-                      showToast('Subscription cancelled', 'success');
-                      setSelected(updated);
-                      await refresh();
-                    } catch (e) {
-                      showToast((e as { message?: string })?.message || 'Failed to cancel subscription', 'error');
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  Cancel Subscription
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       )}
     </div>
