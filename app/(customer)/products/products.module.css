@@ -13,8 +13,8 @@
 .productsGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1.5rem;
-  margin-top: 2rem;
+  gap: .7rem;
+  margin-bottom: 2rem;
 }
 
 .productCard {
@@ -94,12 +94,14 @@
 @media (max-width: 1200px) {
   .productsGrid {
     grid-template-columns: repeat(3, 1fr);
+    gap: 1.1rem;
   }
 }
 
 @media (max-width: 968px) {
   .productsGrid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.7rem;
   }
 }
 
@@ -114,7 +116,7 @@
   }
 
   .productsGrid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.55rem;
   }
 }

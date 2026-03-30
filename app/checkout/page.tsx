@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiClient, productsApi, couponsApi, Coupon, addressesApi } from '@/lib/api';
+import { apiClient, productsApi, couponsApi, Coupon, addressesApi, walletApi } from '@/lib/api';
 import { Product, Address } from '@/types';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 import styles from './checkout.module.css';
@@ -68,7 +68,11 @@ export default function CheckoutPage() {
     coupon: Coupon | null;
   }>({ status: 'idle', message: '', coupon: null });
   const [validatingCoupon, setValidatingCoupon] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online' | 'wallet'>('cod');
+
+  // Wallet balance for showing "Use Wallet" option during checkout
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   // Load products
   useEffect(() => {
@@ -119,6 +123,34 @@ export default function CheckoutPage() {
     setCurrentStep('address');
     setStepInitialized(true);
   }, [stepInitialized]);
+
+  // Load wallet balance for the "Use Wallet" payment choice
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!isAuthenticated || !user) {
+        setWalletBalance(0);
+        return;
+      }
+
+      setWalletLoading(true);
+      try {
+        const summary = await walletApi.getSummary();
+        if (cancelled) return;
+        setWalletBalance(summary.balance || 0);
+      } catch {
+        if (cancelled) return;
+        setWalletBalance(0);
+      } finally {
+        if (!cancelled) setWalletLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user]);
 
   // When entering step 3 (review), scroll to the top of the page
   useEffect(() => {
@@ -318,6 +350,12 @@ export default function CheckoutPage() {
   const discount = calculateDiscount();
   const deliveryCharges = 0; // Free delivery
   const total = subtotal - discount + deliveryCharges;
+
+  const walletExtraToPay =
+    Math.max(0, Math.round((total - walletBalance) * 100) / 100);
+  const walletRemainingAfterOrder =
+    Math.max(0, Math.round((walletBalance - total) * 100) / 100);
+  const canUseWallet = !walletLoading && walletBalance > 0;
 
   // Your total savings = sum of (compareAtPrice - sellingPrice) * mult * qty per item
   const savings = items.reduce((sum, it) => {
@@ -889,6 +927,31 @@ export default function CheckoutPage() {
                   />
                   <span>Online Payment</span>
                 </label>
+
+                {canUseWallet && (
+                  <label className={styles.paymentChoiceOption}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="wallet"
+                      checked={paymentMethod === 'wallet'}
+                      onChange={() => setPaymentMethod('wallet')}
+                    />
+                    <span>Use Wallet</span>
+                  </label>
+                )}
+
+                {paymentMethod === 'wallet' && canUseWallet && (
+                  <div className={styles.walletPaymentInfo}>
+                    {walletExtraToPay > 0 ? (
+                      <>You need to pay ₹{walletExtraToPay.toFixed(2)} more to complete this order.</>
+                    ) : (
+                      <>
+                        You need to pay ₹0 to complete this order. Remaining Wallet amount = ₹{walletRemainingAfterOrder.toFixed(2)}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

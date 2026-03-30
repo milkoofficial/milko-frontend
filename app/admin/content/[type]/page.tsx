@@ -16,6 +16,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   reviews: 'Reviews Settings',
   pincodes: 'Pincodes',
   help_support: 'Help support number',
+  homepage_products: 'Homepage Products Rows',
 };
 
 /**
@@ -86,6 +87,13 @@ export default function AdminContentEditPage() {
         setContentText('Support contact for Need help button.');
         setMetadata({ helpSupportNumber: '' });
         setIsActive(true);
+      } else if (contentType === 'homepage_products') {
+        setError('');
+        setContent(null);
+        setTitle('Homepage Products Rows');
+        setContentText('Homepage products section settings.');
+        setMetadata({ rows: 1 });
+        setIsActive(true);
       } else {
         setError(error.message || 'Failed to load content');
       }
@@ -135,6 +143,13 @@ export default function AdminContentEditPage() {
       // Handle help_support (Need help button: WhatsApp number or custom link)
       if (contentType === 'help_support') {
         finalMetadata = { helpSupportNumber: (metadata.helpSupportNumber || '').toString().trim() };
+      }
+
+      // Handle homepage_products
+      if (contentType === 'homepage_products') {
+        const raw = Number(metadata.rows);
+        const rows = Number.isFinite(raw) ? Math.max(1, Math.min(10, Math.floor(raw))) : 1;
+        finalMetadata = { rows };
       }
 
       await adminContentApi.update(contentType, {
@@ -286,6 +301,24 @@ export default function AdminContentEditPage() {
             />
             <div className={styles.helpText} style={{ marginTop: '0.5rem' }}>
               Phone with country code (e.g. 919876543210) for WhatsApp, or a full URL (e.g. https://t.me/username) for Telegram or custom app.
+            </div>
+          </div>
+        )}
+
+        {contentType === 'homepage_products' && (
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Homepage rows (Our Products)</label>
+            <input
+              type="number"
+              min={1}
+              max={10}
+              step={1}
+              value={metadata.rows ?? 1}
+              onChange={(e) => setMetadata({ ...metadata, rows: e.target.value === '' ? 1 : Number(e.target.value) })}
+              className={styles.input}
+            />
+            <div className={styles.helpText}>
+              Sets how many rows are shown on the homepage product grid. The shop/products page will still show all products.
             </div>
           </div>
         )}

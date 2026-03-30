@@ -1,0 +1,161 @@
+@media (max-width: 767px) {
+  .pageWrap {
+    padding: 0rem !important;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  
+  .card {
+    background: #ffffff;
+    padding: 22px;
+    border: 0px !important;
+    border-radius: 0px !important;
+  }
+}
+
+.pageWrap {
+  padding: 2rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  padding: 22px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.6px;
+}
+
+.pricePill {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.form {
+  margin-top: 22px;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 800;
+  color: #111827;
+  font-size: 14px;
+}
+
+.controlWrap {
+  position: relative;
+}
+
+.input,
+.select {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #0b1220;
+  font-size: 15px;
+  outline: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.input:focus,
+.select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.select {
+  appearance: none;
+  padding-right: 42px;
+}
+
+.selectArrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: #111827;
+  pointer-events: none;
+}
+
+.totalsBox {
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 18px 0 22px;
+}
+
+.totalLine {
+  margin: 0;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+.totalLine strong {
+  font-weight: 900;
+}
+
+.button {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: none;
+  background: #0b5cff;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.05s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+

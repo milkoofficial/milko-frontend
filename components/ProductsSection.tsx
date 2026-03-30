@@ -11,6 +11,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
 import { animateToCart } from '@/lib/utils/cartAnimation';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
+import { contentApi } from '@/lib/api';
 import styles from './ProductsSection.module.css';
 
 /**
@@ -23,6 +24,8 @@ export default function ProductsSection() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [rowsToShow, setRowsToShow] = useState(1);
+  const [gridCols, setGridCols] = useState(4);
   const { addItem } = useCart();
   const { showToast } = useToast();
 
@@ -71,6 +74,40 @@ export default function ProductsSection() {
   ];
 
   useEffect(() => {
+    // Determine columns (match ProductsSection.module.css breakpoints)
+    const calcCols = () => {
+      const w = typeof window !== 'undefined' ? window.innerWidth : 1400;
+      if (w <= 968) return 2;
+      if (w <= 1200) return 3;
+      return 4;
+    };
+
+    setGridCols(calcCols());
+    const onResize = () => setGridCols(calcCols());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    // Load admin-controlled row count (public content must be active)
+    let cancelled = false;
+    contentApi
+      .getByType('homepage_products')
+      .then((c) => {
+        if (cancelled) return;
+        const raw = Number((c as any)?.metadata?.rows);
+        const rows = Number.isFinite(raw) ? Math.max(1, Math.min(10, Math.floor(raw))) : 1;
+        setRowsToShow(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setRowsToShow(1);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchProducts = async () => {
       // Set a timeout to show fallback products if API takes too long
       const timeoutId = setTimeout(() => {
@@ -79,12 +116,13 @@ export default function ProductsSection() {
       }, 2000); // 2 second timeout
 
       try {
+        const limit = Math.max(1, rowsToShow) * Math.max(2, gridCols);
         const data = await productsApi.getAll();
         clearTimeout(timeoutId);
-        // Show only first 4 products for homepage, or fallback if empty
+        // Show only first N products for homepage, or fallback if empty
         if (data && data.length > 0) {
-          const base = data.slice(0, 4);
-          // Fetch details (incl. reviews) for accurate rating badges (only 4 items → OK)
+          const base = data.slice(0, limit);
+          // Fetch details (incl. reviews) for accurate rating badges (only N items → OK)
           const withDetails = await Promise.all(
             base.map(async (p) => {
               try {
@@ -109,7 +147,7 @@ export default function ProductsSection() {
     };
 
     fetchProducts();
-  }, []);
+  }, [rowsToShow, gridCols]);
 
   const getAverageRating = (p: Product) => {
     const reviews = p.reviews || [];
