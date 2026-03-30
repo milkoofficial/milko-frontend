@@ -21,6 +21,41 @@ async function ensureSubscriptionSchema() {
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS purchased_at TIMESTAMPTZ;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;`);
 
+  // Ensure delivery schedule + paused dates tables exist.
+  // Live deployments may run partially without executing schema.sql migrations.
+  await query(`
+    CREATE TABLE IF NOT EXISTS delivery_schedules (
+      id SERIAL PRIMARY KEY,
+      subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      delivery_date DATE NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'delivered', 'skipped', 'cancelled')),
+      delivered_at TIMESTAMPTZ,
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(subscription_id, delivery_date)
+    );
+  `);
+
+  await query(`CREATE INDEX IF NOT EXISTS idx_delivery_schedules_date ON delivery_schedules(delivery_date);`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_delivery_schedules_subscription ON delivery_schedules(subscription_id);`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_delivery_schedules_status ON delivery_schedules(status);`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_delivery_schedules_date_status ON delivery_schedules(delivery_date, status);`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS paused_dates (
+      id SERIAL PRIMARY KEY,
+      subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      date DATE NOT NULL,
+      reason TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(subscription_id, date)
+    );
+  `);
+
+  await query(`CREATE INDEX IF NOT EXISTS idx_paused_dates_subscription ON paused_dates(subscription_id);`);
+  await query(`CREATE INDEX IF NOT EXISTS idx_paused_dates_date ON paused_dates(date);`);
+
   schemaEnsured = true;
 }
 
