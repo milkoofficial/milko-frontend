@@ -21,6 +21,7 @@ const OTHER_OPTIONS = [
   { type: 'categories', label: 'Product Categories', path: '/admin/categories', description: 'Manage product categories' },
   { type: 'coupons', label: 'Coupons', path: '/admin/coupons', description: 'Manage discounts' },
   { type: 'help_support', label: 'Help support number', path: '/admin/content/help_support', description: 'Number or link for Need help (WhatsApp, Telegram)' },
+  { type: 'homepage_products', label: 'Homepage Products Rows', path: '/admin/content/homepage_products', description: 'Adjust how many product rows appear on homepage "Our Products"' },
 ];
 
 function Icon({ name }: { name: string }) {

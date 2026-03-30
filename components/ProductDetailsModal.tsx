@@ -966,7 +966,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
 
                     {/* Subscribe Now Button */}
                     <Link
-                      href={`/subscribe?productId=${displayProduct.id}&liters=${membershipQuantity}&days=${membershipDuration}&months=${Math.ceil(parseInt(membershipDuration) / 30)}`}
+                      href={`/subscribe?productId=${displayProduct.id}&liters=${membershipQuantity}&days=${membershipDuration}&months=${Math.ceil(parseInt(membershipDuration) / 30)}&frequency=${membershipFrequency}`}
                       className={styles.membershipSubscribeButton}
                       onClick={() => onClose()}
                     >

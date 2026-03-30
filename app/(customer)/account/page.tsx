@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import styles from './account.module.css';
+import WalletModal from '@/components/WalletModal';
 
 /**
  * Account menu page (mobile-focused).
@@ -13,6 +15,7 @@ import styles from './account.module.css';
 export default function AccountPage() {
   const { user, isAuthenticated, logout, loading } = useAuth();
   const router = useRouter();
+  const [walletOpen, setWalletOpen] = useState(false);
 
   if (loading) {
     return (
@@ -65,6 +68,22 @@ export default function AccountPage() {
             <path d="M9 18l6-6-6-6"/>
           </svg>
         </Link>
+
+        <button
+          type="button"
+          className={styles.optionRow}
+          onClick={() => setWalletOpen(true)}
+        >
+          <svg className={styles.optionIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+            <path d="M21 7H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M19 7V5a2 2 0 0 0-2-2h-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M1 11h22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className={styles.optionLabel}>Wallet</span>
+          <svg className={styles.optionArrow} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+            <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
 
         <Link href="/orders" className={styles.optionRow}>
           <svg className={styles.optionIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -165,6 +184,8 @@ export default function AccountPage() {
           <span className={styles.optionLabel}>Logout</span>
         </button>
       </div>
+
+      <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
     </div>
   );
 }

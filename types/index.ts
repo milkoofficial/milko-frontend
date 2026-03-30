@@ -180,6 +180,7 @@ export interface SubscriptionCreateRequest {
   litresPerDay: number;
   durationMonths: number;
   deliveryTime: string;
+  frequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
 }
 
 // Address Types
