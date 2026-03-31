@@ -20,6 +20,7 @@ const OTHER_OPTIONS = [
   { type: 'logo', label: 'Logo', path: '/admin/logo', description: 'Upload logo, set width' },
   { type: 'categories', label: 'Product Categories', path: '/admin/categories', description: 'Manage product categories' },
   { type: 'coupons', label: 'Coupons', path: '/admin/coupons', description: 'Manage discounts' },
+  { type: 'delivery_slots', label: 'Delivery Time Slots', path: '/admin/content/pincodes', description: 'Set subscription delivery-time dropdown options' },
   { type: 'help_support', label: 'Help support number', path: '/admin/content/help_support', description: 'Number or link for Need help (WhatsApp, Telegram)' },
   { type: 'homepage_products', label: 'Homepage Products Rows', path: '/admin/content/homepage_products', description: 'Adjust how many product rows appear on homepage "Our Products"' },
 ];

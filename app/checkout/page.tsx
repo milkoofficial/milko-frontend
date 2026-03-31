@@ -2,12 +2,15 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient, productsApi, couponsApi, Coupon, addressesApi, walletApi } from '@/lib/api';
 import { Product, Address } from '@/types';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 import styles from './checkout.module.css';
+
+const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
 
 function GoogleIcon() {
   return (
@@ -21,6 +24,17 @@ function GoogleIcon() {
 }
 
 type CheckoutStep = 'login' | 'address' | 'review';
+type SubscriptionCartItem = {
+  type: 'subscription';
+  productId: string;
+  productName: string;
+  litresPerDay: number;
+  durationMonths: number;
+  deliveryTime: string;
+  totalAmount: number;
+  updatedAt: string;
+};
+const SUBSCRIPTION_CART_KEY = 'milko_subscription_cart_item_v1';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -49,6 +63,8 @@ export default function CheckoutPage() {
     postalCode: '',
     country: 'India',
     phone: '',
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined,
   });
   const [addressError, setAddressError] = useState('');
   
@@ -56,6 +72,7 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showCreateNewAddress, setShowCreateNewAddress] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [saveAddress, setSaveAddress] = useState(false);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [savingAddressForCheckout, setSavingAddressForCheckout] = useState(false);
@@ -73,6 +90,7 @@ export default function CheckoutPage() {
   // Wallet balance for showing "Use Wallet" option during checkout
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [subscriptionCartItem, setSubscriptionCartItem] = useState<SubscriptionCartItem | null>(null);
 
   // Load products
   useEffect(() => {
@@ -82,7 +100,7 @@ export default function CheckoutPage() {
       await new Promise(resolve => setTimeout(resolve, 200));
       
       // Double-check items after waiting
-      if (items.length === 0) {
+      if (items.length === 0 && !subscriptionCartItem) {
         // Only redirect if we're sure there are no items
         // This prevents redirect loop if items are still loading
         router.push('/cart');
@@ -109,10 +127,46 @@ export default function CheckoutPage() {
     };
 
     // Only run if we have items or if loading is still true
-    if (items.length > 0 || loading) {
+    if (items.length > 0 || subscriptionCartItem || loading) {
       loadProducts();
     }
-  }, [items, router, loading]);
+  }, [items, router, loading, subscriptionCartItem]);
+
+  // Load subscription cart item (added from cart -> subscribe flow)
+  useEffect(() => {
+    const loadSubscriptionItem = () => {
+      try {
+        const raw = localStorage.getItem(SUBSCRIPTION_CART_KEY);
+        if (!raw) {
+          setSubscriptionCartItem(null);
+          return;
+        }
+        const parsed = JSON.parse(raw) as Partial<SubscriptionCartItem>;
+        if (
+          parsed?.type === 'subscription'
+          && typeof parsed.productId === 'string'
+          && typeof parsed.productName === 'string'
+          && typeof parsed.litresPerDay === 'number'
+          && typeof parsed.durationMonths === 'number'
+          && typeof parsed.deliveryTime === 'string'
+          && typeof parsed.totalAmount === 'number'
+        ) {
+          setSubscriptionCartItem(parsed as SubscriptionCartItem);
+        } else {
+          setSubscriptionCartItem(null);
+        }
+      } catch {
+        setSubscriptionCartItem(null);
+      }
+    };
+
+    loadSubscriptionItem();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SUBSCRIPTION_CART_KEY) loadSubscriptionItem();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   // Initialize step - always start at address step (which will show login if needed)
   useEffect(() => {
@@ -233,6 +287,8 @@ export default function CheckoutPage() {
       postalCode: address.postalCode,
       country: address.country || 'India',
       phone: address.phone || '',
+      latitude: address.latitude,
+      longitude: address.longitude,
     });
   };
 
@@ -240,6 +296,7 @@ export default function CheckoutPage() {
   const handleAddressSelect = (addressId: string) => {
     setSelectedAddressId(addressId);
     setShowCreateNewAddress(false);
+    setEditingAddressId(null);
     const address = savedAddresses.find(addr => addr.id === addressId);
     if (address) {
       fillAddressForm(address);
@@ -250,6 +307,7 @@ export default function CheckoutPage() {
   const handleCreateNewAddress = () => {
     setShowCreateNewAddress(true);
     setSelectedAddressId(null);
+    setEditingAddressId(null);
     setAddressForm({
       name: '',
       street: '',
@@ -258,14 +316,53 @@ export default function CheckoutPage() {
       postalCode: '',
       country: 'India',
       phone: '',
+      latitude: undefined,
+      longitude: undefined,
     });
   };
 
   // Save new address to account when "Save this address" is checked (used by form submit and summary Checkout button)
   const saveNewAddressIfRequested = async (): Promise<{ ok: boolean }> => {
+    if (editingAddressId) {
+      if (!addressForm.name?.trim() || !addressForm.street?.trim() || !addressForm.city?.trim() || !addressForm.state?.trim() || !addressForm.postalCode?.trim() || !addressForm.country?.trim() || !addressForm.phone?.trim()) {
+        setAddressError('Please fill in all required fields');
+        return { ok: false };
+      }
+      if (addressForm.latitude === undefined || addressForm.longitude === undefined) {
+        setAddressError('Please pin your exact location on the map');
+        return { ok: false };
+      }
+      try {
+        await addressesApi.update(editingAddressId, {
+          name: addressForm.name.trim(),
+          street: addressForm.street.trim(),
+          city: addressForm.city.trim(),
+          state: addressForm.state.trim(),
+          postalCode: addressForm.postalCode.trim(),
+          country: addressForm.country.trim(),
+          phone: addressForm.phone.trim(),
+          latitude: addressForm.latitude,
+          longitude: addressForm.longitude,
+        });
+        const addresses = await addressesApi.getAll();
+        setSavedAddresses(addresses);
+        setSelectedAddressId(editingAddressId);
+        setShowCreateNewAddress(false);
+        setEditingAddressId(null);
+        return { ok: true };
+      } catch (error: any) {
+        setAddressError(error.message || 'Failed to update address');
+        return { ok: false };
+      }
+    }
+
     if (!saveAddress || selectedAddressId) return { ok: true };
     if (!addressForm.name?.trim() || !addressForm.street?.trim() || !addressForm.city?.trim() || !addressForm.state?.trim() || !addressForm.postalCode?.trim() || !addressForm.country?.trim() || !addressForm.phone?.trim()) {
       setAddressError('Please fill in all required fields');
+      return { ok: false };
+    }
+    if (addressForm.latitude === undefined || addressForm.longitude === undefined) {
+      setAddressError('Please pin your exact location on the map');
       return { ok: false };
     }
     try {
@@ -277,6 +374,8 @@ export default function CheckoutPage() {
         postalCode: addressForm.postalCode.trim(),
         country: addressForm.country.trim(),
         phone: addressForm.phone.trim(),
+        latitude: addressForm.latitude,
+        longitude: addressForm.longitude,
         isDefault: savedAddresses.length === 0,
       });
       const addresses = await addressesApi.getAll();
@@ -298,6 +397,10 @@ export default function CheckoutPage() {
       setAddressError('Please fill in all required fields');
       return;
     }
+    if (addressForm.latitude === undefined || addressForm.longitude === undefined) {
+      setAddressError('Please pin your exact location on the map');
+      return;
+    }
 
     if (!isAuthenticated || !user) {
       setAddressError('Please login to proceed with your order');
@@ -311,7 +414,7 @@ export default function CheckoutPage() {
   };
 
   // Calculate totals
-  const subtotal = items.reduce((sum, it) => {
+  const itemsSubtotal = items.reduce((sum, it) => {
     const p = products[it.productId];
     if (!p) return sum;
     const v = it.variationId ? (p.variations || []).find((x) => x.id === it.variationId) : null;
@@ -322,6 +425,8 @@ export default function CheckoutPage() {
     const unitPrice = v?.price ?? (basePrice * mult);
     return sum + unitPrice * it.quantity;
   }, 0);
+  const subscriptionSubtotal = subscriptionCartItem?.totalAmount || 0;
+  const subtotal = itemsSubtotal + subscriptionSubtotal;
 
   // Calculate discount
   const calculateDiscount = (): number => {
@@ -411,22 +516,37 @@ export default function CheckoutPage() {
 
   // Build order items for localStorage (with productName, imageUrl, unitPrice) so order-success can show them even if fetch fails
   const buildStoredOrderItems = () =>
-    items.map((it) => {
-      const p = products[it.productId] ?? products[String(it.productId)];
-      const v = p && it.variationId ? (p.variations || []).find((x) => String(x.id) === String(it.variationId)) : null;
-      const mult = v?.priceMultiplier ?? 1;
-      const base = p && (p.sellingPrice != null && p.sellingPrice !== undefined) ? p.sellingPrice : (p?.pricePerLitre ?? 0);
-      const unitPrice = p ? (v?.price ?? base * mult) : 0;
-      return {
-        productId: String(it.productId),
-        variationId: it.variationId ?? undefined,
-        quantity: it.quantity,
-        productName: p?.name ?? 'Product',
-        variationSize: v?.size,
-        imageUrl: p?.images?.[0]?.imageUrl || p?.imageUrl,
-        unitPrice,
-      };
-    });
+    [
+      ...items.map((it) => {
+        const p = products[it.productId] ?? products[String(it.productId)];
+        const v = p && it.variationId ? (p.variations || []).find((x) => String(x.id) === String(it.variationId)) : null;
+        const mult = v?.priceMultiplier ?? 1;
+        const base = p && (p.sellingPrice != null && p.sellingPrice !== undefined) ? p.sellingPrice : (p?.pricePerLitre ?? 0);
+        const unitPrice = p ? (v?.price ?? base * mult) : 0;
+        return {
+          productId: String(it.productId),
+          variationId: it.variationId ?? undefined,
+          quantity: it.quantity,
+          productName: p?.name ?? 'Product',
+          variationSize: v?.size,
+          imageUrl: p?.images?.[0]?.imageUrl || p?.imageUrl,
+          unitPrice,
+        };
+      }),
+      ...(subscriptionCartItem
+        ? [
+            {
+              productId: String(subscriptionCartItem.productId),
+              variationId: undefined,
+              quantity: 1,
+              productName: `Subscription for ${subscriptionCartItem.productName}`,
+              variationSize: `Qty: ${subscriptionCartItem.litresPerDay} L/day | Period: ${subscriptionCartItem.durationMonths} month(s) | Delivery: ${subscriptionCartItem.deliveryTime}`,
+              imageUrl: products[subscriptionCartItem.productId]?.images?.[0]?.imageUrl || products[subscriptionCartItem.productId]?.imageUrl,
+              unitPrice: subscriptionCartItem.totalAmount,
+            },
+          ]
+        : []),
+    ];
 
   // Load Razorpay checkout script (once)
   const loadRazorpayScript = (): Promise<void> => {
@@ -469,6 +589,14 @@ export default function CheckoutPage() {
           variationId: it.variationId || null,
           quantity: it.quantity,
         })),
+        subscriptionItem: subscriptionCartItem
+          ? {
+              productId: subscriptionCartItem.productId,
+              litresPerDay: subscriptionCartItem.litresPerDay,
+              durationMonths: subscriptionCartItem.durationMonths,
+              deliveryTime: subscriptionCartItem.deliveryTime,
+            }
+          : null,
       });
 
       if (data.razorpayOrderId && data.key) {
@@ -492,6 +620,7 @@ export default function CheckoutPage() {
                 localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
               }
               clearCart();
+              localStorage.removeItem(SUBSCRIPTION_CART_KEY);
               router.push('/order-success');
             } catch (e) {
               console.error(e);
@@ -513,6 +642,7 @@ export default function CheckoutPage() {
         localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
       }
       clearCart();
+      localStorage.removeItem(SUBSCRIPTION_CART_KEY);
       router.push('/order-success');
     } catch (error) {
       console.error('Failed to place order:', error);
@@ -522,7 +652,9 @@ export default function CheckoutPage() {
     }
   };
 
-  if (loading || authLoading || items.length === 0) {
+  const totalItemCount = items.length + (subscriptionCartItem ? 1 : 0);
+
+  if (loading || authLoading || (items.length === 0 && !subscriptionCartItem)) {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>Loading...</div>
@@ -658,6 +790,9 @@ export default function CheckoutPage() {
                               {address.isDefault && (
                                 <span className={styles.defaultBadge}>Default</span>
                               )}
+                              {typeof address.latitude === 'number' && typeof address.longitude === 'number' && (
+                                <span className={styles.liveLocationAdded}>Live location added</span>
+                              )}
                             </div>
                             <div className={styles.savedAddressDetails}>
                               <p>{address.street}</p>
@@ -666,6 +801,23 @@ export default function CheckoutPage() {
                               {address.phone && <p>Phone: {address.phone}</p>}
                             </div>
                           </div>
+                          <button
+                            type="button"
+                            className={styles.editAddressIconBtn}
+                            aria-label="Edit address"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingAddressId(address.id);
+                              setShowCreateNewAddress(true);
+                              setSelectedAddressId(null);
+                              fillAddressForm(address);
+                            }}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                            </svg>
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -728,6 +880,14 @@ export default function CheckoutPage() {
                     required
                   />
                 </div>
+
+                <AddressLocationPicker
+                  latitude={addressForm.latitude}
+                  longitude={addressForm.longitude}
+                  onChange={({ latitude, longitude }) =>
+                    setAddressForm((prev) => ({ ...prev, latitude, longitude }))
+                  }
+                />
 
                 <div className={styles.addressRow}>
                   <FloatingLabelInput
@@ -823,6 +983,17 @@ export default function CheckoutPage() {
                     </div>
                   );
                 })}
+                {subscriptionCartItem && (
+                  <div className={styles.orderItem}>
+                    <div className={styles.orderItemInfo}>
+                      <span className={styles.orderItemName}>Subscription for {subscriptionCartItem.productName}</span>
+                      <span className={styles.orderItemQuantity}>
+                        Qty: {subscriptionCartItem.litresPerDay} L/day | Period: {subscriptionCartItem.durationMonths} month(s) | Delivery: {subscriptionCartItem.deliveryTime}
+                      </span>
+                    </div>
+                    <span className={styles.orderItemPrice}>₹{subscriptionCartItem.totalAmount.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Delivery Address */}
@@ -857,7 +1028,7 @@ export default function CheckoutPage() {
             <h3 className={styles.summaryTitle}>Price Details</h3>
             <div className={styles.priceDetailsBox}>
               <div className={styles.priceRow}>
-                <span>{items.length} item{items.length !== 1 ? 's' : ''}</span>
+                <span>{totalItemCount} item{totalItemCount !== 1 ? 's' : ''}</span>
               </div>
               {items.map((it) => {
                 const p = products[it.productId];
@@ -873,6 +1044,12 @@ export default function CheckoutPage() {
                   </div>
                 );
               })}
+              {subscriptionCartItem && (
+                <div className={styles.priceRow}>
+                  <span>1 X subscription for {subscriptionCartItem.productName}</span>
+                  <span>₹{subscriptionCartItem.totalAmount.toFixed(2)}</span>
+                </div>
+              )}
               {discount > 0 && (
                 <div className={styles.priceRow}>
                   <span>Coupon ({couponValidation.coupon?.code})</span>
@@ -915,7 +1092,16 @@ export default function CheckoutPage() {
                     checked={paymentMethod === 'cod'}
                     onChange={() => setPaymentMethod('cod')}
                   />
-                  <span>Cash on delivery (COD)</span>
+                  <span className={styles.paymentChoiceLabelWithIcon}>
+                    <span>Cash on delivery (COD)</span>
+                    <span className={styles.paymentChoiceCashBadge} aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="6.5" width="18" height="11" rx="2.2" stroke="currentColor" strokeWidth="1.8" />
+                        <circle cx="12" cy="12" r="2.1" stroke="currentColor" strokeWidth="1.8" />
+                        <path d="M6.5 12H7.5M16.5 12H17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      </svg>
+                    </span>
+                  </span>
                 </label>
                 <label className={styles.paymentChoiceOption}>
                   <input
@@ -925,7 +1111,17 @@ export default function CheckoutPage() {
                     checked={paymentMethod === 'online'}
                     onChange={() => setPaymentMethod('online')}
                   />
-                  <span>Online Payment</span>
+                  <span className={styles.paymentChoiceLabelWithIcon}>
+                    <span>Online Payment</span>
+                    <span className={styles.paymentChoiceCards} aria-hidden="true">
+                      <span className={styles.paymentCardVisa}>VISA</span>
+                      <span className={styles.paymentCardMaster}>
+                        <span className={styles.masterDotLeft} />
+                        <span className={styles.masterDotRight} />
+                      </span>
+                      <span className={styles.paymentCardEtc}>etc</span>
+                    </span>
+                  </span>
                 </label>
 
                 {canUseWallet && (

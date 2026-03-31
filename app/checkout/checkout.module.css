@@ -306,6 +306,7 @@
   cursor: pointer;
   transition: all 0s;
   background: #fff;
+  position: relative;
 }
 
 .savedAddressCard:hover {
@@ -335,7 +336,7 @@
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
-}
+  flex-wrap: wrap; }
 
 .savedAddressName {
   font-weight: 600;
@@ -360,6 +361,37 @@
 
 .savedAddressDetails p {
   margin: 0;
+}
+
+.liveLocationAdded {
+  margin-top: 0;
+  display: inline-flex;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: #b7ffdd;
+  color: #047857;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
+.editAddressIconBtn {
+  position: absolute;
+  right: 0.65rem;
+  top: 0.65rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.editAddressIconBtn:hover {
+  background: #f3f4f6;
 }
 
 .createNewAddressButton {
@@ -957,6 +989,93 @@
   height: 18px;
   accent-color: #00835d;
   flex-shrink: 0;
+}
+
+.paymentChoiceLabelWithIcon {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.paymentChoiceCards {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.paymentCardVisa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 20px;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  font-weight: 800;
+  color: #ffffff;
+  background: #1a4fff;
+  text-transform: uppercase;
+}
+
+.paymentCardMaster {
+  position: relative;
+  width: 28px;
+  height: 20px;
+}
+
+.masterDotLeft,
+.masterDotRight {
+  position: absolute;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.masterDotLeft {
+  left: 1px;
+  background: #eb001b;
+}
+
+.masterDotRight {
+  right: 1px;
+  background: #f79e1b;
+  mix-blend-mode: multiply;
+}
+
+.paymentCardEtc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 20px;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #4b5563;
+  background: #f3f4f6;
+}
+
+.paymentChoiceCashBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: #0f766e;
+  background: white;
+ 
+}
+
+.paymentChoiceCashBadge svg {
+  width: 25px;
+  height: 25px;
 }
 
 .walletPaymentInfo {

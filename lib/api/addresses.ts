@@ -10,6 +10,8 @@ export interface CreateAddressInput {
   postalCode: string;
   country?: string;
   phone?: string;
+  latitude?: number;
+  longitude?: number;
   isDefault?: boolean;
 }
 

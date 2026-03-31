@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { subscriptionsApi, addressesApi } from '@/lib/api';
 import { Subscription, Address } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import styles from './page.module.css';
+
+const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
 
 /**
  * Customer Dashboard
@@ -39,7 +42,9 @@ export default function DashboardPage() {
     postalCode: '',
     country: 'India',
     phone: '',
-    isDefault: false
+    isDefault: false,
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined,
   });
 
   useEffect(() => {
@@ -117,7 +122,9 @@ export default function DashboardPage() {
       postalCode: '',
       country: 'India',
       phone: '',
-      isDefault: false
+      isDefault: false,
+      latitude: undefined,
+      longitude: undefined,
     });
     setIsAddingAddress(false);
     setEditingAddressId(null);
@@ -126,6 +133,10 @@ export default function DashboardPage() {
   const handleAddAddress = async () => {
     if (!addressForm.name || !addressForm.street || !addressForm.city || !addressForm.state || !addressForm.postalCode) {
       alert('Please fill in all required fields');
+      return;
+    }
+    if (addressForm.latitude === undefined || addressForm.longitude === undefined) {
+      alert('Please set exact live location on map.');
       return;
     }
     setIsSubmitting(true);
@@ -150,7 +161,9 @@ export default function DashboardPage() {
       postalCode: address.postalCode,
       country: address.country,
       phone: address.phone || '',
-      isDefault: address.isDefault || false
+      isDefault: address.isDefault || false,
+      latitude: address.latitude,
+      longitude: address.longitude,
     });
   };
 
@@ -158,6 +171,10 @@ export default function DashboardPage() {
     if (!editingAddressId) return;
     if (!addressForm.name || !addressForm.street || !addressForm.city || !addressForm.state || !addressForm.postalCode) {
       alert('Please fill in all required fields');
+      return;
+    }
+    if (addressForm.latitude === undefined || addressForm.longitude === undefined) {
+      alert('Please set exact live location on map.');
       return;
     }
     setIsSubmitting(true);
@@ -196,6 +213,24 @@ export default function DashboardPage() {
 
   const initial = (user?.name || user?.email || 'U').charAt(0).toUpperCase();
   const activeSubscriptions = subscriptions.filter((s) => s.status === 'active');
+  const getNextDeliveryText = (sub: Subscription) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const nextDate = (sub.deliverySchedules || [])
+      .filter((d) => d.status === 'pending')
+      .map((d) => new Date(d.deliveryDate))
+      .filter((d) => !Number.isNaN(d.getTime()))
+      .map((d) => {
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })
+      .sort((a, b) => a.getTime() - b.getTime())
+      .find((d) => d.getTime() >= today.getTime());
+
+    if (!nextDate) return 'today';
+    const diffDays = Math.round((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays <= 0 ? 'today' : `${diffDays} day(s) later`;
+  };
 
   return (
     <div className={styles.container}>
@@ -388,6 +423,11 @@ export default function DashboardPage() {
                 />
                 Set as default address
               </label>
+              <AddressLocationPicker
+                latitude={addressForm.latitude}
+                longitude={addressForm.longitude}
+                onChange={({ latitude, longitude }) => setAddressForm({ ...addressForm, latitude, longitude })}
+              />
               <div className={styles.formActions}>
                 <button
                   onClick={editingAddressId ? handleUpdateAddress : handleAddAddress}
@@ -422,6 +462,9 @@ export default function DashboardPage() {
                   <p>{addr.city}, {addr.state} {addr.postalCode}</p>
                   <p>{addr.country}</p>
                   {addr.phone && <p>Phone: {addr.phone}</p>}
+                  {typeof addr.latitude === 'number' && typeof addr.longitude === 'number' && (
+                    <p className={styles.liveLocationAdded}>Live location added</p>
+                  )}
                 </div>
                 <div className={styles.addressCardActions}>
                   <button onClick={() => handleEditAddress(addr)} className={`${styles.btn} ${styles.btnText}`}>
@@ -447,6 +490,7 @@ export default function DashboardPage() {
                 <h3 className={styles.subscriptionCardTitle}>{sub.product?.name || 'Product'}</h3>
                 <p className={styles.subscriptionCardMeta}>Quantity: {sub.litresPerDay} litres/day</p>
                 <p className={styles.subscriptionCardMeta}>Delivery: {sub.deliveryTime}</p>
+                <p className={styles.subscriptionCardMeta}>Next Delivery: {getNextDeliveryText(sub)}</p>
                 <p className={styles.subscriptionCardMeta}>Valid until: {new Date(sub.endDate).toLocaleDateString()}</p>
                 <Link href={`/subscriptions/${sub.id}`} className={styles.subscriptionCardLink}>
                   View Details

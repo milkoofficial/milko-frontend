@@ -8,9 +8,21 @@ import { useCart } from '@/contexts/CartContext';
 import { productsApi, couponsApi } from '@/lib/api';
 import type { Coupon } from '@/lib/api';
 import { Product } from '@/types';
-import Select from '@/components/ui/Select';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
 import styles from './cart.module.css';
+
+type SubscriptionCartItem = {
+  type: 'subscription';
+  productId: string;
+  productName: string;
+  litresPerDay: number;
+  durationMonths: number;
+  deliveryTime: string;
+  totalAmount: number;
+  updatedAt: string;
+};
+
+const SUBSCRIPTION_CART_KEY = 'milko_subscription_cart_item_v1';
 
 export default function CartPage() {
   const router = useRouter();
@@ -21,16 +33,9 @@ export default function CartPage() {
   const [appliedCouponData, setAppliedCouponData] = useState<Coupon | null>(null);
   const [couponValidationStatus, setCouponValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
-  const [selectedSubscription, setSelectedSubscription] = useState<{ name: string; price: number } | null>(null);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [subscriptionProducts, setSubscriptionProducts] = useState<Product[]>([]);
-  const [subscriptionSelectedProduct, setSubscriptionSelectedProduct] = useState<string>('');
-  const [subscriptionLitersPerDay, setSubscriptionLitersPerDay] = useState<string>('1');
-  const [subscriptionDurationDays, setSubscriptionDurationDays] = useState<string>('30');
+  const [subscriptionCartItem, setSubscriptionCartItem] = useState<SubscriptionCartItem | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  
-  // Subscription price is 0 as it's included in the subscription service itself
 
   useEffect(() => {
     const load = async () => {
@@ -54,27 +59,40 @@ export default function CartPage() {
     if (items.length) load();
   }, [items]);
 
-  // Fetch products for subscription form
   useEffect(() => {
-    const fetchSubscriptionProducts = async () => {
+    const loadSubscriptionItem = () => {
       try {
-        const data = await productsApi.getAll();
-        if (data && data.length > 0) {
-          setSubscriptionProducts(data);
-          setSubscriptionSelectedProduct(data[0].id);
+        const raw = localStorage.getItem(SUBSCRIPTION_CART_KEY);
+        if (!raw) {
+          setSubscriptionCartItem(null);
+          return;
         }
-      } catch (error) {
-        console.error('Failed to fetch products for subscription:', error);
+        const parsed = JSON.parse(raw) as Partial<SubscriptionCartItem>;
+        if (
+          parsed
+          && parsed.type === 'subscription'
+          && typeof parsed.productId === 'string'
+          && typeof parsed.productName === 'string'
+          && typeof parsed.litresPerDay === 'number'
+          && typeof parsed.durationMonths === 'number'
+          && typeof parsed.deliveryTime === 'string'
+          && typeof parsed.totalAmount === 'number'
+        ) {
+          setSubscriptionCartItem(parsed as SubscriptionCartItem);
+        } else {
+          setSubscriptionCartItem(null);
+        }
+      } catch {
+        setSubscriptionCartItem(null);
       }
     };
-    fetchSubscriptionProducts();
+    loadSubscriptionItem();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === SUBSCRIPTION_CART_KEY) loadSubscriptionItem();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
-
-  // Calculate subscription total amount
-  const subscriptionSelectedProductData = subscriptionProducts.find(p => p.id === subscriptionSelectedProduct);
-  const subscriptionTotalAmount = subscriptionSelectedProductData
-    ? parseFloat(subscriptionLitersPerDay) * parseFloat(subscriptionDurationDays) * subscriptionSelectedProductData.pricePerLitre
-    : 0;
 
   const formatINR = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -137,8 +155,26 @@ export default function CartPage() {
   }, [appliedCouponData, subtotal]);
 
   const deliveryCharges = items.length > 0 ? 0 : 0; // Free delivery
-  const subscriptionCharge = selectedSubscription ? selectedSubscription.price : 0;
+  const subscriptionCharge = subscriptionCartItem ? subscriptionCartItem.totalAmount : 0;
   const total = subtotal - couponDiscount + deliveryCharges + subscriptionCharge;
+  const totalItemCount = items.length + (subscriptionCartItem ? 1 : 0);
+
+  const handleSelectMembership = () => {
+    const firstProductId = items[0]?.productId || subscriptionCartItem?.productId;
+    const next = new URLSearchParams();
+    next.set('from', 'cart');
+    if (firstProductId) next.set('productId', firstProductId);
+    if (subscriptionCartItem) {
+      next.set('liters', String(subscriptionCartItem.litresPerDay));
+      next.set('months', String(subscriptionCartItem.durationMonths));
+    }
+    router.push(`/subscribe?${next.toString()}`);
+  };
+
+  const handleRemoveSubscriptionCartItem = () => {
+    localStorage.removeItem(SUBSCRIPTION_CART_KEY);
+    setSubscriptionCartItem(null);
+  };
 
   const handleApplyCoupon = async () => {
     const code = couponCode.trim().toUpperCase();
@@ -179,7 +215,7 @@ export default function CartPage() {
     router.push('/checkout');
   };
 
-  if (items.length === 0) {
+  if (items.length === 0 && !subscriptionCartItem) {
     return (
       <div className={styles.container}>
         <div className={styles.emptyCart}>
@@ -232,7 +268,7 @@ export default function CartPage() {
         <div className={styles.cartItemsColumn}>
           {/* Item Count */}
           <div className={styles.selectionSummary}>
-            <span className={styles.itemCount}>{items.length} item{items.length !== 1 ? 's' : ''} in cart</span>
+            <span className={styles.itemCount}>{totalItemCount} item{totalItemCount !== 1 ? 's' : ''} in cart</span>
           </div>
 
           {/* Items List */}
@@ -327,6 +363,38 @@ export default function CartPage() {
                 </div>
               );
             })}
+            {subscriptionCartItem && (
+              <div className={styles.cartItem}>
+                <div className={styles.itemImage}>
+                  <div className={styles.itemImagePlaceholder}>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M3 16H21" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+                <div className={styles.itemDetails}>
+                  <h3 className={styles.itemTitle}>Subscription for {subscriptionCartItem.productName}</h3>
+                  <div className={styles.itemInfo}>
+                    <span>Qty: {subscriptionCartItem.litresPerDay} L/day</span>
+                    <span>Period: {subscriptionCartItem.durationMonths} month(s)</span>
+                    <span>Delivery: {subscriptionCartItem.deliveryTime}</span>
+                  </div>
+                  <div className={styles.itemPrice}>₹{subscriptionCartItem.totalAmount.toFixed(2)}</div>
+                </div>
+                <div className={styles.itemActions}>
+                  <button
+                    onClick={handleRemoveSubscriptionCartItem}
+                    className={styles.removeButton}
+                    aria-label="Remove subscription"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -369,16 +437,15 @@ export default function CartPage() {
               <div className={styles.subscriptionContent}>
                 <p className={styles.subscriptionQuestion}>Get exclusive benefits!</p>
                 <p className={styles.subscriptionText}>
-                  {selectedSubscription 
-                    ? `${selectedSubscription.name} - ₹${selectedSubscription.price}/month`
-                    : 'Choose a membership plan to save more'
-                  }
+                  {subscriptionCartItem
+                    ? `Subscription for ${subscriptionCartItem.productName}`
+                    : 'Choose a membership plan to save more'}
                 </p>
                 <button
-                  onClick={() => setShowSubscriptionModal(true)}
+                  onClick={handleSelectMembership}
                   className={styles.addSubscriptionLink}
                 >
-                  {selectedSubscription ? 'Change subscription' : 'Select membership'}
+                  {subscriptionCartItem ? 'Change subscription' : 'Select membership'}
                 </button>
               </div>
               <div className={styles.subscriptionIcon}>
@@ -395,7 +462,7 @@ export default function CartPage() {
             <h3 className={styles.sectionTitle}>Price Details</h3>
               <div className={styles.priceDetailsBox}>
               <div className={styles.priceRow}>
-                <span>{items.length} item{items.length !== 1 ? 's' : ''}</span>
+                <span>{totalItemCount} item{totalItemCount !== 1 ? 's' : ''}</span>
               </div>
               {items.map((it) => {
                 const p = products[it.productId];
@@ -410,6 +477,12 @@ export default function CartPage() {
                   </div>
                 );
               })}
+              {subscriptionCartItem && (
+                <div className={styles.priceRow}>
+                  <span>1 X subscription for {subscriptionCartItem.productName}</span>
+                  <span>₹{subscriptionCartItem.totalAmount.toFixed(2)}</span>
+                </div>
+              )}
               {couponDiscount > 0 && (
                 <div className={styles.priceRow}>
                   <span>Coupon discount</span>
@@ -420,12 +493,6 @@ export default function CartPage() {
                 <span>Delivery Charges</span>
                 <span className={styles.freeDelivery}>Free Delivery</span>
               </div>
-              {selectedSubscription && (
-                <div className={styles.priceRow}>
-                  <span>Subscription ({selectedSubscription.name})</span>
-                  <span className={styles.freeDelivery}>Free</span>
-                </div>
-              )}
               <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
                 <span>Total Amount</span>
                 <span>₹{total.toFixed(2)}</span>
@@ -466,161 +533,6 @@ export default function CartPage() {
           </div>
         </div>
       </div>
-
-      {/* Subscription Membership Modal */}
-      {showSubscriptionModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowSubscriptionModal(false)}>
-          <div className={styles.subscriptionModal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Become a Subscriber</h2>
-              <button 
-                className={styles.modalCloseButton}
-                onClick={() => setShowSubscriptionModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className={styles.subscriptionModalContent}>
-              {/* Left Column - Benefits */}
-              <div className={styles.subscriptionBenefitsColumn}>
-                <h3 className={styles.subscriptionBenefitsTitle}>Why Choose Our Subscription?</h3>
-                <ul className={styles.subscriptionBenefitsList}>
-                  <li className={styles.subscriptionBenefitItem}>
-                    <span className={styles.subscriptionBenefitIcon} aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </span>
-                    <span className={styles.subscriptionBenefitText}>Fresh, home-handled milk delivered daily.</span>
-                  </li>
-                  <li className={styles.subscriptionBenefitItem}>
-                    <span className={styles.subscriptionBenefitIcon} aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </span>
-                    <span className={styles.subscriptionBenefitText}>Zero adulteration — no water, chemicals, or preservatives.</span>
-                  </li>
-                  <li className={styles.subscriptionBenefitItem}>
-                    <span className={styles.subscriptionBenefitIcon} aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </span>
-                    <span className={styles.subscriptionBenefitText}>Daily quality checks before delivery.</span>
-                  </li>
-                  <li className={styles.subscriptionBenefitItem}>
-                    <span className={styles.subscriptionBenefitIcon} aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </span>
-                    <span className={styles.subscriptionBenefitText}>Priority delivery and assured supply for members.</span>
-                  </li>
-                  <li className={styles.subscriptionBenefitItem}>
-                    <span className={styles.subscriptionBenefitIcon}>💰</span>
-                    <span className={styles.subscriptionBenefitText}>Adulteration proven? ₹5,100 paid to the customer.</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Right Column - Membership Card Form */}
-              <div className={styles.subscriptionMembershipCard}>
-                <div className={styles.subscriptionFormFields}>
-                  {/* Product Selection */}
-                  <div className={styles.subscriptionFormField}>
-                    <label className={styles.subscriptionLabel}>Select Product</label>
-                    <Select
-                      className={styles.subscriptionSelect}
-                      value={subscriptionSelectedProduct}
-                      onChange={setSubscriptionSelectedProduct}
-                      options={subscriptionProducts.map((product) => ({
-                        value: product.id,
-                        label: `${product.name} - ₹${product.pricePerLitre}/litre`,
-                      }))}
-                    />
-                  </div>
-
-                  {/* Liters Per Day */}
-                  <div className={styles.subscriptionFormField}>
-                    <label className={styles.subscriptionLabel}>Liters Per Day</label>
-                    <Select
-                      className={styles.subscriptionSelect}
-                      value={subscriptionLitersPerDay}
-                      onChange={setSubscriptionLitersPerDay}
-                      options={[
-                        { value: '0.5', label: '0.5 Liters' },
-                        { value: '1', label: '1 Liter' },
-                        { value: '2', label: '2 Liters' },
-                        { value: '3', label: '3 Liters' },
-                        { value: '4', label: '4 Liters' },
-                        { value: '5', label: '5 Liters' },
-                      ]}
-                    />
-                  </div>
-
-                  {/* Duration (Days) */}
-                  <div className={styles.subscriptionFormField}>
-                    <label className={styles.subscriptionLabel}>Duration</label>
-                    <Select
-                      className={styles.subscriptionSelect}
-                      value={subscriptionDurationDays}
-                      onChange={setSubscriptionDurationDays}
-                      options={[
-                        { value: '7', label: '7 Days (1 Week)' },
-                        { value: '15', label: '15 Days' },
-                        { value: '30', label: '30 Days (1 Month)' },
-                        { value: '60', label: '60 Days (2 Months)' },
-                        { value: '90', label: '90 Days (3 Months)' },
-                        { value: '180', label: '180 Days (6 Months)' },
-                        { value: '365', label: '365 Days (1 Year)' },
-                      ]}
-                    />
-                  </div>
-                </div>
-
-                {/* Amount Display */}
-                <div className={styles.subscriptionAmountSection}>
-                  <div className={styles.subscriptionAmountLabel}>Total Amount</div>
-                  <div className={styles.subscriptionAmountValue}>
-                    ₹{formatINR(subscriptionTotalAmount)}
-                  </div>
-                  {subscriptionSelectedProductData && (
-                    <div className={styles.subscriptionAmountBreakdown}>
-                      {subscriptionLitersPerDay}L/day × {subscriptionDurationDays} days × ₹{formatINR(subscriptionSelectedProductData.pricePerLitre)}/L
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className={styles.subscriptionCardActions}>
-                  <button
-                    className={styles.selectMembershipButton}
-                    onClick={() => {
-                      setSelectedSubscription({ name: 'Milko Subscription', price: 0 });
-                      setShowSubscriptionModal(false);
-                    }}
-                    disabled={!subscriptionSelectedProduct || subscriptionTotalAmount === 0}
-                  >
-                    {selectedSubscription ? 'Update Subscription' : 'Select Subscription'}
-                  </button>
-                  {selectedSubscription && (
-                    <button
-                      className={styles.removeSubscriptionButton}
-                      onClick={() => {
-                        setSelectedSubscription(null);
-                        setShowSubscriptionModal(false);
-                      }}
-                    >
-                      Remove Subscription
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Product Details Modal */}
       {selectedProduct && (

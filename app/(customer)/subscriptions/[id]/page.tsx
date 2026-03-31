@@ -115,21 +115,28 @@ function buildCalendarCells(month: Date, rangeStart: Date, rangeEnd: Date): Cale
   return cells;
 }
 
-type BadgeVariant = 'active' | 'paused' | 'pending' | 'expired' | 'cancelled' | 'failed';
+type BadgeVariant = 'active' | 'paused' | 'pending' | 'expired' | 'cancelled' | 'failed' | 'endingSoon';
 
-function getStatusPresentation(sub: Subscription): { label: string; variant: BadgeVariant; showTick: boolean } {
+function getStatusPresentation(
+  sub: Subscription,
+  completionRatio: number,
+): { label: string; variant: BadgeVariant; showTick: boolean } {
   const end = new Date(sub.endDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const endDateOnly = new Date(end);
   endDateOnly.setHours(0, 0, 0, 0);
   const isExpiredByDate = endDateOnly < today;
+  const isFullyUtilized = completionRatio >= 1;
 
-  if (sub.status === 'cancelled') {
+  if (sub.status === 'cancelled' && !isFullyUtilized) {
     return { label: 'Cancelled', variant: 'cancelled', showTick: false };
   }
-  if (sub.status === 'expired' || isExpiredByDate) {
+  if (sub.status === 'expired' || isExpiredByDate || isFullyUtilized) {
     return { label: 'Expired', variant: 'expired', showTick: false };
+  }
+  if (completionRatio >= 0.8) {
+    return { label: 'Ending Soon', variant: 'endingSoon', showTick: false };
   }
   if (sub.status === 'paused') {
     return { label: 'Paused', variant: 'paused', showTick: false };
@@ -152,6 +159,9 @@ export default function SubscriptionDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [showCancelTodayModal, setShowCancelTodayModal] = useState(false);
+  const [showCancelSubscriptionModal, setShowCancelSubscriptionModal] = useState(false);
+  const [showRefundBreakup, setShowRefundBreakup] = useState(false);
 
   const fetchSubscription = useCallback(async () => {
     if (!subscriptionId) return;
@@ -231,7 +241,23 @@ export default function SubscriptionDetailsPage() {
   const paidAmount = subscription.totalAmountPaid ?? subscription.totalAmount ?? 0;
   const canManage = subscription.status === 'active' || subscription.status === 'paused';
   const autoPayConnected = Boolean(subscription.razorpaySubscriptionId);
-  const status = getStatusPresentation(subscription);
+  const subscriptionItemName = subscription.product?.name || 'this item';
+  const formatInr = (value: number) =>
+    new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+
+  const start = dateOnly(new Date(subscription.startDate));
+  const end = dateOnly(new Date(subscription.endDate));
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / msPerDay) + 1);
+  // Only delivered (green) days are counted as used for refund calculation.
+  const deliveredDays = subscription.deliverySchedules?.filter((d) => d.status === 'delivered').length ?? 0;
+  const usedDays = Math.min(totalDays, Math.max(0, deliveredDays));
+  const unusedDays = Math.max(0, totalDays - usedDays);
+  const completionRatio = totalDays > 0 ? usedDays / totalDays : 0;
+  const paid = Number(paidAmount) || 0;
+  const unusedAmount = totalDays > 0 ? (paid / totalDays) * unusedDays : 0;
+  const unusedAmountInr = formatInr(Math.max(0, unusedAmount));
+  const status = getStatusPresentation(subscription, completionRatio);
 
   const badgeClass = {
     active: styles.statusBadgeActive,
@@ -240,6 +266,7 @@ export default function SubscriptionDetailsPage() {
     expired: styles.statusBadgeExpired,
     cancelled: styles.statusBadgeCancelled,
     failed: styles.statusBadgeFailed,
+    endingSoon: styles.statusBadgeEndingSoon,
   }[status.variant];
 
   return (
@@ -270,7 +297,9 @@ export default function SubscriptionDetailsPage() {
         </div>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Product</h2>
+          <h2 className={styles.sectionTitle}>
+            {subscription.status === 'active' ? "Today's Item to deliver" : 'Product'}
+          </h2>
           <div className={styles.productRow}>
             <div className={styles.productThumb}>
               {subscription.product?.imageUrl ? (
@@ -285,6 +314,27 @@ export default function SubscriptionDetailsPage() {
                 {subscription.litresPerDay}L/day • Delivery {subscription.deliveryTime}
               </p>
             </div>
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Delivery address</h2>
+          <div className={styles.deliveryAddressBlock}>
+            {subscription.deliveryAddress ? (
+              <>
+                <p className={styles.deliveryAddressName}>{subscription.deliveryAddress.name}</p>
+                <p className={styles.deliveryAddressLine}>{subscription.deliveryAddress.street}</p>
+                <p className={styles.deliveryAddressLine}>
+                  {subscription.deliveryAddress.city}, {subscription.deliveryAddress.state} {subscription.deliveryAddress.postalCode}
+                </p>
+                <p className={styles.deliveryAddressLine}>{subscription.deliveryAddress.country}</p>
+                {subscription.deliveryAddress.phone ? (
+                  <p className={styles.deliveryAddressLine}>Phone: {subscription.deliveryAddress.phone}</p>
+                ) : null}
+              </>
+            ) : (
+              <p className={styles.deliveryAddressLine}>No delivery address selected for this subscription.</p>
+            )}
           </div>
         </section>
 
@@ -430,42 +480,240 @@ export default function SubscriptionDetailsPage() {
                 type="button"
                 className={styles.secondaryButton}
                 disabled={busy}
-                onClick={async () => {
-                  try {
-                    setBusy(true);
-                    await subscriptionsApi.cancelToday(subscription.id);
-                    showToast("Today's delivery cancelled", 'success');
-                    await fetchSubscription();
-                  } catch (e) {
-                    showToast((e as { message?: string })?.message || 'Failed to cancel today', 'error');
-                  } finally {
-                    setBusy(false);
-                  }
+                onClick={() => {
+                  setShowCancelTodayModal(true);
                 }}
               >
+                <svg className={styles.actionBtnIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="8.5" stroke="#222222"></circle>
+                  <path d="M5 2.80385C4.08789 3.33046 3.33046 4.08788 2.80385 5" stroke="#222222" strokeLinecap="round"></path>
+                  <path d="M19 2.80385C19.9121 3.33046 20.6695 4.08788 21.1962 5" stroke="#222222" strokeLinecap="round"></path>
+                  <path d="M12 6.5V11.75C12 11.8881 12.1119 12 12.25 12H16.5" stroke="#222222" strokeLinecap="round"></path>
+                </svg>
                 Cancel Today&apos;s Delivery
               </button>
               <button
                 type="button"
                 className={styles.dangerButton}
                 disabled={busy}
-                onClick={async () => {
-                  try {
-                    setBusy(true);
-                    await subscriptionsApi.cancel(subscription.id);
-                    showToast('Subscription cancelled', 'success');
-                    await fetchSubscription();
-                  } catch (e) {
-                    showToast((e as { message?: string })?.message || 'Failed to cancel subscription', 'error');
-                  } finally {
-                    setBusy(false);
-                  }
+                onClick={() => {
+                  setShowRefundBreakup(false);
+                  setShowCancelSubscriptionModal(true);
                 }}
               >
+                <svg className={styles.actionBtnIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor"></circle>
+                  <path d="M18 18L6 6" stroke="currentColor"></path>
+                </svg>
                 Cancel Subscription
               </button>
             </div>
           </section>
+        )}
+
+        {showCancelTodayModal && (
+          <div
+            className={styles.confirmOverlay}
+            role="presentation"
+            onClick={() => {
+              if (!busy) setShowCancelTodayModal(false);
+            }}
+          >
+            <div
+              className={styles.confirmModal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="cancel-today-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className={styles.confirmCloseBtn}
+                aria-label="Close"
+                disabled={busy}
+                onClick={() => setShowCancelTodayModal(false)}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <div className={styles.confirmIconWrap} aria-hidden="true">
+                <svg
+                  className={styles.confirmIcon}
+                  viewBox="0 0 400 400"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                  <g id="SVGRepo_iconCarrier">
+                    <path d="M188.238 150.351C187.902 139.999 187.322 129.445 186.537 119.742" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M257.109 150.174C259.044 139.34 255.208 121.895 257.959 111.239" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M180.222 203.544C205.959 201.513 230.999 205.656 251.643 221.772" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M151.414 94.3317C159.018 93.0218 170.14 79.1169 179.734 81.2152C190.277 83.5213 201.918 93.332 205.241 94.3317" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M257.958 111.24C270.277 105.447 283.635 103.832 297.07 102.737" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M102 266.977C102 237.192 104.574 206.959 120.64 214.927C127.688 218.425 143.844 249.321 146.784 248.487C168.261 242.401 215.933 226.987 221.534 248.487C226.75 268.511 187.6 265.542 187.6 266.977C187.6 268.368 198.161 273.321 197.261 281.36C196.396 289.087 171.478 296.427 179.314 296.427C220.65 296.427 165.143 313.809 146.784 317.549C128.425 321.289 115.772 316.382 102 312.177" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                  </g>
+                </svg>
+              </div>
+              <h3 id="cancel-today-title" className={styles.confirmTitle}>
+                Cancel today&apos;s delivery?
+              </h3>
+              <p className={styles.confirmText}>
+                If you cancel today&apos;s delivery, {subscriptionItemName} will not be delivered today, and your
+                subscription will be extended by one day at the end of the current period.
+              </p>
+              <div className={styles.confirmActions}>
+                <button
+                  type="button"
+                  className={styles.confirmProceedBtn}
+                  disabled={busy}
+                  onClick={async () => {
+                    try {
+                      setBusy(true);
+                      await subscriptionsApi.cancelToday(subscription.id);
+                      setShowCancelTodayModal(false);
+                      showToast("Today's delivery cancelled", 'success');
+                      await fetchSubscription();
+                    } catch (e) {
+                      showToast((e as { message?: string })?.message || 'Failed to cancel today', 'error');
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {busy ? 'Please wait...' : 'Proceed'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showCancelSubscriptionModal && (
+          <div
+            className={styles.confirmOverlay}
+            role="presentation"
+            onClick={() => {
+              if (!busy) setShowCancelSubscriptionModal(false);
+            }}
+          >
+            <div
+              className={`${styles.confirmModal} ${styles.confirmModalScrollable}`}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="cancel-subscription-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className={styles.confirmCloseBtn}
+                aria-label="Close"
+                disabled={busy}
+                onClick={() => setShowCancelSubscriptionModal(false)}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              <div className={styles.confirmIconWrap} aria-hidden="true">
+                <svg viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg" className={styles.confirmIcon}>
+                  <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                  <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                  <g id="SVGRepo_iconCarrier">
+                    <path d="M303.126 136.208C281.015 132.778 265.08 104.845 246.318 98.0984C244.081 97.2946 232.069 107.635 229.8 109.141C197.375 130.656 162.319 147.633 129.719 168.977C122.439 173.743 85.8024 187.889 83.1465 196.481C82.674 198.014 82.5844 200.212 83.1465 200.322C91.5257 201.965 100.174 208.769 107.257 213.499C111.791 216.526 151.723 247.346 155.006 244.84C189.824 218.255 264.876 166.587 305.77 140.126" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M312.312 160.424C262.454 184.856 195.245 257.231 155.602 278.601C153.826 279.558 139.956 268.042 137.675 266.812C123.434 259.133 110.102 248.85 97.7998 237.996" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M317 184.071C304.217 178.343 169.407 306.551 156.375 300.919C143.344 295.288 116.401 273.745 100.319 261.358" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M188.842 155.443C219.671 118.612 245.085 191.932 193.136 184.294C182.431 182.721 176.52 159.313 184.875 153.304" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M119.806 192.842C125.346 200.295 129.325 195.187 139.627 187.5" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                    <path d="M263.16 144.401C268.505 140.996 264.15 143.816 264.15 137.28" stroke="#000000" strokeOpacity="0.9" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"></path>
+                  </g>
+                </svg>
+              </div>
+
+              <h3 id="cancel-subscription-title" className={styles.confirmTitle}>
+                Cancel Subscription?
+              </h3>
+
+              <p className={styles.confirmText}>
+                If you cancel this subscription, the unused amount will be transferred to your wallet. This wallet
+                balance is non-withdrawable, but you can use it to buy another subscription or product.
+              </p>
+              <p className={styles.confirmTextStrong}>
+                Your unused amount is ₹{unusedAmountInr}
+              </p>
+              <button
+                type="button"
+                className={styles.breakupToggle}
+                onClick={() => setShowRefundBreakup((v) => !v)}
+              >
+                <span>Show Breakup amount</span>
+                <svg
+                  className={`${styles.breakupArrow} ${showRefundBreakup ? styles.breakupArrowOpen : ''}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {showRefundBreakup && (
+                <div className={styles.breakupPanel}>
+                  <p className={styles.breakupNote}>
+                    Used days are counted only when delivery status is delivered (green).
+                  </p>
+                  <div className={styles.breakupRow}>
+                    <span>Total subscription days</span>
+                    <strong>{totalDays}</strong>
+                  </div>
+                  <div className={styles.breakupRow}>
+                    <span>Used days</span>
+                    <strong>{usedDays}</strong>
+                  </div>
+                  <div className={styles.breakupRow}>
+                    <span>Unused days</span>
+                    <strong>{unusedDays}</strong>
+                  </div>
+                  <div className={styles.breakupRow}>
+                    <span>Total paid amount</span>
+                    <strong>₹{formatInr(paid)}</strong>
+                  </div>
+                  <div className={styles.breakupRow}>
+                    <span>Per day cost</span>
+                    <strong>₹{formatInr(totalDays > 0 ? paid / totalDays : 0)}</strong>
+                  </div>
+                  <div className={`${styles.breakupRow} ${styles.breakupRowTotal}`}>
+                    <span>Unused refund amount</span>
+                    <strong>₹{unusedAmountInr}</strong>
+                  </div>
+                </div>
+              )}
+
+              <div className={styles.confirmActions}>
+                <button
+                  type="button"
+                  className={styles.confirmDangerBtn}
+                  disabled={busy}
+                  onClick={async () => {
+                    try {
+                      setBusy(true);
+                      await subscriptionsApi.cancel(subscription.id);
+                      setShowCancelSubscriptionModal(false);
+                      showToast('Subscription cancelled', 'success');
+                      await fetchSubscription();
+                    } catch (e) {
+                      showToast((e as { message?: string })?.message || 'Failed to cancel subscription', 'error');
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {busy ? 'Please wait...' : 'Cancel now'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
