@@ -96,6 +96,8 @@ export interface Subscription {
   startDate: string;
   endDate: string;
   razorpaySubscriptionId?: string;
+  addressId?: string;
+  deliveryAddress?: Address;
   totalQty?: number;
   deliveredQty?: number;
   remainingQty?: number;
@@ -189,6 +191,7 @@ export interface SubscriptionCreateRequest {
   deliveryTime: string;
   frequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
   paymentMethod?: 'online' | 'wallet';
+  addressId?: string;
 }
 
 // Address Types
@@ -202,6 +205,8 @@ export interface Address {
   postalCode: string;
   country: string;
   phone?: string;
+  latitude?: number;
+  longitude?: number;
   isDefault?: boolean;
   createdAt: string;
   updatedAt: string;

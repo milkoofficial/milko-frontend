@@ -296,6 +296,19 @@ export default function AdminOrdersPage() {
                         {selectedOrder.deliveryAddress.phone && (
                           <p style={{ margin: '0.25rem 0' }}>Phone: {selectedOrder.deliveryAddress.phone}</p>
                         )}
+                        {typeof selectedOrder.deliveryAddress.latitude === 'number'
+                          && typeof selectedOrder.deliveryAddress.longitude === 'number' && (
+                          <p style={{ margin: '0.35rem 0 0' }}>
+                            <a
+                              href={`https://www.openstreetmap.org/?mlat=${selectedOrder.deliveryAddress.latitude}&mlon=${selectedOrder.deliveryAddress.longitude}#map=17/${selectedOrder.deliveryAddress.latitude}/${selectedOrder.deliveryAddress.longitude}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: '#0b5cff', textDecoration: 'underline' }}
+                            >
+                              Open exact location on map
+                            </a>
+                          </p>
+                        )}
                       </>
                     )}
                   </div>
