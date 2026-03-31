@@ -192,6 +192,36 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
     router.push('/');
   };
 
+  const formatWalletAmount = (amount: number) =>
+    amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const getWalletTxPurpose = (tx: { type: 'credit' | 'debit'; source: string }) => {
+    const source = (tx.source || '').toLowerCase();
+    if (tx.type === 'credit') {
+      return 'Money added';
+    }
+    if (source.includes('subscription')) {
+      return 'Subscription bought';
+    }
+    if (source.includes('purchase')) {
+      return 'Item bought';
+    }
+    if (source.includes('order') || source.includes('product') || source.includes('milk')) {
+      return 'Order bought';
+    }
+    if (source.trim()) {
+      return `${tx.source} bought`;
+    }
+    return 'Purchase made';
+  };
+
+  const formatWalletTxDate = (createdAt?: string | null) => {
+    if (!createdAt) return '--.--.----';
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) return '--.--.----';
+    return date.toLocaleDateString('en-GB').replace(/\//g, '.');
+  };
+
   // Mobile: redirect to /account page instead of showing dropdown
   if (isMobile) {
     return (
@@ -254,7 +284,7 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
             </svg>
             <span className={styles.dropdownItemLabel}>Wallet</span>
             <span className={styles.dropdownItemTrail}>
-              {walletLoading ? '…' : walletBalance !== null ? `₹${walletBalance.toFixed(2)}` : '—'}
+              {walletLoading ? '…' : walletBalance !== null ? `₹${formatWalletAmount(walletBalance)}` : '—'}
             </span>
           </button>
           <Link href="/orders" className={styles.dropdownItem} onClick={() => setIsOpen(false)}>
@@ -339,7 +369,7 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
                 <div className={styles.walletModalBalanceLeft}>
                   <span className={styles.walletModalBalanceLabel}>Balance</span>
                   <span className={styles.walletModalBalanceValue}>
-                    {walletLoading ? 'Loading…' : walletBalance !== null ? `₹${walletBalance.toFixed(2)}` : '—'}
+                    {walletLoading ? 'Loading…' : walletBalance !== null ? `₹${formatWalletAmount(walletBalance)}` : '—'}
                   </span>
                 </div>
                 <button
@@ -423,10 +453,30 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
                 ) : (
                   walletTx.map((t) => (
                     <div key={t.id} className={styles.walletModalTxRow}>
-                      <span className={styles.walletModalTxLeft}>{t.source}</span>
-                      <span className={styles.walletModalTxRight}>
-                        {t.type === 'credit' ? '+' : '-'}₹{t.amount.toFixed(2)}
-                      </span>
+                      <div className={styles.walletModalTxLeft}>
+                        <span
+                          className={`${styles.walletModalTxIcon} ${
+                            t.type === 'credit' ? styles.walletModalTxIconCredit : styles.walletModalTxIconDebit
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {t.type === 'credit' ? '↓' : '↑'}
+                        </span>
+                        <div className={styles.walletModalTxMeta}>
+                          <span className={styles.walletModalTxTitle}>{getWalletTxPurpose(t)}</span>
+                          <span className={styles.walletModalTxSub}>Txn ID: {t.id}</span>
+                        </div>
+                      </div>
+                      <div className={styles.walletModalTxRight}>
+                        <span
+                          className={`${styles.walletModalTxAmount} ${
+                            t.type === 'credit' ? styles.walletModalTxAmountCredit : styles.walletModalTxAmountDebit
+                          }`}
+                        >
+                          {t.type === 'credit' ? '+' : '-'} ₹{formatWalletAmount(t.amount)}
+                        </span>
+                        <span className={styles.walletModalTxDate}>{formatWalletTxDate(t.createdAt)}</span>
+                      </div>
                     </div>
                   ))
                 )}

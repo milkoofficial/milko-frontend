@@ -159,7 +159,9 @@ export default function OrderSuccessPage() {
             {orderItems.map((item, index) => {
               const productImage = item.product?.images?.[0]?.imageUrl || item.product?.imageUrl || item.imageUrl;
               const variationText = item.variation?.size ?? item.variationSize ?? '';
-              const productName = item.product?.name ?? item.productName ?? 'Product';
+              const productName = (item.productName && item.productName.startsWith('Subscription for '))
+                ? item.productName
+                : (item.product?.name ?? item.productName ?? 'Product');
 
               const handleItemClick = async () => {
                 let p: Product | null = item.product;

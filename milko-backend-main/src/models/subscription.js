@@ -20,6 +20,7 @@ async function ensureSubscriptionSchema() {
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS wallet_used NUMERIC(12, 2) NOT NULL DEFAULT 0;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS purchased_at TIMESTAMPTZ;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS address_id INTEGER;`);
 
   // Ensure delivery schedule + paused dates tables exist.
   // Live deployments may run partially without executing schema.sql migrations.
@@ -126,9 +127,20 @@ const getSubscriptionsByUserId = async (userId) => {
   await ensureSubscriptionSchema();
   const result = await query(
     `SELECT s.*, p.name as product_name, p.description as product_description, 
-            p.price_per_litre, p.image_url as product_image_url
+            p.price_per_litre, p.image_url as product_image_url,
+            a.id as address_id,
+            a.name as address_name,
+            a.street as address_street,
+            a.city as address_city,
+            a.state as address_state,
+            a.postal_code as address_postal_code,
+            a.country as address_country,
+            a.phone as address_phone,
+            a.latitude as address_latitude,
+            a.longitude as address_longitude
      FROM subscriptions s
      LEFT JOIN products p ON s.product_id = p.id
+     LEFT JOIN addresses a ON s.address_id = a.id
      WHERE s.user_id = $1
      ORDER BY s.created_at DESC`,
     [userId]
@@ -165,9 +177,20 @@ const getSubscriptionById = async (subscriptionId) => {
   await ensureSubscriptionSchema();
   const result = await query(
     `SELECT s.*, p.name as product_name, p.description as product_description, 
-            p.price_per_litre, p.image_url as product_image_url
+            p.price_per_litre, p.image_url as product_image_url,
+            a.id as address_id,
+            a.name as address_name,
+            a.street as address_street,
+            a.city as address_city,
+            a.state as address_state,
+            a.postal_code as address_postal_code,
+            a.country as address_country,
+            a.phone as address_phone,
+            a.latitude as address_latitude,
+            a.longitude as address_longitude
      FROM subscriptions s
      LEFT JOIN products p ON s.product_id = p.id
+     LEFT JOIN addresses a ON s.address_id = a.id
      WHERE s.id = $1`,
     [subscriptionId]
   );

@@ -19,10 +19,12 @@ function normalizeInt(val) {
 const createOrder = async (req, res, next) => {
   try {
     const userId = req.user?.id;
-    const { items, deliveryAddress, couponCode, paymentMethod } = req.body || {};
+    const { items, deliveryAddress, couponCode, paymentMethod, subscriptionItem } = req.body || {};
 
     if (!userId) throw new ValidationError('User not found');
-    if (!Array.isArray(items) || items.length === 0) throw new ValidationError('Order items are required');
+    const hasNormalItems = Array.isArray(items) && items.length > 0;
+    const hasSubscriptionItem = !!subscriptionItem && typeof subscriptionItem === 'object';
+    if (!hasNormalItems && !hasSubscriptionItem) throw new ValidationError('Order items are required');
     if (!deliveryAddress) throw new ValidationError('Delivery address is required');
 
     const method = (paymentMethod || 'cod').toString().toLowerCase();
@@ -32,7 +34,7 @@ const createOrder = async (req, res, next) => {
     const computedItems = [];
     let subtotal = 0;
 
-    for (const raw of items) {
+    for (const raw of (Array.isArray(items) ? items : [])) {
       const productId = normalizeInt(raw?.productId);
       const variationId = normalizeInt(raw?.variationId);
       const quantity = normalizeInt(raw?.quantity);
@@ -89,6 +91,48 @@ const createOrder = async (req, res, next) => {
         unitPrice,
         quantity,
         lineTotal,
+        isSubscription: false,
+      });
+    }
+
+    if (hasSubscriptionItem) {
+      const subscriptionProductId = normalizeInt(subscriptionItem?.productId);
+      const litresPerDay = Number(subscriptionItem?.litresPerDay);
+      const durationMonths = Number(subscriptionItem?.durationMonths);
+      const deliveryTime = (subscriptionItem?.deliveryTime || '').toString();
+
+      if (!subscriptionProductId || !Number.isFinite(litresPerDay) || litresPerDay <= 0 || !Number.isFinite(durationMonths) || durationMonths <= 0) {
+        throw new ValidationError('Invalid subscription item');
+      }
+
+      const subProductRes = await query(
+        `
+        SELECT id, name, price_per_litre, selling_price, is_membership_eligible
+        FROM products
+        WHERE id = $1
+        `,
+        [subscriptionProductId]
+      );
+      if (subProductRes.rows.length === 0) throw new ValidationError('Subscription product not found');
+      const sp = subProductRes.rows[0];
+      if (!sp.is_membership_eligible) throw new ValidationError('Selected product is not eligible for subscription');
+
+      const perUnit = sp.selling_price !== null && sp.selling_price !== undefined
+        ? parseFloat(sp.selling_price)
+        : parseFloat(sp.price_per_litre);
+      const days = Math.max(1, Math.round(durationMonths * 30));
+      const subscriptionAmount = perUnit * litresPerDay * days;
+      subtotal += subscriptionAmount;
+
+      computedItems.push({
+        productId: subscriptionProductId,
+        variationId: null,
+        productName: `Subscription for ${sp.name}`,
+        variationSize: `Qty: ${litresPerDay} L/day | Period: ${durationMonths} month(s) | Delivery: ${deliveryTime}`,
+        unitPrice: subscriptionAmount,
+        quantity: 1,
+        lineTotal: subscriptionAmount,
+        isSubscription: true,
       });
     }
 
@@ -161,7 +205,9 @@ const createOrder = async (req, res, next) => {
         walletUsed = Math.max(0, Math.min(walletBalance, total));
         remaining = Math.max(0, Math.round((total - walletUsed) * 100) / 100);
 
-        if (walletUsed > 0) {
+        // For mixed wallet + online payments, wallet is debited only after Razorpay verification.
+        // For pure wallet payments (remaining = 0), debit immediately in this transaction.
+        if (walletUsed > 0 && remaining <= 0) {
           await client.query(
             `UPDATE users SET wallet_balance = wallet_balance - $1, updated_at = NOW() WHERE id = $2`,
             [walletUsed, userId]
@@ -232,14 +278,16 @@ const createOrder = async (req, res, next) => {
           [id, it.productId, it.variationId, it.productName, it.variationSize, it.unitPrice, it.quantity, it.lineTotal]
         );
 
-        await client.query(
-          `
-          UPDATE products
-          SET quantity = GREATEST(0, quantity - $1), updated_at = NOW()
-          WHERE id = $2
-          `,
-          [it.quantity, it.productId]
-        );
+        if (!it.isSubscription) {
+          await client.query(
+            `
+            UPDATE products
+            SET quantity = GREATEST(0, quantity - $1), updated_at = NOW()
+            WHERE id = $2
+            `,
+            [it.quantity, it.productId]
+          );
+        }
       }
 
       await client.query('COMMIT');
@@ -305,7 +353,7 @@ const verifyPayment = async (req, res, next) => {
     }
 
     const orderRow = await query(
-      'SELECT id, user_id FROM orders WHERE razorpay_order_id = $1',
+      'SELECT id, user_id, wallet_used, payment_status FROM orders WHERE razorpay_order_id = $1',
       [razorpayOrderId]
     );
     if (orderRow.rows.length === 0) {
@@ -315,16 +363,70 @@ const verifyPayment = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Not your order' });
     }
 
-    await orderModel.updatePaymentStatusByRazorpayOrderId(razorpayOrderId, 'paid');
-    if (payment.method === 'card' && payment.card) {
-      const last4 = payment.card.last4 || '';
-      const network = (payment.card.network || payment.card.brand || '').toString();
-      await orderModel.updateOrderCardByRazorpayOrderId(razorpayOrderId, last4, network);
+    const orderId = orderRow.rows[0].id;
+    const walletUsed = parseFloat(orderRow.rows[0].wallet_used || 0);
+    const paymentStatus = String(orderRow.rows[0].payment_status || '');
+
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+
+      // Idempotency: debit only if wallet transaction for this order doesn't exist yet.
+      // This must run even when payment_status is already 'paid' (e.g. webhook updated status first).
+      if (walletUsed > 0) {
+        const txExists = await client.query(
+          `SELECT 1 FROM wallet_transactions WHERE user_id = $1 AND type = 'debit' AND source = 'purchase' AND reference_id = $2 LIMIT 1`,
+          [userId, orderId]
+        );
+
+        if (txExists.rows.length === 0) {
+          const balRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+          const walletBalance = balRes.rows.length > 0 ? parseFloat(balRes.rows[0].wallet_balance || 0) : 0;
+          if (walletBalance + 1e-9 < walletUsed) {
+            throw new ValidationError('Wallet balance is insufficient to complete this payment');
+          }
+
+          await client.query(`UPDATE users SET wallet_balance = wallet_balance - $1, updated_at = NOW() WHERE id = $2`, [
+            walletUsed,
+            userId,
+          ]);
+
+          await client.query(
+            `
+            INSERT INTO wallet_transactions (user_id, type, amount, source, reference_id)
+            VALUES ($1, 'debit', $2, 'purchase', $3)
+            ON CONFLICT DO NOTHING
+            `,
+            [userId, walletUsed, orderId]
+          );
+        }
+      }
+
+      await client.query(
+        `UPDATE orders SET payment_status = 'paid', updated_at = NOW() WHERE razorpay_order_id = $1`,
+        [razorpayOrderId]
+      );
+
+      if (payment.method === 'card' && payment.card) {
+        const last4 = payment.card.last4 || '';
+        const network = (payment.card.network || payment.card.brand || '').toString();
+        await client.query(
+          `UPDATE orders SET payment_card_last4 = $1, payment_card_network = $2, updated_at = NOW() WHERE razorpay_order_id = $3`,
+          [last4, network, razorpayOrderId]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
     }
 
     res.json({
       success: true,
-      data: { orderId: orderRow.rows[0].id, paymentStatus: 'paid' },
+      data: { orderId, paymentStatus: 'paid' },
       message: 'Payment verified',
     });
   } catch (error) {

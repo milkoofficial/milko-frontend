@@ -40,6 +40,12 @@ export default function AdminContentEditPage() {
   const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime: string }>>([]);
   const [newPincodeInput, setNewPincodeInput] = useState('');
   const [newDeliveryTimeInput, setNewDeliveryTimeInput] = useState('1h');
+  const [deliveryTimeSlots, setDeliveryTimeSlots] = useState<Array<{ label: string; value: string }>>([
+    { label: 'Before 9 AM', value: '09:00' },
+    { label: 'After 5 PM', value: '17:00' },
+  ]);
+  const [newSlotLabel, setNewSlotLabel] = useState('');
+  const [newSlotValue, setNewSlotValue] = useState('');
 
   useEffect(() => {
     fetchContent();
@@ -68,6 +74,27 @@ export default function AdminContentEditPage() {
           list = [{ pincode: meta.serviceablePincode.trim(), deliveryTime: '1h' }];
         }
         setServiceablePincodes(list);
+        if (Array.isArray(meta.deliveryTimeSlots) && meta.deliveryTimeSlots.length > 0) {
+          const parsedSlots = meta.deliveryTimeSlots
+            .map((slot: any) => ({
+              label: (slot?.label || '').toString().trim(),
+              value: (slot?.value || '').toString().trim(),
+            }))
+            .filter((slot: { label: string; value: string }) => slot.label && slot.value);
+          setDeliveryTimeSlots(
+            parsedSlots.length > 0
+              ? parsedSlots
+              : [
+                  { label: 'Before 9 AM', value: '09:00' },
+                  { label: 'After 5 PM', value: '17:00' },
+                ]
+          );
+        } else {
+          setDeliveryTimeSlots([
+            { label: 'Before 9 AM', value: '09:00' },
+            { label: 'After 5 PM', value: '17:00' },
+          ]);
+        }
       }
     } catch (error: any) {
       console.error('Failed to fetch content:', error);
@@ -77,8 +104,18 @@ export default function AdminContentEditPage() {
         setContent(null);
         setTitle('Pincode Settings');
         setContentText('Delivery pincode settings');
-        setMetadata({ serviceablePincodes: [] });
+        setMetadata({
+          serviceablePincodes: [],
+          deliveryTimeSlots: [
+            { label: 'Before 9 AM', value: '09:00' },
+            { label: 'After 5 PM', value: '17:00' },
+          ],
+        });
         setServiceablePincodes([] as Array<{ pincode: string; deliveryTime: string }>);
+        setDeliveryTimeSlots([
+          { label: 'Before 9 AM', value: '09:00' },
+          { label: 'After 5 PM', value: '17:00' },
+        ]);
         setIsActive(true);
       } else if (contentType === 'help_support') {
         setError('');
@@ -137,7 +174,19 @@ export default function AdminContentEditPage() {
         const withTime = serviceablePincodes
           .filter((x) => x.pincode.trim().length > 0)
           .map((x) => ({ pincode: x.pincode.trim(), deliveryTime: (x.deliveryTime || '1h').toString().trim() || '1h' }));
-        finalMetadata = { serviceablePincodes: withTime };
+        const validSlots = deliveryTimeSlots
+          .map((slot) => ({
+            label: (slot.label || '').toString().trim(),
+            value: (slot.value || '').toString().trim(),
+          }))
+          .filter((slot) => slot.label && slot.value);
+
+        if (validSlots.length === 0) {
+          setError('Please keep at least one delivery time slot.');
+          return;
+        }
+
+        finalMetadata = { serviceablePincodes: withTime, deliveryTimeSlots: validSlots };
       }
 
       // Handle help_support (Need help button: WhatsApp number or custom link)
@@ -406,6 +455,85 @@ export default function AdminContentEditPage() {
             
             <div className={styles.helpText}>
               Add pincodes and delivery time (e.g. 1h, 2h, 15m, 30min). If no pincodes are added, delivery will be available for all pincodes.
+            </div>
+
+            <div className={styles.deliverySlotsBlock}>
+              <label className={styles.label}>Subscription delivery slots</label>
+              <div className={styles.helpText}>
+                These slots appear in the customer subscription page delivery-time dropdown.
+              </div>
+
+              {deliveryTimeSlots.length > 0 && (
+                <div className={styles.deliverySlotList}>
+                  {deliveryTimeSlots.map((slot, index) => (
+                    <div key={`${slot.value}-${index}`} className={styles.deliverySlotItem}>
+                      <input
+                        type="text"
+                        value={slot.label}
+                        onChange={(e) => {
+                          const next = [...deliveryTimeSlots];
+                          next[index] = { ...next[index], label: e.target.value };
+                          setDeliveryTimeSlots(next);
+                        }}
+                        className={styles.input}
+                        placeholder="Label (e.g. Before 9 AM)"
+                      />
+                      <input
+                        type="time"
+                        value={slot.value}
+                        onChange={(e) => {
+                          const next = [...deliveryTimeSlots];
+                          next[index] = { ...next[index], value: e.target.value };
+                          setDeliveryTimeSlots(next);
+                        }}
+                        className={styles.deliveryTimeInput}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryTimeSlots(deliveryTimeSlots.filter((_, i) => i !== index))}
+                        className={styles.removePincodeButton}
+                        aria-label={`Remove slot ${slot.label || slot.value}`}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+                          <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className={styles.addPincodeRow}>
+                <input
+                  type="text"
+                  value={newSlotLabel}
+                  onChange={(e) => setNewSlotLabel(e.target.value)}
+                  className={styles.input}
+                  placeholder="Slot label (e.g. Before 9 AM)"
+                />
+                <input
+                  type="time"
+                  value={newSlotValue}
+                  onChange={(e) => setNewSlotValue(e.target.value)}
+                  className={styles.deliveryTimeInput}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const label = newSlotLabel.trim();
+                    const value = newSlotValue.trim();
+                    if (!label || !value) return;
+                    if (deliveryTimeSlots.some((s) => s.label === label && s.value === value)) return;
+                    setDeliveryTimeSlots([...deliveryTimeSlots, { label, value }]);
+                    setNewSlotLabel('');
+                    setNewSlotValue('');
+                  }}
+                  disabled={!newSlotLabel.trim() || !newSlotValue.trim()}
+                  className={styles.addPincodeButton}
+                >
+                  Add slot
+                </button>
+              </div>
             </div>
           </div>
         ) : contentType === 'help_support' ? null : (

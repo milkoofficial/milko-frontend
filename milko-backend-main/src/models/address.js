@@ -23,10 +23,20 @@ const transformAddress = (row) => {
     postalCode: row.postal_code,
     country: row.country,
     phone: row.phone || undefined,
+    latitude: row.latitude !== null && row.latitude !== undefined ? Number(row.latitude) : undefined,
+    longitude: row.longitude !== null && row.longitude !== undefined ? Number(row.longitude) : undefined,
     isDefault: row.is_default || false,
     createdAt: row.created_at?.toISOString(),
     updatedAt: row.updated_at?.toISOString(),
   };
+};
+
+const ensureAddressSchema = async () => {
+  await query(`
+    ALTER TABLE addresses
+    ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION,
+    ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION
+  `);
 };
 
 /**
@@ -76,6 +86,8 @@ const createAddress = async (userId, addressData) => {
     postalCode,
     country = 'India',
     phone,
+    latitude,
+    longitude,
     isDefault = false,
   } = addressData;
 
@@ -90,10 +102,10 @@ const createAddress = async (userId, addressData) => {
   }
 
   const result = await query(
-    `INSERT INTO addresses (user_id, name, street, city, state, postal_code, country, phone, is_default, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+    `INSERT INTO addresses (user_id, name, street, city, state, postal_code, country, phone, latitude, longitude, is_default, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
      RETURNING *`,
-    [userId, name, street, city, state, postalCode, country, phone || null, isDefault]
+    [userId, name, street, city, state, postalCode, country, phone || null, latitude ?? null, longitude ?? null, isDefault]
   );
 
   return transformAddress(result.rows[0]);
@@ -115,6 +127,8 @@ const updateAddress = async (addressId, userId, addressData) => {
     postalCode,
     country,
     phone,
+    latitude,
+    longitude,
     isDefault,
   } = addressData;
 
@@ -160,6 +174,14 @@ const updateAddress = async (addressId, userId, addressData) => {
     updates.push(`phone = $${paramIndex++}`);
     values.push(phone || null);
   }
+  if (latitude !== undefined) {
+    updates.push(`latitude = $${paramIndex++}`);
+    values.push(latitude === null ? null : Number(latitude));
+  }
+  if (longitude !== undefined) {
+    updates.push(`longitude = $${paramIndex++}`);
+    values.push(longitude === null ? null : Number(longitude));
+  }
   if (isDefault !== undefined) {
     updates.push(`is_default = $${paramIndex++}`);
     values.push(isDefault);
@@ -204,6 +226,7 @@ const deleteAddress = async (addressId, userId) => {
 };
 
 module.exports = {
+  ensureAddressSchema,
   getAddressesByUserId,
   getAddressById,
   createAddress,

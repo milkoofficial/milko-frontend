@@ -304,6 +304,17 @@ letter-spacing: -1px;
   margin: 0.15rem 0;
 }
 
+.liveLocationAdded {
+  margin-top: 0.35rem !important;
+  display: inline-flex;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+
 .addressCardActions {
   display: flex;
   gap: 0.5rem;

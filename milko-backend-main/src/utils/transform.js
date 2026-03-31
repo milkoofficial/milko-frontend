@@ -15,6 +15,7 @@ const transformSubscription = (row) => {
     id: String(row.id),
     userId: String(row.user_id),
     productId: String(row.product_id),
+    addressId: row.address_id ? String(row.address_id) : undefined,
     product: row.product_name ? {
       id: String(row.product_id),
       name: row.product_name,
@@ -24,6 +25,18 @@ const transformSubscription = (row) => {
       isActive: row.product_id ? true : false, // Assume active if product exists
       createdAt: row.created_at?.toISOString(),
       updatedAt: row.updated_at?.toISOString(),
+    } : undefined,
+    deliveryAddress: row.address_id ? {
+      id: String(row.address_id),
+      name: row.address_name,
+      street: row.address_street,
+      city: row.address_city,
+      state: row.address_state,
+      postalCode: row.address_postal_code,
+      country: row.address_country || 'India',
+      phone: row.address_phone || undefined,
+      latitude: row.address_latitude !== null && row.address_latitude !== undefined ? parseFloat(row.address_latitude) : undefined,
+      longitude: row.address_longitude !== null && row.address_longitude !== undefined ? parseFloat(row.address_longitude) : undefined,
     } : undefined,
     litresPerDay: parseFloat(row.litres_per_day),
     durationMonths: parseInt(row.duration_months),

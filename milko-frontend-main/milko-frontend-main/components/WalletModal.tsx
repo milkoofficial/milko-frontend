@@ -16,6 +16,9 @@ export default function WalletModal({ open, onClose }: { open: boolean; onClose:
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletAddAmountOpen, setWalletAddAmountOpen] = useState(false);
 
+  const formatWalletAmount = (amount: number) =>
+    amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const loadRazorpayScript = (): Promise<void> => {
     if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
       return Promise.resolve();
@@ -176,7 +179,7 @@ export default function WalletModal({ open, onClose }: { open: boolean; onClose:
           <div className={headerStyles.walletModalBalanceLeft}>
             <span className={headerStyles.walletModalBalanceLabel}>Balance</span>
             <span className={headerStyles.walletModalBalanceValue}>
-              {walletLoading ? 'Loading…' : walletBalance !== null ? `₹${walletBalance.toFixed(2)}` : '—'}
+              {walletLoading ? 'Loading…' : walletBalance !== null ? `₹${formatWalletAmount(walletBalance)}` : '—'}
             </span>
           </div>
           <button
@@ -260,7 +263,7 @@ export default function WalletModal({ open, onClose }: { open: boolean; onClose:
               <div key={t.id} className={headerStyles.walletModalTxRow}>
                 <span className={headerStyles.walletModalTxLeft}>{t.source}</span>
                 <span className={headerStyles.walletModalTxRight}>
-                  {t.type === 'credit' ? '+' : '-'}₹{t.amount.toFixed(2)}
+                  {t.type === 'credit' ? '+' : '-'}₹{formatWalletAmount(t.amount)}
                 </span>
               </div>
             ))

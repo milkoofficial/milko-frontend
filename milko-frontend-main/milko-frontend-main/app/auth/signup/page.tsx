@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdminDomain, getPostLoginRedirect } from '@/lib/utils/domain';
 import Link from 'next/link';
@@ -26,8 +26,11 @@ function GoogleIcon() {
  */
 export default function SignUpPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signup, loginWithGoogle, isAuthenticated, user } = useAuth();
   const isAdmin = isAdminDomain();
+  const redirectParam = searchParams?.get('redirect') || '';
+  const safeRedirect = redirectParam.startsWith('/') ? redirectParam : '';
 
   // Redirect admin subdomain to customer domain for signup
   // BUT: In localhost, allow signup on same domain
@@ -40,14 +43,14 @@ export default function SignUpPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      const redirectPath = getPostLoginRedirect(user.role);
+      const redirectPath = safeRedirect || getPostLoginRedirect(user.role);
       if (redirectPath.startsWith('http')) {
         window.location.href = redirectPath;
       } else {
         router.push(redirectPath);
       }
     }
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, safeRedirect]);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -84,7 +87,7 @@ export default function SignUpPage() {
 
     try {
       const response = await signup(name, email, password);
-      const redirectPath = getPostLoginRedirect(response.user.role);
+      const redirectPath = safeRedirect || getPostLoginRedirect(response.user.role);
       
       if (redirectPath.startsWith('http')) {
         window.location.href = redirectPath;
@@ -106,8 +109,35 @@ export default function SignUpPage() {
       alignItems: 'center', 
       minHeight: '100vh',
       background: '#f5f5f5',
-      padding: '1rem'
+      padding: '1rem',
+      position: 'relative',
     }}>
+      <button
+        type="button"
+        onClick={() => {
+          if (window.history.length > 1) {
+            router.back();
+          } else {
+            router.push('/');
+          }
+        }}
+        style={{
+          position: 'absolute',
+          top: '1rem',
+          left: '1rem',
+          border: '1px solid #d1d5db',
+          background: '#fff',
+          color: '#111827',
+          borderRadius: '100px',
+          padding: '9px 14px ',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        Back
+      </button>
       {/* Logo */}
       <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
         <h1 style={{ margin: 0 }}>
@@ -256,7 +286,10 @@ export default function SignUpPage() {
           {/* Google Sign Up */}
           <button
             type="button"
-            onClick={() => loginWithGoogle()}
+            onClick={() => {
+              if (safeRedirect) localStorage.setItem('milko_return_after_auth', safeRedirect);
+              loginWithGoogle();
+            }}
             style={{
               width: '100%',
               padding: '0.75rem 1rem',
@@ -289,7 +322,7 @@ export default function SignUpPage() {
         }}>
           Already have an account?{' '}
           <Link 
-            href="/auth/login" 
+            href={safeRedirect ? `/auth/login?redirect=${encodeURIComponent(safeRedirect)}` : '/auth/login'} 
             style={{ 
               color: '#0070f3',
               textDecoration: 'none',
@@ -310,7 +343,7 @@ export default function SignUpPage() {
         marginTop: '1.5rem',
         lineHeight: '1.4',
         width: '100%',
-        padding: '0 10px',
+        padding: '0 20px',
         maxWidth: '440px'
       }}>
         By continuing, you agree to our{' '}

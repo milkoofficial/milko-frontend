@@ -54,7 +54,7 @@ const getSubscriptionById = async (req, res, next) => {
  */
 const createSubscription = async (req, res, next) => {
   try {
-    const { productId, litresPerDay, durationMonths, deliveryTime, paymentMethod } = req.body;
+    const { productId, litresPerDay, durationMonths, deliveryTime, paymentMethod, addressId } = req.body;
 
     if (!productId || !litresPerDay || !durationMonths || !deliveryTime) {
       throw new ValidationError('All fields are required');
@@ -71,6 +71,7 @@ const createSubscription = async (req, res, next) => {
       durationMonths,
       deliveryTime,
       paymentMethod: method,
+      addressId: addressId || null,
     });
 
     res.status(201).json({

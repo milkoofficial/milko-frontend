@@ -251,3 +251,26 @@
   background: #9ca3af;
   cursor: not-allowed;
 }
+
+.deliverySlotsBlock {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #d1d5db;
+}
+
+.deliverySlotList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.6rem 0;
+}
+
+.deliverySlotItem {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.deliverySlotItem .input {
+  flex: 1;
+}

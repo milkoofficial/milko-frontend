@@ -17,7 +17,7 @@ const walletService = require('./walletService');
  * @returns {Promise<Object>} Subscription and Razorpay order
  */
 const createSubscription = async (subscriptionData) => {
-  const { userId, productId, litresPerDay, durationMonths, deliveryTime, paymentMethod = 'wallet' } = subscriptionData;
+  const { userId, productId, litresPerDay, durationMonths, deliveryTime, paymentMethod = 'wallet', addressId = null } = subscriptionData;
 
   // Validate product exists and is active
   const product = await productModel.getProductById(productId);
@@ -50,21 +50,21 @@ const createSubscription = async (subscriptionData) => {
   try {
     await client.query('BEGIN');
 
+    if (addressId) {
+      const addrRes = await client.query(`SELECT id FROM addresses WHERE id = $1 AND user_id = $2`, [addressId, userId]);
+      if (addrRes.rows.length === 0) {
+        throw new ValidationError('Invalid delivery address');
+      }
+    }
+
     let walletUsed = 0;
     let remainingAmount = totalAmount;
 
     if (paymentMethod === 'wallet') {
-      const balRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE`, [userId]);
+      const balRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1`, [userId]);
       const walletBalance = balRes.rows.length > 0 ? parseFloat(balRes.rows[0].wallet_balance || 0) : 0;
       walletUsed = Math.max(0, Math.min(walletBalance, totalAmount));
       remainingAmount = Math.max(0, Math.round((totalAmount - walletUsed) * 100) / 100);
-    }
-
-    if (walletUsed > 0) {
-      await client.query(`UPDATE users SET wallet_balance = wallet_balance - $1, updated_at = NOW() WHERE id = $2`, [
-        walletUsed,
-        userId,
-      ]);
     }
 
     let razorpayOrder = null;
@@ -92,11 +92,12 @@ const createSubscription = async (subscriptionData) => {
       `
       INSERT INTO subscriptions (
         user_id, product_id, litres_per_day, duration_months, delivery_time,
+        address_id,
         start_date, end_date, razorpay_subscription_id, status,
         total_qty, delivered_qty, remaining_qty, per_unit_price, total_amount, total_amount_paid, wallet_used, purchased_at,
         created_at, updated_at
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,$10,$11,$12,$13,$14,$15,$16,NOW(),NOW())
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11,$12,$13,$14,$15,$16,$17,NOW(),NOW())
       RETURNING id
       `,
       [
@@ -105,6 +106,7 @@ const createSubscription = async (subscriptionData) => {
         litresPerDay,
         durationMonths,
         deliveryTime,
+        addressId,
         startDate.toISOString().split('T')[0],
         endDate.toISOString().split('T')[0],
         razorpayOrder ? razorpayOrder.id : null,
@@ -120,17 +122,6 @@ const createSubscription = async (subscriptionData) => {
     );
 
     const subscriptionId = subRes.rows[0].id;
-
-    if (walletUsed > 0) {
-      await client.query(
-        `
-        INSERT INTO wallet_transactions (user_id, type, amount, source, reference_id)
-        VALUES ($1,'debit',$2,'subscription',$3)
-        ON CONFLICT DO NOTHING
-        `,
-        [userId, walletUsed, `subscription:${subscriptionId}`]
-      );
-    }
 
     await client.query('COMMIT');
 
@@ -167,26 +158,74 @@ const createSubscription = async (subscriptionData) => {
  * @returns {Promise<Object>} Updated subscription
  */
 const activateSubscription = async (subscriptionId) => {
-  const subscription = await subscriptionModel.getSubscriptionById(subscriptionId);
-  if (!subscription) {
-    throw new NotFoundError('Subscription');
+  await subscriptionModel.ensureSubscriptionSchema();
+  await walletService.ensureWalletSchema();
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const subRes = await client.query(`SELECT * FROM subscriptions WHERE id = $1 FOR UPDATE`, [subscriptionId]);
+    if (subRes.rows.length === 0) throw new NotFoundError('Subscription');
+    const s = subRes.rows[0];
+
+    if (s.status === 'active') {
+      await client.query('COMMIT');
+      return await subscriptionModel.getSubscriptionById(subscriptionId);
+    }
+
+    const walletUsed = parseFloat(s.wallet_used || 0);
+    if (walletUsed > 0) {
+      const txRef = `subscription:${subscriptionId}:activation`;
+      const txExists = await client.query(
+        `SELECT 1 FROM wallet_transactions WHERE user_id = $1 AND type = 'debit' AND source = 'subscription' AND reference_id = $2 LIMIT 1`,
+        [s.user_id, txRef]
+      );
+
+      if (txExists.rows.length === 0) {
+        const balRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE`, [s.user_id]);
+        const walletBalance = balRes.rows.length > 0 ? parseFloat(balRes.rows[0].wallet_balance || 0) : 0;
+        if (walletBalance < walletUsed) {
+          throw new ValidationError('Wallet balance is insufficient to activate this subscription');
+        }
+
+        await client.query(`UPDATE users SET wallet_balance = wallet_balance - $1, updated_at = NOW() WHERE id = $2`, [
+          walletUsed,
+          s.user_id,
+        ]);
+
+        await client.query(
+          `
+          INSERT INTO wallet_transactions (user_id, type, amount, source, reference_id)
+          VALUES ($1,'debit',$2,'subscription',$3)
+          `,
+          [s.user_id, walletUsed, txRef]
+        );
+      }
+    }
+
+    await client.query(
+      `
+      UPDATE subscriptions
+      SET status = 'active',
+          total_amount_paid = COALESCE(total_amount, total_amount_paid),
+          purchased_at = COALESCE(purchased_at, NOW()),
+          updated_at = NOW()
+      WHERE id = $1
+      `,
+      [subscriptionId]
+    );
+
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
   }
 
-  // Update status to active
-  await subscriptionModel.updateSubscriptionStatus(subscriptionId, 'active');
-  const { query } = require('../config/database');
-  await query(
-    `
-    UPDATE subscriptions
-    SET total_amount_paid = COALESCE(total_amount, total_amount_paid),
-        purchased_at = COALESCE(purchased_at, NOW()),
-        updated_at = NOW()
-    WHERE id = $1
-    `,
-    [subscriptionId]
-  );
+  const subscription = await subscriptionModel.getSubscriptionById(subscriptionId);
+  if (!subscription) throw new NotFoundError('Subscription');
 
-  // Generate delivery schedules
+  // Generate schedules after successful activation.
   await subscriptionModel.generateDeliverySchedules(
     subscriptionId,
     subscription.startDate,
@@ -264,7 +303,7 @@ const cancelSubscription = async (subscriptionId, userId) => {
       FROM subscriptions s
       LEFT JOIN products p ON p.id = s.product_id
       WHERE s.id = $1
-      FOR UPDATE
+      FOR UPDATE OF s
       `,
       [subscriptionId]
     );

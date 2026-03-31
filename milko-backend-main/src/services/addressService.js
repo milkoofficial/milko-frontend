@@ -1,5 +1,20 @@
 const addressModel = require('../models/address');
 
+const validateCoordinates = (addressData) => {
+  if (addressData.latitude !== undefined && addressData.latitude !== null) {
+    const latitude = Number(addressData.latitude);
+    if (Number.isNaN(latitude) || latitude < -90 || latitude > 90) {
+      throw new Error('Latitude must be between -90 and 90');
+    }
+  }
+  if (addressData.longitude !== undefined && addressData.longitude !== null) {
+    const longitude = Number(addressData.longitude);
+    if (Number.isNaN(longitude) || longitude < -180 || longitude > 180) {
+      throw new Error('Longitude must be between -180 and 180');
+    }
+  }
+};
+
 /**
  * Address Service
  * Business logic for address operations
@@ -11,6 +26,7 @@ const addressModel = require('../models/address');
  * @returns {Promise<Array>} Array of addresses
  */
 const getUserAddresses = async (userId) => {
+  await addressModel.ensureAddressSchema();
   return await addressModel.getAddressesByUserId(userId);
 };
 
@@ -21,6 +37,7 @@ const getUserAddresses = async (userId) => {
  * @returns {Promise<Object|null>} Address or null
  */
 const getAddressById = async (addressId, userId) => {
+  await addressModel.ensureAddressSchema();
   return await addressModel.getAddressById(addressId, userId);
 };
 
@@ -31,6 +48,7 @@ const getAddressById = async (addressId, userId) => {
  * @returns {Promise<Object>} Created address
  */
 const createAddress = async (userId, addressData) => {
+  await addressModel.ensureAddressSchema();
   // Validate required fields
   if (!addressData.name || !addressData.street || !addressData.city || !addressData.state || !addressData.postalCode) {
     throw new Error('Missing required address fields');
@@ -40,6 +58,7 @@ const createAddress = async (userId, addressData) => {
   if (addressData.postalCode && !/^\d{6}$/.test(addressData.postalCode)) {
     throw new Error('Postal code must be 6 digits');
   }
+  validateCoordinates(addressData);
 
   return await addressModel.createAddress(userId, addressData);
 };
@@ -52,10 +71,12 @@ const createAddress = async (userId, addressData) => {
  * @returns {Promise<Object>} Updated address
  */
 const updateAddress = async (addressId, userId, addressData) => {
+  await addressModel.ensureAddressSchema();
   // Validate postal code if provided
   if (addressData.postalCode && !/^\d{6}$/.test(addressData.postalCode)) {
     throw new Error('Postal code must be 6 digits');
   }
+  validateCoordinates(addressData);
 
   const updated = await addressModel.updateAddress(addressId, userId, addressData);
   

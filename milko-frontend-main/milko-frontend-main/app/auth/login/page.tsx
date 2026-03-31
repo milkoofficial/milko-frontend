@@ -39,6 +39,8 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, loginWithGoogle, isAuthenticated, user } = useAuth();
+  const redirectParam = searchParams?.get('redirect') || '';
+  const safeRedirect = redirectParam.startsWith('/') ? redirectParam : '';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -60,7 +62,7 @@ function LoginForm() {
     if (isAuthenticated && user) {
       const userRole = user.role?.toLowerCase() || 'customer';
       console.log('[LOGIN] Already authenticated, user role:', user.role, 'normalized:', userRole);
-      const redirectPath = getPostLoginRedirect(userRole);
+      const redirectPath = safeRedirect || getPostLoginRedirect(userRole);
       console.log('[LOGIN] Redirect path for authenticated user:', redirectPath);
       if (redirectPath.startsWith('http')) {
         window.location.href = redirectPath;
@@ -68,7 +70,7 @@ function LoginForm() {
         router.push(redirectPath);
       }
     }
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, safeRedirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +92,7 @@ function LoginForm() {
       const userRole = response.user.role?.toLowerCase() || 'customer';
       console.log('[LOGIN] User role after login:', response.user.role, 'normalized:', userRole);
       
-      const redirectPath = getPostLoginRedirect(userRole as 'admin' | 'customer');
+      const redirectPath = safeRedirect || getPostLoginRedirect(userRole as 'admin' | 'customer');
       console.log('[LOGIN] Redirect path:', redirectPath);
       
       // If redirect path is an absolute URL (shouldn't happen now), use it
@@ -125,7 +127,34 @@ function LoginForm() {
       minHeight: '100vh',
       background: '#f5f5f5',
       padding: '3rem',
+      position: 'relative',
     }}>
+      <button
+        type="button"
+        onClick={() => {
+          if (window.history.length > 1) {
+            router.back();
+          } else {
+            router.push('/');
+          }
+        }}
+        style={{
+          position: 'absolute',
+          top: '1rem',
+          left: '1rem',
+          border: '1px solid #d1d5db',
+          background: '#fff',
+          color: '#111827',
+          borderRadius: '100px',
+          padding: '9px 14px',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+         Back
+      </button>
       {/* Logo */}
       <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
         <h1 style={{ margin: 0 }}>
@@ -268,7 +297,10 @@ function LoginForm() {
           {/* Google Sign In */}
           <button
             type="button"
-            onClick={() => loginWithGoogle()}
+            onClick={() => {
+              if (safeRedirect) localStorage.setItem('milko_return_after_auth', safeRedirect);
+              loginWithGoogle();
+            }}
             style={{
               width: '100%',
               padding: '0.75rem 1rem',
@@ -302,7 +334,7 @@ function LoginForm() {
           }}>
             Don&apos;t have an account?{' '}
             <Link 
-              href="/auth/signup" 
+              href={safeRedirect ? `/auth/signup?redirect=${encodeURIComponent(safeRedirect)}` : '/auth/signup'} 
               style={{ 
                 color: '#0070f3',
                 textDecoration: 'none',
@@ -324,7 +356,7 @@ function LoginForm() {
         marginTop: '1.5rem',
         lineHeight: '1.4',
         width: '100%',
-        padding: '0 10px',
+        padding: '0 20px',
         maxWidth: '440px'
       }}>
         By continuing, you agree to our{' '}
