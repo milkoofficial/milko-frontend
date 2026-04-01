@@ -8,6 +8,87 @@ import styles from './page.module.css';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
 
+function toDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getNextDeliveryLabel(subscription: Subscription): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const end = new Date(subscription.endDate);
+  end.setHours(0, 0, 0, 0);
+  if (end < today || subscription.status === 'expired' || subscription.status === 'cancelled') {
+    return 'Next Delivery: —';
+  }
+
+  let nextDate: Date | null = null;
+  const paused = new Set(subscription.pausedDates || []);
+  const blockedDates = new Set(paused);
+  (subscription.deliverySchedules || []).forEach((d) => {
+    if (d.status === 'cancelled' || d.status === 'skipped') {
+      blockedDates.add(d.deliveryDate.slice(0, 10));
+    }
+  });
+  const pendingDates = (subscription.deliverySchedules || [])
+    .filter((d) => d.status === 'pending')
+    .map((d) => new Date(d.deliveryDate))
+    .map((d) => {
+      d.setHours(0, 0, 0, 0);
+      return d;
+    })
+    .filter((d) => !blockedDates.has(toDateKey(d)))
+    .filter((d) => d >= today)
+    .sort((a, b) => a.getTime() - b.getTime());
+  if (pendingDates.length > 0) {
+    nextDate = pendingDates[0];
+  } else {
+    // Fallback when delivery schedules are not present in list response.
+    let cursor = new Date(today);
+    while (cursor <= end) {
+      if (!blockedDates.has(toDateKey(cursor))) {
+        nextDate = new Date(cursor);
+        break;
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  if (!nextDate) return 'Next Delivery: —';
+
+  const dayDiff = Math.round((nextDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+  if (dayDiff <= 0) return 'Next Delivery: today';
+  if (dayDiff === 1) return 'Next Delivery: tomorrow';
+  return `Next Delivery: ${dayDiff} days later`;
+}
+
+function getStatusMeta(status: string): { label: string; className: string } {
+  const normalized = (status || '').toLowerCase();
+  if (normalized === 'active') return { label: 'Active', className: styles.statusActive };
+  if (normalized === 'paused') return { label: 'Paused', className: styles.statusPaused };
+  if (normalized === 'pending') return { label: 'Pending', className: styles.statusPending };
+  if (normalized === 'cancelled') return { label: 'Cancelled', className: styles.statusCancelled };
+  if (normalized === 'failed') return { label: 'Failed', className: styles.statusFailed };
+  return { label: 'Expired', className: styles.statusExpired };
+}
+
+function removeRedundantPendingSubscriptions(subscriptions: Subscription[]): Subscription[] {
+  const activeProductIds = new Set(
+    subscriptions
+      .filter((s) => s.status === 'active' && Boolean(s.productId))
+      .map((s) => s.productId),
+  );
+
+  return subscriptions.filter((s) => {
+    if (s.status !== 'pending') return true;
+    if (!s.productId) return true;
+    return !activeProductIds.has(s.productId);
+  });
+}
+
 /**
  * My Subscriptions Page
  * Lists all subscriptions for the current user
@@ -20,7 +101,16 @@ export default function SubscriptionsPage() {
 
   const refresh = async () => {
     const data = await subscriptionsApi.getAll();
-    setSubscriptions(data);
+    const detailed = await Promise.all(
+      data.map(async (sub) => {
+        try {
+          return await subscriptionsApi.getById(sub.id);
+        } catch {
+          return sub;
+        }
+      }),
+    );
+    setSubscriptions(removeRedundantPendingSubscriptions(detailed));
   };
 
   useEffect(() => {
@@ -97,11 +187,9 @@ export default function SubscriptionsPage() {
             today.setHours(0, 0, 0, 0);
             const endDateOnly = new Date(end);
             endDateOnly.setHours(0, 0, 0, 0);
-            const isExpired = endDateOnly < today || s.status === 'expired' || s.status === 'cancelled';
-            const statusClass = isExpired
-              ? `${styles.statusPill} ${styles.statusExpired}`
-              : `${styles.statusPill} ${styles.statusActive}`;
-            const displayStatus = isExpired ? 'Expired' : 'Active';
+            const statusMeta = getStatusMeta(s.status);
+            const statusClass = `${styles.statusPill} ${statusMeta.className}`;
+            const displayStatus = statusMeta.label;
             const formattedEndDate = end.toLocaleDateString('en-GB', {
               day: 'numeric',
               month: 'short',
@@ -110,6 +198,26 @@ export default function SubscriptionsPage() {
             const msPerDay = 24 * 60 * 60 * 1000;
             const daysLeftRaw = Math.ceil((endDateOnly.getTime() - today.getTime()) / msPerDay);
             const daysLeft = Math.max(0, daysLeftRaw);
+            const isCancelled = s.status === 'cancelled';
+            const isExpired = s.status === 'expired';
+
+            const nextDeliveryLine = isCancelled
+              ? 'Next Delivery: —'
+              : isExpired
+                ? 'Next Delivery: Period ended'
+                : getNextDeliveryLabel(s);
+
+            const endsText = isCancelled
+              ? 'Subscription Cancelled'
+              : isExpired
+                ? 'Subscription Expired'
+                : `Ends: ${formattedEndDate}`;
+
+            const remainingLine = isCancelled
+              ? 'Remaining: 0 days left'
+              : isExpired
+                ? 'Remaining: No days remaining'
+                : `Remaining: ${daysLeft} days left`;
             const orderId = s.razorpaySubscriptionId || s.id;
             const unitPrice = Number(
               s.perUnitPrice ??
@@ -138,8 +246,9 @@ export default function SubscriptionsPage() {
                       <span className={statusClass}>{displayStatus}</span>
                     </div>
                     <p className={styles.subText}>Quantity: {s.litresPerDay}L/day</p>
-                    <p className={styles.subText}>Ends: {formattedEndDate}</p>
-                    <p className={styles.subText}>Remaining: {daysLeft} days left</p>
+                    <p className={styles.subText}>{nextDeliveryLine}</p>
+                    <p className={styles.subText}>{endsText}</p>
+                    <p className={styles.subText}>{remainingLine}</p>
                   </div>
                 </div>
                 <div className={styles.actions}>
@@ -153,7 +262,12 @@ export default function SubscriptionsPage() {
                       showToast('Added to cart', 'success');
                     }}
                   >
-                    Buy This
+                    <span className={styles.buyThisIcon} aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="#000000" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18,11.74a1,1,0,0,0-.52-.63L14.09,9.43,15,3.14a1,1,0,0,0-1.78-.75l-7,9a1,1,0,0,0-.18.87,1.05,1.05,0,0,0,.6.67l4.27,1.71L10,20.86a1,1,0,0,0,.63,1.07A.92.92,0,0,0,11,22a1,1,0,0,0,.83-.45l6-9A1,1,0,0,0,18,11.74Z" />
+                      </svg>
+                    </span>
+                    <span>Buy This</span>
                   </button>
                 </div>
               </div>

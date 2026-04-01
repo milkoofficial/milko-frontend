@@ -53,6 +53,26 @@ export const subscriptionsApi = {
     return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.CANCEL_TODAY(id));
   },
 
+  setupAutopay: async (id: string): Promise<{ razorpaySubscriptionId: string; shortUrl: string | null; alreadyLinked: boolean }> => {
+    return apiClient.post<{ razorpaySubscriptionId: string; shortUrl: string | null; alreadyLinked: boolean }>(
+      API_ENDPOINTS.SUBSCRIPTIONS.SETUP_AUTOPAY(id)
+    );
+  },
+
+  removeAutopay: async (id: string): Promise<Subscription> => {
+    return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.REMOVE_AUTOPAY(id));
+  },
+
+  renewInit: async (id: string): Promise<{ subscriptionId: string; razorpayOrder: RazorpayOrder }> => {
+    return apiClient.post<{ subscriptionId: string; razorpayOrder: RazorpayOrder }>(
+      API_ENDPOINTS.SUBSCRIPTIONS.RENEW_INIT(id)
+    );
+  },
+
+  renewVerify: async (id: string, payload: { razorpay_order_id: string; razorpay_payment_id: string }): Promise<Subscription> => {
+    return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.RENEW_VERIFY(id), payload);
+  },
+
   verifyPayment: async (payload: { razorpay_order_id: string; razorpay_payment_id: string }): Promise<Subscription> => {
     return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.VERIFY_PAYMENT, payload);
   },

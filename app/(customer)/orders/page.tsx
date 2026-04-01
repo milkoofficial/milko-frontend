@@ -8,22 +8,25 @@ import HowWasItModal from '@/components/HowWasItModal';
 import { useToast } from '@/contexts/ToastContext';
 import { useCart } from '@/contexts/CartContext';
 import styles from './page.module.css';
+import { formatDdMmYyIST, formatFullDateIST } from '@/lib/utils/datetime';
 
 function fmtDdMmYy(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)}`;
+  const s = formatDdMmYyIST(iso);
+  return s || '—';
 }
 
-/** e.g. "20 Jan, 2026" for delivery line */
 function fmtDeliveryDate(iso: string | null | undefined): string {
   if (!iso) return 'Delivered';
-  const d = new Date(iso);
-  const day = d.getDate();
-  const month = d.toLocaleString('en-US', { month: 'short' });
-  const year = d.getFullYear();
-  return `${day} ${month}, ${year}`;
+  return formatFullDateIST(iso) || 'Delivered';
 }
+
+type DetailedFeedback = {
+  qualityStars: number;
+  deliveryAgentStars: number | null;
+  onTimeStars: number | null;
+  valueForMoneyStars: number | null;
+  wouldOrderAgain: string | null;
+};
 
 type OrderItem = {
   productName: string;
@@ -34,6 +37,7 @@ type OrderItem = {
   productId: number | null;
   imageUrl: string | null;
   variationId?: number | null;
+  detailedFeedback?: DetailedFeedback | null;
 };
 
 type MyOrder = {
@@ -47,8 +51,11 @@ type MyOrder = {
   itemsCount: number;
   deliveryDate: string | null;
   items: OrderItem[];
-  qualityStars?: number | null;
 };
+
+function isSubscriptionOrderItem(item: OrderItem): boolean {
+  return (item.productName || '').trim().toLowerCase().startsWith('subscription for ');
+}
 
 function getDeliveryDisplay(order: MyOrder): string {
   if (order.status === 'cancelled' || order.status === 'refunded') return '—';
@@ -72,7 +79,7 @@ function isOnTheWay(order: MyOrder): boolean {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<MyOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [ratingModalOrder, setRatingModalOrder] = useState<MyOrder | null>(null);
+  const [ratingModal, setRatingModal] = useState<{ order: MyOrder; productId: number } | null>(null);
   const { showToast } = useToast();
   const { addItem } = useCart();
   const router = useRouter();
@@ -94,46 +101,24 @@ export default function OrdersPage() {
   }, []);
 
   // Flatten to one row per item; each row needs order-level orderDate and deliveryDisplay
-  const rows: { item: OrderItem; order: MyOrder }[] = [];
+  const rows: { item: OrderItem; order: MyOrder; orderItemIndex: number }[] = [];
   for (const order of orders) {
-    for (const item of order.items || []) {
-      rows.push({ item, order });
+    for (let orderItemIndex = 0; orderItemIndex < (order.items || []).length; orderItemIndex++) {
+      const item = order.items[orderItemIndex];
+      if (isSubscriptionOrderItem(item)) continue;
+      rows.push({ item, order, orderItemIndex });
     }
   }
 
-  // Demo "Delivered Product" shown in the same list as real items (on its way or delivered)
-  const demoItem: OrderItem = {
-    productName: 'Delivered Product',
-    variationSize: null,
-    quantity: 1,
-    unitPrice: 0,
-    lineTotal: 0,
-    productId: null,
-    imageUrl: null,
-  };
-  const demoOrder: MyOrder = {
-    id: 'demo',
-    orderNumber: 'DEMO-001',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'delivered',
-    paymentMethod: 'cod',
-    paymentStatus: 'cod',
-    itemsCount: 1,
-    total: 0,
-    deliveryDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-    items: [demoItem],
-  };
-  const displayRows: { item: OrderItem; order: MyOrder }[] = [...rows, { item: demoItem, order: demoOrder }].sort(
-    (a, b) => {
-      const ta = a.order.createdAt ? new Date(a.order.createdAt).getTime() : 0;
-      const tb = b.order.createdAt ? new Date(b.order.createdAt).getTime() : 0;
-      return tb - ta; // newest first, irrespective of delivered or on its way
-    }
-  );
+  const displayRows = [...rows].sort((a, b) => {
+    const ta = a.order.createdAt ? new Date(a.order.createdAt).getTime() : 0;
+    const tb = b.order.createdAt ? new Date(b.order.createdAt).getTime() : 0;
+    return tb - ta;
+  });
 
   // Group by month: { key, label, rows } — label is "This month (January)" or "December 2025"
-  const monthGroups: { key: string; label: string; rows: { item: OrderItem; order: MyOrder }[] }[] = (() => {
-    const map = new Map<string, { label: string; rows: { item: OrderItem; order: MyOrder }[] }>();
+  const monthGroups: { key: string; label: string; rows: { item: OrderItem; order: MyOrder; orderItemIndex: number }[] }[] = (() => {
+    const map = new Map<string, { label: string; rows: { item: OrderItem; order: MyOrder; orderItemIndex: number }[] }>();
     const now = new Date();
     const thisYear = now.getFullYear();
     const thisMonth = now.getMonth();
@@ -176,7 +161,7 @@ export default function OrdersPage() {
               <span className={styles.monthGroupCount}>{rows.length} items ordered</span>
             </div>
             <div className={styles.monthGroupRows}>
-            {rows.map(({ item, order }, idx) => {
+            {rows.map(({ item, order, orderItemIndex }, idx) => {
           const deliveryDisplay = getDeliveryDisplay(order);
           const onTheWay = isOnTheWay(order);
           const orderDate = fmtDdMmYy(order.createdAt);
@@ -200,6 +185,9 @@ export default function OrdersPage() {
                       <img src={item.imageUrl} alt="" />
                     ) : (
                       <div className={styles.orderRowImagePlaceholder}>📦</div>
+                    )}
+                    {order.items.length > 1 && orderItemIndex === 0 && (
+                      <div className={styles.productCountBadge}>+{order.items.length - 1}</div>
                     )}
                   </div>
                   <div className={styles.orderRowTotal}>₹{order.total.toFixed(2)}</div>
@@ -228,18 +216,18 @@ export default function OrdersPage() {
               {/* Delivered: Rate this product (or You rated X star) + View details + Buy again */}
               {order.status === 'delivered' && (
                 <>
-                  {order.qualityStars != null && order.qualityStars >= 1 ? (
+                  {item.detailedFeedback != null && item.detailedFeedback.qualityStars >= 1 ? (
                     <div className={styles.orderRowRated}>
                       <span className={styles.orderRowRateIcon} aria-hidden>★</span>
-                      <span>You rated {order.qualityStars} star{order.qualityStars !== 1 ? 's' : ''}</span>
+                      <span>You rated {item.detailedFeedback.qualityStars} star{item.detailedFeedback.qualityStars !== 1 ? 's' : ''}</span>
                     </div>
-                  ) : (
+                  ) : item.productId != null ? (
                     <div
                       className={styles.orderRowRate}
                       role="button"
                       tabIndex={0}
-                      onClick={() => setRatingModalOrder(order)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRatingModalOrder(order); } }}
+                      onClick={() => setRatingModal({ order, productId: item.productId! })}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRatingModal({ order, productId: item.productId! }); } }}
                     >
                       <span className={styles.orderRowRateIcon} aria-hidden>★</span>
                       <span>Rate this product</span>
@@ -247,7 +235,7 @@ export default function OrdersPage() {
                         <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
-                  )}
+                  ) : null}
                   <div className={styles.orderRowActions}>
                     <Link href={`/orders/${order.id}`} className={styles.orderRowBtn}>View details</Link>
                     <button
@@ -298,14 +286,18 @@ export default function OrdersPage() {
       )}
 
       <HowWasItModal
-        isOpen={!!ratingModalOrder}
-        onClose={() => setRatingModalOrder(null)}
-        order={ratingModalOrder}
-        onSubmitSuccess={(qualityStars) => {
-          if (ratingModalOrder?.id) {
-            setOrders((prev) => prev.map((o) => (o.id === ratingModalOrder.id ? { ...o, qualityStars } : o)));
+        isOpen={!!ratingModal}
+        onClose={() => setRatingModal(null)}
+        order={ratingModal ? { id: ratingModal.order.id, items: ratingModal.order.items } : null}
+        productId={ratingModal?.productId ?? null}
+        onSubmitSuccess={async () => {
+          setRatingModal(null);
+          try {
+            const data = await apiClient.get<MyOrder[]>('/api/orders');
+            setOrders(Array.isArray(data) ? data : []);
+          } catch {
+            /* keep list */
           }
-          setRatingModalOrder(null);
         }}
       />
     </div>

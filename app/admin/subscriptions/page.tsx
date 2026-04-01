@@ -24,10 +24,22 @@ export default function AdminSubscriptionsPage() {
     fetchSubscriptions();
   }, []);
 
+  const removeRedundantPendingSubscriptions = (items: Subscription[]): Subscription[] => {
+    const activeKeys = new Set(
+      items
+        .filter((s) => s.status === 'active')
+        .map((s) => `${s.userId}::${s.productId}`),
+    );
+    return items.filter((s) => {
+      if (s.status !== 'pending') return true;
+      return !activeKeys.has(`${s.userId}::${s.productId}`);
+    });
+  };
+
   const fetchSubscriptions = async () => {
     try {
       const data = await adminSubscriptionsApi.getAll();
-      setSubscriptions(data);
+      setSubscriptions(removeRedundantPendingSubscriptions(data));
     } catch (error) {
       console.error('Failed to fetch subscriptions:', error);
       showToast('Failed to load subscriptions', 'error');

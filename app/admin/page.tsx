@@ -44,6 +44,19 @@ interface SalesData {
   sales: number;
 }
 
+function removeRedundantPendingSubscriptions(subscriptions: Subscription[]): Subscription[] {
+  const activeKeys = new Set(
+    subscriptions
+      .filter((s) => s.status === 'active')
+      .map((s) => `${s.userId}::${s.productId}`),
+  );
+
+  return subscriptions.filter((s) => {
+    if (s.status !== 'pending') return true;
+    return !activeKeys.has(`${s.userId}::${s.productId}`);
+  });
+}
+
 /**
  * Admin Dashboard
  * Comprehensive overview with metrics, charts, and insights
@@ -84,7 +97,7 @@ export default function AdminDashboard() {
         apiClient.getInstance().get<{ success: boolean; data: User[] }>(API_ENDPOINTS.ADMIN.USERS.LIST).catch(() => ({ data: { data: [] } })),
       ]);
 
-      const subscriptions: Subscription[] = subscriptionsRes || [];
+      const subscriptions: Subscription[] = removeRedundantPendingSubscriptions(subscriptionsRes || []);
       const products: Product[] = productsRes || [];
       const users: User[] = Array.isArray(usersRes.data.data) ? usersRes.data.data : [];
 
