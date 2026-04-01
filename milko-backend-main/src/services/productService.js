@@ -36,34 +36,30 @@ const getProductFeedbackAggregates = async (productId) => {
   try {
     const result = await query(
       `SELECT 
-        AVG(of.quality_stars) FILTER (WHERE of.quality_stars IS NOT NULL) as avg_quality_stars,
-        AVG(of.delivery_agent_stars) FILTER (WHERE of.delivery_agent_stars IS NOT NULL) as avg_delivery_agent_stars,
-        AVG(of.on_time_stars) FILTER (WHERE of.on_time_stars IS NOT NULL) as avg_on_time_stars,
-        AVG(of.value_for_money_stars) FILTER (WHERE of.value_for_money_stars IS NOT NULL) as avg_value_for_money_stars,
-        COUNT(of.quality_stars) FILTER (WHERE of.quality_stars IS NOT NULL) as quality_count,
-        COUNT(of.delivery_agent_stars) FILTER (WHERE of.delivery_agent_stars IS NOT NULL) as delivery_agent_count,
-        COUNT(of.on_time_stars) FILTER (WHERE of.on_time_stars IS NOT NULL) as on_time_count,
-        COUNT(of.value_for_money_stars) FILTER (WHERE of.value_for_money_stars IS NOT NULL) as value_for_money_count
-       FROM order_feedback of
-       INNER JOIN orders o ON of.order_id = o.id
-       INNER JOIN order_items oi ON o.id = oi.order_id
-       WHERE oi.product_id = $1
-         AND of.quality_stars IS NOT NULL`,
+        AVG(opdf.quality_stars) FILTER (WHERE opdf.quality_stars IS NOT NULL) as avg_quality_stars,
+        AVG(opdf.delivery_agent_stars) FILTER (WHERE opdf.delivery_agent_stars IS NOT NULL) as avg_delivery_agent_stars,
+        AVG(opdf.on_time_stars) FILTER (WHERE opdf.on_time_stars IS NOT NULL) as avg_on_time_stars,
+        AVG(opdf.value_for_money_stars) FILTER (WHERE opdf.value_for_money_stars IS NOT NULL) as avg_value_for_money_stars,
+        COUNT(opdf.quality_stars) FILTER (WHERE opdf.quality_stars IS NOT NULL) as quality_count,
+        COUNT(opdf.delivery_agent_stars) FILTER (WHERE opdf.delivery_agent_stars IS NOT NULL) as delivery_agent_count,
+        COUNT(opdf.on_time_stars) FILTER (WHERE opdf.on_time_stars IS NOT NULL) as on_time_count,
+        COUNT(opdf.value_for_money_stars) FILTER (WHERE opdf.value_for_money_stars IS NOT NULL) as value_for_money_count
+       FROM order_product_detailed_feedback opdf
+       WHERE opdf.product_id = $1
+         AND opdf.quality_stars IS NOT NULL`,
       [productId]
     );
 
     // Get rating distribution for quality stars (1-5)
     const distributionResult = await query(
       `SELECT 
-        of.quality_stars,
+        opdf.quality_stars,
         COUNT(*) as count
-       FROM order_feedback of
-       INNER JOIN orders o ON of.order_id = o.id
-       INNER JOIN order_items oi ON o.id = oi.order_id
-       WHERE oi.product_id = $1
-         AND of.quality_stars IS NOT NULL
-       GROUP BY of.quality_stars
-       ORDER BY of.quality_stars DESC`,
+       FROM order_product_detailed_feedback opdf
+       WHERE opdf.product_id = $1
+         AND opdf.quality_stars IS NOT NULL
+       GROUP BY opdf.quality_stars
+       ORDER BY opdf.quality_stars DESC`,
       [productId]
     );
 
@@ -154,7 +150,8 @@ const createProduct = async (productData, imageFile = null) => {
     categoryId, 
     suffixAfterPrice,
     sellingPrice,
-    compareAtPrice
+    compareAtPrice,
+    taxPercent
   } = productData;
 
   // Validate required fields
@@ -175,6 +172,9 @@ const createProduct = async (productData, imageFile = null) => {
 
   const parsedSelling = sellingPrice ? parseFloat(sellingPrice) : null;
   const parsedCompare = compareAtPrice ? parseFloat(compareAtPrice) : null;
+  const parsedTaxPercent = taxPercent !== undefined && taxPercent !== null && String(taxPercent).trim() !== ''
+    ? Math.max(0, parseFloat(taxPercent))
+    : 0;
 
   if (parsedSelling !== null && parsedCompare !== null && parsedSelling > parsedCompare) {
     throw new ValidationError('Selling Price cannot be greater than Compare At Price');
@@ -192,6 +192,7 @@ const createProduct = async (productData, imageFile = null) => {
     suffixAfterPrice: suffixAfterPrice || 'Litres',
     sellingPrice: parsedSelling,
     compareAtPrice: parsedCompare,
+    taxPercent: Number.isFinite(parsedTaxPercent) ? parsedTaxPercent : 0,
   });
 };
 

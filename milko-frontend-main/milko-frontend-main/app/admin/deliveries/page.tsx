@@ -8,6 +8,12 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import adminStyles from '../admin-styles.module.css';
 import styles from './page.module.css';
 import { useToast } from '@/contexts/ToastContext';
+import {
+  formatDateDDMMYYYYIST,
+  formatDateTimeDDMMYYYYIST,
+  formatDateTimeIST,
+  formatYyyyMmDdInputAsDDMMYYYY,
+} from '@/lib/utils/datetime';
 
 type OrderDeliveryRow = {
   orderId: string;
@@ -439,7 +445,7 @@ export default function AdminDeliveriesPage() {
       <div className={styles.panel}>
         {tab === 'subscriptions' && filtered.length === 0 ? (
           <div className={styles.emptyState}>
-            <p>No deliveries found for {new Date(selectedDate).toLocaleDateString()}</p>
+            <p>No deliveries found for {formatYyyyMmDdInputAsDDMMYYYY(selectedDate)}</p>
             {query && <p className={styles.emptyStateSubtext}>Try adjusting your search</p>}
           </div>
         ) : tab === 'subscriptions' ? (
@@ -480,11 +486,7 @@ export default function AdminDeliveriesPage() {
                     </td>
                     <td>
                       <div className={styles.dateCell}>
-                        {new Date(delivery.deliveryDate).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                        {formatDateDDMMYYYYIST(delivery.deliveryDate)}
                       </div>
                     </td>
                     <td>
@@ -549,7 +551,7 @@ export default function AdminDeliveriesPage() {
                         </div>
                       </td>
                       <td>
-                        <div className={styles.dateCell}>{o.orderedAt ? new Date(o.orderedAt).toLocaleString() : '—'}</div>
+                        <div className={styles.dateCell}>{formatDateTimeDDMMYYYYIST(o.orderedAt)}</div>
                       </td>
                       <td>
                         <span className={`${styles.badge} ${getOrderStatusBadgeClass(o.status)}`}>{o.status}</span>
@@ -600,7 +602,7 @@ export default function AdminDeliveriesPage() {
               <div style={{ padding: '1.75rem' }}>
                 <h2 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: 4 }}>Order #{selectedOrder.orderNumber}</h2>
                 <div style={{ color: '#64748b', marginBottom: '1.25rem' }}>
-                  {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString() : ''}
+                  {formatDateTimeIST(selectedOrder.createdAt)}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>

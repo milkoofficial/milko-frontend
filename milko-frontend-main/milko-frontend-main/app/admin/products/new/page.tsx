@@ -33,6 +33,7 @@ export default function AdminCreateProductPage() {
   const [description, setDescription] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [compareAtPrice, setCompareAtPrice] = useState('');
+  const [taxPercent, setTaxPercent] = useState('');
   const [quantity, setQuantity] = useState('0');
   const [lowStockThreshold, setLowStockThreshold] = useState('10');
   const [categoryId, setCategoryId] = useState('');
@@ -181,6 +182,9 @@ export default function AdminCreateProductPage() {
       }
       if (compareAtPrice) {
         formData.append('compareAtPrice', compareAtPrice);
+      }
+      if (taxPercent.trim() !== '') {
+        formData.append('taxPercent', taxPercent);
       }
       formData.append('quantity', quantity);
       formData.append('lowStockThreshold', lowStockThreshold);
@@ -351,6 +355,21 @@ export default function AdminCreateProductPage() {
               />
               <p className={styles.formHelpText}>
                 Displayed as: ₹{sellingPrice || '0'}/{suffixAfterPrice}
+              </p>
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Tax (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={taxPercent}
+                onChange={(e) => setTaxPercent(e.target.value)}
+                className={styles.formInput}
+                placeholder="0"
+              />
+              <p className={styles.formHelpText}>
+                Optional product tax percentage. If empty, 0% is used.
               </p>
             </div>
           </div>

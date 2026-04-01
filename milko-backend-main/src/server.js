@@ -14,11 +14,14 @@ const webhookRoutes = require('./routes/webhooks');
 const couponRoutes = require('./routes/coupons');
 const addressRoutes = require('./routes/addresses');
 const orderRoutes = require('./routes/orders');
+const orderController = require('./controllers/orderController');
 const walletRoutes = require('./routes/wallet');
 
 // Import middleware
+const { authenticate } = require('./middleware/auth');
 const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
+const { startSubscriptionExpiryJob } = require('./jobs/subscriptionExpiryJob');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -109,6 +112,11 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/addresses', addressRoutes);
+// Registered on app before order router so GET is never captured as GET /:id (uuid error).
+app.get('/api/orders/review-deliverables', authenticate, orderController.getDeliveredForReview);
+// Legacy URLs (old frontends / bookmarks / cached bundles)
+app.get('/api/orders/me/delivered-for-review', authenticate, orderController.getDeliveredForReview);
+app.get('/api/orders/delivered-for-review', authenticate, orderController.getDeliveredForReview);
 app.use('/api/orders', orderRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
@@ -124,6 +132,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 API available at http://localhost:${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  startSubscriptionExpiryJob();
 });
 
 module.exports = app;

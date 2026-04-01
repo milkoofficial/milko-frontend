@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS products (
     suffix_after_price VARCHAR(50) DEFAULT 'Litres',
     selling_price DECIMAL(10, 2),
     compare_at_price DECIMAL(10, 2),
+    tax_percent DECIMAL(5, 2) NOT NULL DEFAULT 0 CHECK (tax_percent >= 0),
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -60,7 +61,8 @@ ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER DEFAULT 10,
 ADD COLUMN IF NOT EXISTS category_id INTEGER,
 ADD COLUMN IF NOT EXISTS suffix_after_price VARCHAR(50) DEFAULT 'Litres',
 ADD COLUMN IF NOT EXISTS selling_price DECIMAL(10, 2),
-ADD COLUMN IF NOT EXISTS compare_at_price DECIMAL(10, 2);
+ADD COLUMN IF NOT EXISTS compare_at_price DECIMAL(10, 2),
+ADD COLUMN IF NOT EXISTS tax_percent DECIMAL(5, 2) DEFAULT 0;
 
 -- Categories (used by admin UI)
 CREATE TABLE IF NOT EXISTS categories (
@@ -178,6 +180,9 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_dates ON subscriptions(start_date, 
 
 -- Index for Razorpay ID lookups (webhook processing)
 CREATE INDEX IF NOT EXISTS idx_subscriptions_razorpay_id ON subscriptions(razorpay_subscription_id) WHERE razorpay_subscription_id IS NOT NULL;
+
+-- AutoPay setup failure (mirrors ensureSubscriptionSchema in app)
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS autopay_failure_reason TEXT;
 
 -- ============================================
 -- DELIVERY SCHEDULES TABLE

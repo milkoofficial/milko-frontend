@@ -193,6 +193,8 @@ let poolConfig = {
   connectionTimeoutMillis: 20000, // Increased to 20 seconds for slow connections
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
+  // Naive TIMESTAMP columns are interpreted consistently; timestamptz + API ISO(Z) then display IST on clients
+  options: '-c TimeZone=UTC',
 };
 
 // Note: query_timeout is not a valid pg Pool option, it's handled in our query wrapper
@@ -319,6 +321,7 @@ const query = async (text, params) => {
           connectionTimeoutMillis: 20000,
           keepAlive: true,
           keepAliveInitialDelayMillis: 10000,
+          options: '-c TimeZone=UTC',
         });
         
         // Retry query with IPv4 pool
@@ -398,6 +401,7 @@ const getClient = async () => {
         connectionTimeoutMillis: 20000,
         keepAlive: true,
         keepAliveInitialDelayMillis: 10000,
+        options: '-c TimeZone=UTC',
       });
       return getClient(); // Retry with IPv4 pool
     }

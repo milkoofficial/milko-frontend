@@ -95,6 +95,73 @@ async function ensureOrdersSchema() {
   await query(`ALTER TABLE order_feedback ADD COLUMN IF NOT EXISTS value_for_money_stars INTEGER;`);
   await query(`ALTER TABLE order_feedback ADD COLUMN IF NOT EXISTS would_order_again TEXT;`);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS order_product_detailed_feedback (
+      order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      quality_stars INTEGER CHECK (quality_stars IS NULL OR (quality_stars >= 1 AND quality_stars <= 5)),
+      delivery_agent_stars INTEGER CHECK (delivery_agent_stars IS NULL OR (delivery_agent_stars >= 1 AND delivery_agent_stars <= 5)),
+      on_time_stars INTEGER CHECK (on_time_stars IS NULL OR (on_time_stars >= 1 AND on_time_stars <= 5)),
+      value_for_money_stars INTEGER CHECK (value_for_money_stars IS NULL OR (value_for_money_stars >= 1 AND value_for_money_stars <= 5)),
+      would_order_again TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (order_id, product_id)
+    );
+  `);
+  await query(
+    `CREATE INDEX IF NOT EXISTS idx_order_product_feedback_user ON order_product_detailed_feedback(user_id);`
+  );
+
+  await query(
+    `
+    INSERT INTO order_product_detailed_feedback (
+      order_id, product_id, user_id, quality_stars, delivery_agent_stars, on_time_stars, value_for_money_stars, would_order_again
+    )
+    SELECT of.order_id, oi.product_id, of.user_id, of.quality_stars, of.delivery_agent_stars, of.on_time_stars, of.value_for_money_stars, of.would_order_again
+    FROM order_feedback of
+    INNER JOIN order_items oi ON oi.order_id = of.order_id AND oi.product_id IS NOT NULL
+    WHERE of.quality_stars IS NOT NULL
+    ON CONFLICT (order_id, product_id) DO NOTHING
+    `
+  ).catch(() => {});
+
+  // TIMESTAMP WITHOUT TIME ZONE + node-pg parses in Node's TZ → wrong API times when DB holds UTC wall clock.
+  // Migrate to TIMESTAMPTZ; treat existing naive values as UTC (Supabase/Render default).
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'created_at'
+          AND data_type = 'timestamp without time zone'
+      ) THEN
+        ALTER TABLE orders
+          ALTER COLUMN created_at TYPE timestamptz USING created_at AT TIME ZONE 'UTC',
+          ALTER COLUMN updated_at TYPE timestamptz USING updated_at AT TIME ZONE 'UTC',
+          ALTER COLUMN package_prepared_at TYPE timestamptz USING package_prepared_at AT TIME ZONE 'UTC',
+          ALTER COLUMN out_for_delivery_at TYPE timestamptz USING out_for_delivery_at AT TIME ZONE 'UTC',
+          ALTER COLUMN delivered_at TYPE timestamptz USING delivered_at AT TIME ZONE 'UTC',
+          ALTER COLUMN fulfilled_at TYPE timestamptz USING fulfilled_at AT TIME ZONE 'UTC';
+      END IF;
+    END $$
+  `).catch((e) => console.warn('[orders schema] timestamptz migration:', e.message));
+
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'order_items' AND column_name = 'created_at'
+          AND data_type = 'timestamp without time zone'
+      ) THEN
+        ALTER TABLE order_items
+          ALTER COLUMN created_at TYPE timestamptz USING created_at AT TIME ZONE 'UTC';
+      END IF;
+    END $$
+  `).catch((e) => console.warn('[orders schema] order_items timestamptz migration:', e.message));
+
   schemaEnsured = true;
 }
 
@@ -196,6 +263,17 @@ async function createOrder({
   };
 }
 
+function mapOpdfRowToDetailedFeedback(row) {
+  if (!row || row.quality_stars == null) return null;
+  return {
+    qualityStars: parseInt(row.quality_stars, 10),
+    deliveryAgentStars: row.delivery_agent_stars != null ? parseInt(row.delivery_agent_stars, 10) : null,
+    onTimeStars: row.on_time_stars != null ? parseInt(row.on_time_stars, 10) : null,
+    valueForMoneyStars: row.value_for_money_stars != null ? parseInt(row.value_for_money_stars, 10) : null,
+    wouldOrderAgain: row.would_order_again || null,
+  };
+}
+
 async function listOrdersForUser(userId) {
   await ensureOrdersSchema();
 
@@ -210,10 +288,8 @@ async function listOrdersForUser(userId) {
       o.currency,
       o.total,
       o.created_at,
-      o.delivery_date,
-      of.quality_stars
+      o.delivery_date
     FROM orders o
-    LEFT JOIN order_feedback of ON of.order_id = o.id
     WHERE o.user_id = $1
     ORDER BY o.created_at DESC
     `,
@@ -235,9 +311,16 @@ async function listOrdersForUser(userId) {
       oi.unit_price,
       oi.line_total,
       oi.product_id,
-      p.image_url
+      p.image_url,
+      opdf.quality_stars,
+      opdf.delivery_agent_stars,
+      opdf.on_time_stars,
+      opdf.value_for_money_stars,
+      opdf.would_order_again
     FROM order_items oi
     LEFT JOIN products p ON p.id = oi.product_id
+    LEFT JOIN order_product_detailed_feedback opdf
+      ON opdf.order_id = oi.order_id AND opdf.product_id = oi.product_id
     WHERE oi.order_id = ANY($1)
     ORDER BY oi.order_id, oi.created_at
     `,
@@ -257,6 +340,7 @@ async function listOrdersForUser(userId) {
       lineTotal: row.line_total != null ? parseFloat(row.line_total) : 0,
       productId: row.product_id,
       imageUrl: row.image_url || null,
+      detailedFeedback: mapOpdfRowToDetailedFeedback(row),
     });
   }
 
@@ -272,7 +356,6 @@ async function listOrdersForUser(userId) {
     createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
     deliveryDate: r.delivery_date ? new Date(r.delivery_date).toISOString().slice(0, 10) : null,
     items: itemsByOrder[r.id] || [],
-    qualityStars: r.quality_stars != null ? parseInt(r.quality_stars, 10) : null,
   }));
 }
 
@@ -387,9 +470,16 @@ async function getOrderByIdForUser(userId, orderId) {
       oi.unit_price,
       oi.line_total,
       oi.product_id,
-      p.image_url
+      p.image_url,
+      opdf.quality_stars,
+      opdf.delivery_agent_stars,
+      opdf.on_time_stars,
+      opdf.value_for_money_stars,
+      opdf.would_order_again
     FROM order_items oi
     LEFT JOIN products p ON p.id = oi.product_id
+    LEFT JOIN order_product_detailed_feedback opdf
+      ON opdf.order_id = oi.order_id AND opdf.product_id = oi.product_id
     WHERE oi.order_id = $1
     ORDER BY oi.created_at
     `,
@@ -405,20 +495,12 @@ async function getOrderByIdForUser(userId, orderId) {
     lineTotal: row.line_total != null ? parseFloat(row.line_total) : 0,
     productId: row.product_id,
     imageUrl: row.image_url || null,
+    detailedFeedback: mapOpdfRowToDetailedFeedback(row),
   }));
 
-  const fbRes = await query(
-    `SELECT rating, quality_stars, delivery_agent_stars, on_time_stars, value_for_money_stars, would_order_again FROM order_feedback WHERE order_id = $1`,
-    [orderId]
-  );
+  const fbRes = await query(`SELECT rating FROM order_feedback WHERE order_id = $1`, [orderId]);
   const feedbackSubmitted = fbRes.rows.length > 0;
   const feedbackRating = fbRes.rows[0]?.rating || null;
-  const fr = fbRes.rows[0];
-  const qualityStars = fr?.quality_stars != null ? parseInt(fr.quality_stars, 10) : null;
-  const deliveryAgentStars = fr?.delivery_agent_stars != null ? parseInt(fr.delivery_agent_stars, 10) : null;
-  const onTimeStars = fr?.on_time_stars != null ? parseInt(fr.on_time_stars, 10) : null;
-  const valueForMoneyStars = fr?.value_for_money_stars != null ? parseInt(fr.value_for_money_stars, 10) : null;
-  const wouldOrderAgain = fr?.would_order_again || null;
 
   return {
     id: r.id,
@@ -447,11 +529,6 @@ async function getOrderByIdForUser(userId, orderId) {
     items,
     feedbackSubmitted,
     feedbackRating,
-    qualityStars,
-    deliveryAgentStars,
-    onTimeStars,
-    valueForMoneyStars,
-    wouldOrderAgain,
   };
 }
 
@@ -478,13 +555,12 @@ async function submitOrderFeedback(orderId, userId, rating) {
 }
 
 /**
- * Submit detailed order feedback (How was it? popup): quality stars → product reviews for each item;
- * delivery_agent_stars, on_time_stars, value_for_money_stars, would_order_again → order_feedback.
- * Order must be delivered and belong to user.
+ * Submit detailed feedback per (order, product). Creates one product_review row for that product.
+ * Body must include productId when the order has multiple line items.
  */
 async function submitDetailedFeedback(orderId, userId, data) {
   await ensureOrdersSchema();
-  const { qualityStars, deliveryAgentStars, onTimeStars, valueForMoneyStars, wouldOrderAgain } = data;
+  const { qualityStars, deliveryAgentStars, onTimeStars, valueForMoneyStars, wouldOrderAgain, productId: rawPid } = data;
 
   const q = (v) => (v != null && Number.isFinite(Number(v)) && (v = parseInt(String(v), 10)) >= 1 && v <= 5) ? v : null;
   const qs = q(qualityStars);
@@ -495,41 +571,61 @@ async function submitDetailedFeedback(orderId, userId, data) {
   if (!['Yes', 'Maybe', 'No'].includes(woa)) throw new Error('wouldOrderAgain must be Yes, Maybe, or No');
   if (!qs || !das || !ots || !vfms) throw new Error('qualityStars, deliveryAgentStars, onTimeStars, valueForMoneyStars must be 1–5');
 
-  const order = await getOrderByIdForUser(userId, orderId);
-  if (!order) throw new Error('Order not found');
-  if (order.status !== 'delivered') throw new Error('Feedback only for delivered orders');
+  const orderCheck = await query(`SELECT id, status FROM orders WHERE id = $1 AND user_id = $2`, [orderId, userId]);
+  if (orderCheck.rows.length === 0) throw new Error('Order not found');
+  if (orderCheck.rows[0].status !== 'delivered') throw new Error('Feedback only for delivered orders');
 
-  const existing = await query(`SELECT quality_stars FROM order_feedback WHERE order_id = $1`, [orderId]);
-  if (existing.rows.length > 0 && existing.rows[0].quality_stars != null) {
-    throw new Error('You have already submitted this feedback');
+  const itemsRes = await query(
+    `SELECT DISTINCT product_id FROM order_items WHERE order_id = $1 AND product_id IS NOT NULL`,
+    [orderId]
+  );
+  const pids = itemsRes.rows.map((r) => r.product_id);
+  if (pids.length === 0) throw new Error('No products in this order');
+
+  let targetPid = rawPid != null && rawPid !== '' ? parseInt(String(rawPid), 10) : null;
+  if (targetPid != null && Number.isNaN(targetPid)) targetPid = null;
+  if (targetPid == null) {
+    if (pids.length === 1) targetPid = pids[0];
+    else throw new Error('productId is required for orders with multiple products');
+  }
+  if (!pids.includes(targetPid)) throw new Error('Product not in this order');
+
+  const dup = await query(
+    `SELECT quality_stars FROM order_product_detailed_feedback WHERE order_id = $1 AND product_id = $2`,
+    [orderId, targetPid]
+  );
+  if (dup.rows.length > 0 && dup.rows[0].quality_stars != null) {
+    throw new Error('You have already submitted feedback for this product on this order');
   }
 
-  const reviewerName = order.customer?.name || 'Customer';
-  const productIds = [...new Set((order.items || []).map((it) => it.productId).filter((id) => id != null))];
+  const nameRes = await query(`SELECT u.name FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id = $1`, [orderId]);
+  const reviewerName = nameRes.rows[0]?.name || 'Customer';
 
-  for (const productId of productIds) {
-    await productReviewModel.createProductReview(productId, {
-      userId,
-      reviewerName,
-      rating: qs,
-      comment: null,
-      isApproved: true,
-    });
-  }
+  await productReviewModel.createProductReview(targetPid, {
+    userId,
+    reviewerName,
+    rating: qs,
+    comment: null,
+    isApproved: true,
+  });
 
   await query(
-    `INSERT INTO order_feedback (order_id, user_id, quality_stars, delivery_agent_stars, on_time_stars, value_for_money_stars, would_order_again)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT (order_id) DO UPDATE SET
-       quality_stars = EXCLUDED.quality_stars,
-       delivery_agent_stars = EXCLUDED.delivery_agent_stars,
-       on_time_stars = EXCLUDED.on_time_stars,
-       value_for_money_stars = EXCLUDED.value_for_money_stars,
-       would_order_again = EXCLUDED.would_order_again`,
-    [orderId, userId, qs, das, ots, vfms, woa]
+    `
+    INSERT INTO order_product_detailed_feedback (
+      order_id, product_id, user_id, quality_stars, delivery_agent_stars, on_time_stars, value_for_money_stars, would_order_again, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+    ON CONFLICT (order_id, product_id) DO UPDATE SET
+      quality_stars = EXCLUDED.quality_stars,
+      delivery_agent_stars = EXCLUDED.delivery_agent_stars,
+      on_time_stars = EXCLUDED.on_time_stars,
+      value_for_money_stars = EXCLUDED.value_for_money_stars,
+      would_order_again = EXCLUDED.would_order_again,
+      updated_at = NOW()
+    `,
+    [orderId, targetPid, userId, qs, das, ots, vfms, woa]
   );
 
-  return { qualityStars: qs };
+  return { qualityStars: qs, productId: targetPid };
 }
 
 /**
@@ -548,7 +644,7 @@ async function getFeedbackStats() {
 
   const fillStarDist = async (col) => {
     const r = await query(
-      `SELECT ${col} AS v, COUNT(*)::int AS c FROM order_feedback WHERE ${col} IS NOT NULL AND ${col} BETWEEN 1 AND 5 GROUP BY ${col}`
+      `SELECT ${col} AS v, COUNT(*)::int AS c FROM order_product_detailed_feedback WHERE ${col} IS NOT NULL AND ${col} BETWEEN 1 AND 5 GROUP BY ${col}`
     );
     const d = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
     for (const row of r.rows) {
@@ -565,7 +661,7 @@ async function getFeedbackStats() {
   ]);
 
   const woaRes = await query(
-    `SELECT would_order_again AS v, COUNT(*)::int AS c FROM order_feedback WHERE would_order_again IN ('Yes','Maybe','No') GROUP BY would_order_again`
+    `SELECT would_order_again AS v, COUNT(*)::int AS c FROM order_product_detailed_feedback WHERE would_order_again IN ('Yes','Maybe','No') GROUP BY would_order_again`
   );
   const wouldOrderAgain = { Yes: 0, Maybe: 0, No: 0 };
   for (const row of woaRes.rows) {
@@ -585,6 +681,73 @@ async function getFeedbackStats() {
     valueForMoneyStars,
     wouldOrderAgain,
   };
+}
+
+/**
+ * Delivered order line items for the reviews hub (rate / show submitted How was it? data).
+ */
+async function getDeliveredItemsForReview(userId) {
+  await ensureOrdersSchema();
+  const res = await query(
+    `
+    SELECT
+      o.id AS order_id,
+      o.order_number,
+      o.delivered_at,
+      o.created_at,
+      oi.id AS order_item_id,
+      COALESCE(oi.product_id, prod_match.match_id) AS resolved_product_id,
+      oi.product_name,
+      oi.variation_size,
+      oi.quantity,
+      oi.line_total,
+      p.image_url,
+      opdf.quality_stars,
+      opdf.delivery_agent_stars,
+      opdf.on_time_stars,
+      opdf.value_for_money_stars,
+      opdf.would_order_again
+    FROM orders o
+    INNER JOIN order_items oi ON oi.order_id = o.id
+    LEFT JOIN LATERAL (
+      SELECT p2.id AS match_id
+      FROM products p2
+      WHERE oi.product_id IS NULL
+        AND (
+          p2.name = oi.product_name
+          OR p2.name = TRIM(REGEXP_REPLACE(oi.product_name, '^[Ss]ubscription for\\s+', ''))
+        )
+      LIMIT 1
+    ) prod_match ON true
+    LEFT JOIN products p ON p.id = COALESCE(oi.product_id, prod_match.match_id)
+    LEFT JOIN order_product_detailed_feedback opdf
+      ON opdf.order_id = o.id
+      AND opdf.product_id = COALESCE(oi.product_id, prod_match.match_id)
+    WHERE o.user_id = $1
+      AND (
+        o.status = 'delivered'
+        OR (o.delivered_at IS NOT NULL AND o.status NOT IN ('cancelled', 'refunded'))
+      )
+      AND COALESCE(oi.product_id, prod_match.match_id) IS NOT NULL
+    ORDER BY COALESCE(o.delivered_at, o.created_at) DESC NULLS LAST, o.created_at DESC, oi.created_at ASC
+    `,
+    [userId]
+  );
+
+  return res.rows.map((row) => ({
+    orderItemId: String(row.order_item_id),
+    orderId: String(row.order_id),
+    orderNumber: String(row.order_number),
+    productId: row.resolved_product_id,
+    productName: row.product_name || 'Product',
+    variationSize: row.variation_size || null,
+    quantity: row.quantity != null ? parseInt(row.quantity, 10) : 1,
+    lineTotal: row.line_total != null ? parseFloat(row.line_total) : 0,
+    imageUrl: row.image_url || null,
+    deliveredAt: row.delivered_at ? new Date(row.delivered_at).toISOString() : null,
+    orderedAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+    detailedFeedback: mapOpdfRowToDetailedFeedback(row),
+  }));
 }
 
 /**
@@ -843,4 +1006,5 @@ module.exports = {
   submitOrderFeedback,
   submitDetailedFeedback,
   getFeedbackStats,
+  getDeliveredItemsForReview,
 };

@@ -5,6 +5,7 @@ const orderModel = require('../models/order');
 const couponService = require('../services/couponService');
 const { createOrder: createRazorpayOrder, hasRazorpayKeys, getPayment: getRazorpayPayment } = require('../config/razorpay');
 const walletService = require('../services/walletService');
+const subscriptionService = require('../services/subscriptionService');
 
 function normalizeInt(val) {
   if (val === null || val === undefined || val === '') return null;
@@ -176,6 +177,10 @@ const createOrder = async (req, res, next) => {
         items: computedItems,
       });
 
+      if (hasSubscriptionItem) {
+        await subscriptionService.createFromCheckoutOrder(order.id);
+      }
+
       return res.status(201).json({
         success: true,
         data: {
@@ -308,6 +313,10 @@ const createOrder = async (req, res, next) => {
         });
       }
 
+      if (hasSubscriptionItem) {
+        await subscriptionService.createFromCheckoutOrder(id);
+      }
+
       return res.status(201).json({
         success: true,
         data: {
@@ -407,6 +416,8 @@ const verifyPayment = async (req, res, next) => {
         [razorpayOrderId]
       );
 
+      await subscriptionService.createFromCheckoutOrder(orderId);
+
       if (payment.method === 'card' && payment.card) {
         const last4 = payment.card.last4 || '';
         const network = (payment.card.network || payment.card.brand || '').toString();
@@ -444,6 +455,21 @@ const getMyOrders = async (req, res, next) => {
     if (!userId) throw new ValidationError('User not found');
     const orders = await orderModel.listOrdersForUser(userId);
     res.json({ success: true, data: orders });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delivered line items for the reviews hub (My Account → Reviews).
+ * GET /api/orders/review-deliverables (registered on app in server.js before order router)
+ */
+const getDeliveredForReview = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) throw new ValidationError('User not found');
+    const items = await orderModel.getDeliveredItemsForReview(userId);
+    res.json({ success: true, data: items });
   } catch (error) {
     next(error);
   }
@@ -500,10 +526,10 @@ const submitDetailedFeedback = async (req, res, next) => {
   try {
     const userId = req.user?.id;
     const { id: orderId } = req.params;
-    const { qualityStars, deliveryAgentStars, onTimeStars, valueForMoneyStars, wouldOrderAgain } = req.body || {};
+    const { qualityStars, deliveryAgentStars, onTimeStars, valueForMoneyStars, wouldOrderAgain, productId } = req.body || {};
     if (!userId) throw new ValidationError('User not found');
     if (!orderId) throw new ValidationError('Order ID is required');
-    const data = { qualityStars, deliveryAgentStars, onTimeStars, valueForMoneyStars, wouldOrderAgain };
+    const data = { qualityStars, deliveryAgentStars, onTimeStars, valueForMoneyStars, wouldOrderAgain, productId };
     const result = await orderModel.submitDetailedFeedback(orderId, userId, data);
     res.json({ success: true, data: result });
   } catch (error) {
@@ -514,6 +540,7 @@ const submitDetailedFeedback = async (req, res, next) => {
 module.exports = {
   createOrder,
   getMyOrders,
+  getDeliveredForReview,
   getOrderById,
   verifyPayment,
   submitFeedback,

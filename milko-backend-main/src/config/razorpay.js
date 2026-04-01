@@ -34,6 +34,16 @@ const requireRazorpay = () => {
   return razorpay;
 };
 
+/** Razorpay Node SDK errors usually expose { error: { description, code } } */
+const getRazorpayErrorMessage = (error, fallback) => {
+  const d = error?.error?.description || error?.error?.field;
+  if (d && String(d).trim()) return String(d).trim();
+  if (error?.message && typeof error.message === 'string' && !/^Request failed with status code/i.test(error.message)) {
+    return error.message;
+  }
+  return fallback;
+};
+
 /**
  * Create a Razorpay subscription
  * @param {Object} options - Subscription options
@@ -54,7 +64,7 @@ const createSubscription = async (options) => {
     return subscription;
   } catch (error) {
     console.error('Razorpay subscription creation error:', error);
-    throw new Error('Failed to create subscription');
+    throw new Error(getRazorpayErrorMessage(error, 'Failed to create subscription'));
   }
 };
 
@@ -78,7 +88,77 @@ const createOrder = async (options) => {
     return order;
   } catch (error) {
     console.error('Razorpay order creation error:', error);
-    throw new Error('Failed to create order');
+    throw new Error(getRazorpayErrorMessage(error, 'Failed to create order'));
+  }
+};
+
+/**
+ * Create a Razorpay plan for recurring AutoPay.
+ * @param {Object} options
+ * @param {number} options.amount - Amount in paise
+ * @param {string} options.period - daily|weekly|monthly|yearly
+ * @param {number} options.interval - Billing interval
+ * @param {string} options.name - Plan name
+ * @param {string} options.description - Plan description
+ * @returns {Promise<Object>} Razorpay plan object
+ */
+const createPlan = async (options) => {
+  try {
+    const client = requireRazorpay();
+    const plan = await client.plans.create({
+      period: options.period || 'monthly',
+      interval: options.interval || 1,
+      item: {
+        name: options.name || 'Milko Subscription',
+        description: options.description || 'Recurring subscription payment',
+        amount: options.amount,
+        currency: options.currency || 'INR',
+      },
+      notes: options.notes || {},
+    });
+    return plan;
+  } catch (error) {
+    console.error('Razorpay plan creation error:', error);
+    throw new Error(getRazorpayErrorMessage(error, 'Failed to create plan'));
+  }
+};
+
+/**
+ * Create a Razorpay recurring subscription from a plan.
+ * @param {Object} options
+ * @param {string} options.planId
+ * @param {number} options.totalCount
+ * @param {number} options.startAt
+ * @returns {Promise<Object>} Razorpay subscription object
+ */
+const createAutoPaySubscription = async (options) => {
+  try {
+    const client = requireRazorpay();
+    const subscription = await client.subscriptions.create({
+      plan_id: options.planId,
+      customer_notify: 1,
+      total_count: options.totalCount || 120,
+      start_at: options.startAt || Math.floor(Date.now() / 1000) + 60,
+      notes: options.notes || {},
+    });
+    return subscription;
+  } catch (error) {
+    console.error('Razorpay autopay subscription creation error:', error);
+    throw new Error(getRazorpayErrorMessage(error, 'Failed to setup autopay'));
+  }
+};
+
+/**
+ * Cancel a Razorpay recurring subscription (mandate / AutoPay).
+ * @param {string} razorpaySubscriptionId - e.g. sub_xxxxx
+ */
+const cancelRazorpaySubscription = async (razorpaySubscriptionId) => {
+  try {
+    const client = requireRazorpay();
+    await client.subscriptions.cancel(razorpaySubscriptionId);
+  } catch (error) {
+    console.error('Razorpay subscription cancel error:', error);
+    throw new Error(getRazorpayErrorMessage(error, 'Failed to cancel AutoPay with Razorpay'));
   }
 };
 
@@ -113,7 +193,7 @@ const getPayment = async (paymentId) => {
     return payment;
   } catch (error) {
     console.error('Razorpay get payment error:', error);
-    throw new Error('Failed to fetch payment');
+    throw new Error(getRazorpayErrorMessage(error, 'Failed to fetch payment'));
   }
 };
 
@@ -121,6 +201,9 @@ module.exports = {
   razorpay,
   hasRazorpayKeys,
   createSubscription,
+  createPlan,
+  createAutoPaySubscription,
+  cancelRazorpaySubscription,
   createOrder,
   verifyWebhookSignature,
   getPayment,

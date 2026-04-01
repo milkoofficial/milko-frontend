@@ -328,7 +328,7 @@ export default function CartPage() {
                     <div className={styles.itemInfo}>
                       {v && <span>{v.size}</span>}
                       <span>Fresh milk</span>
-                      <span>Express delivery in 3 days</span>
+                      <span>Express delivery in 1 Hour</span>
                     </div>
                     <div className={styles.itemPrice}>₹{price.toFixed(2)}</div>
                   </div>

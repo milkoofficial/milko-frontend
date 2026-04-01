@@ -54,6 +54,9 @@ const transformSubscription = (row) => {
     walletUsed: row.wallet_used !== null && row.wallet_used !== undefined ? parseFloat(row.wallet_used) : undefined,
     purchasedAt: row.purchased_at ? new Date(row.purchased_at).toISOString() : undefined,
     cancelledAt: row.cancelled_at ? new Date(row.cancelled_at).toISOString() : undefined,
+    renewedAt: row.renewed_at ? new Date(row.renewed_at).toISOString() : undefined,
+    initialStartDate: row.initial_start_date ? new Date(row.initial_start_date).toISOString().split('T')[0] : undefined,
+    autopayFailureReason: row.autopay_failure_reason || undefined,
     createdAt: row.created_at?.toISOString(),
     updatedAt: row.updated_at?.toISOString(),
     // Extended fields from joins (for admin view)
@@ -77,6 +80,7 @@ const transformProduct = (row) => {
     pricePerLitre: parseFloat(row.price_per_litre),
     sellingPrice: row.selling_price !== null ? parseFloat(row.selling_price) : null,
     compareAtPrice: row.compare_at_price !== null ? parseFloat(row.compare_at_price) : null,
+    taxPercent: row.tax_percent !== null && row.tax_percent !== undefined ? parseFloat(row.tax_percent) : 0,
     imageUrl: row.image_url,
     isActive: row.is_active,
     isMembershipEligible: row.is_membership_eligible || false,

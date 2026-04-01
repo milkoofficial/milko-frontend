@@ -20,7 +20,13 @@ async function ensureSubscriptionSchema() {
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS wallet_used NUMERIC(12, 2) NOT NULL DEFAULT 0;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS purchased_at TIMESTAMPTZ;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS renewed_at TIMESTAMPTZ;`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS initial_start_date DATE;`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS renewal_order_id VARCHAR(255);`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS autopay_failure_reason TEXT;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS address_id INTEGER;`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS checkout_order_id UUID;`);
+  await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_checkout_order_id ON subscriptions(checkout_order_id) WHERE checkout_order_id IS NOT NULL;`);
 
   // Ensure delivery schedule + paused dates tables exist.
   // Live deployments may run partially without executing schema.sql migrations.

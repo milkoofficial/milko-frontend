@@ -11,19 +11,14 @@ interface HowWasItModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: OrderForRating | null;
-  onSubmitSuccess: (qualityStars: number) => void;
+  /** Required when the order has multiple products; sent to the API as productId */
+  productId?: number | null;
+  onSubmitSuccess?: () => void;
 }
-
-const STAR_LABELS = [
-  'Quality of the product',
-  'Delivery agent behaviour',
-  'On time delivery',
-  'Value for money',
-] as const;
 
 const WO_OPTIONS = ['Yes', 'Maybe', 'No'] as const;
 
-export default function HowWasItModal({ isOpen, onClose, order, onSubmitSuccess }: HowWasItModalProps) {
+export default function HowWasItModal({ isOpen, onClose, order, productId: productIdProp, onSubmitSuccess }: HowWasItModalProps) {
   const { showToast } = useToast();
   const [qualityStars, setQualityStars] = useState(0);
   const [deliveryAgentStars, setDeliveryAgentStars] = useState(0);
@@ -47,6 +42,19 @@ export default function HowWasItModal({ isOpen, onClose, order, onSubmitSuccess 
 
   const handleSubmit = async () => {
     if (!order?.id) return;
+    const distinctProductIds = new Set(
+      (order.items || []).map((i) => i.productId).filter((id): id is number => id != null && Number.isFinite(id))
+    );
+    const pid =
+      productIdProp != null && Number.isFinite(productIdProp)
+        ? productIdProp
+        : distinctProductIds.size === 1
+          ? [...distinctProductIds][0]
+          : null;
+    if (distinctProductIds.size > 1 && pid == null) {
+      showToast('Missing product for this rating', 'error');
+      return;
+    }
     if (qualityStars < 1 || qualityStars > 5 || deliveryAgentStars < 1 || deliveryAgentStars > 5 ||
         onTimeStars < 1 || onTimeStars > 5 || valueForMoneyStars < 1 || valueForMoneyStars > 5 ||
         !wouldOrderAgain) {
@@ -55,7 +63,7 @@ export default function HowWasItModal({ isOpen, onClose, order, onSubmitSuccess 
     }
     setSubmitting(true);
     try {
-      const data = await apiClient.post<{ qualityStars: number }>(
+      await apiClient.post<{ qualityStars: number; productId?: number }>(
         `/api/orders/${order.id}/detailed-feedback`,
         {
           qualityStars,
@@ -63,10 +71,11 @@ export default function HowWasItModal({ isOpen, onClose, order, onSubmitSuccess 
           onTimeStars,
           valueForMoneyStars,
           wouldOrderAgain,
+          ...(pid != null ? { productId: pid } : {}),
         }
       );
       showToast('Thank you for your feedback!', 'success');
-      onSubmitSuccess(data?.qualityStars ?? qualityStars);
+      onSubmitSuccess?.();
       handleClose();
     } catch (e: unknown) {
       const msg = (e && typeof e === 'object' && 'message' in e) ? String((e as { message?: string }).message) : 'Failed to submit';

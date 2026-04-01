@@ -5,6 +5,7 @@ import { apiClient } from '@/lib/api';
 import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import adminStyles from '../admin-styles.module.css';
 import { useToast } from '@/contexts/ToastContext';
+import { formatDateTimeIST } from '@/lib/utils/datetime';
 
 type OrderItem = {
   productName: string;
@@ -158,7 +159,7 @@ export default function AdminOrdersPage() {
               >
                 <td style={{ padding: '1rem', fontWeight: 700 }}>#{o.orderNumber}</td>
                 <td style={{ padding: '1rem' }}>
-                  {o.orderedAt ? new Date(o.orderedAt).toLocaleString() : '—'}
+                  {formatDateTimeIST(o.orderedAt)}
                 </td>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ fontWeight: 700 }}>{o.customerName || '—'}</div>
@@ -266,7 +267,7 @@ export default function AdminOrdersPage() {
                   Order #{selectedOrder.orderNumber}
                 </h2>
                 <p style={{ color: '#666', marginBottom: '2rem' }}>
-                  {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString() : ''}
+                  {formatDateTimeIST(selectedOrder.createdAt)}
                 </p>
 
                 {/* Customer Info */}

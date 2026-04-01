@@ -19,5 +19,9 @@ router.post('/:id/pause', subscriptionController.pauseSubscription);
 router.post('/:id/resume', subscriptionController.resumeSubscription);
 router.post('/:id/cancel', subscriptionController.cancelSubscription);
 router.post('/:id/cancel-today', subscriptionController.cancelTodaysDelivery);
+router.post('/:id/setup-autopay', subscriptionController.setupAutoPay);
+router.post('/:id/remove-autopay', subscriptionController.removeAutoPay);
+router.post('/:id/renew-init', subscriptionController.renewExpiredInit);
+router.post('/:id/renew-verify', subscriptionController.renewExpiredVerify);
 
 module.exports = router;

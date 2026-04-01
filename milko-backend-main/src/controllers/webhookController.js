@@ -67,6 +67,10 @@ const handleRazorpayWebhook = async (req, res, next) => {
         await handleSubscriptionCancelled(payload);
         break;
 
+      case 'subscription.charged':
+        await handleSubscriptionCharged(payload);
+        break;
+
       default:
         console.log('Unhandled webhook event:', event);
     }
@@ -112,6 +116,18 @@ const handlePaymentCaptured = async (payload) => {
     return;
   }
 
+  // 0b) Razorpay recurring subscription charge → extend same Milko subscription (AutoPay renewal)
+  if (payment.subscription_id) {
+    const renewed = await subscriptionService.applyAutopaySubscriptionRenewalFromPayment(
+      payment.subscription_id,
+      payment.id
+    );
+    if (renewed) {
+      console.log(`[Razorpay webhook] AutoPay renewal applied (payment ${payment.id})`);
+      return;
+    }
+  }
+
   // 1) Try subscription (razorpay_subscription_id = order_id for subscription flows)
   const subResult = await query(
     'SELECT id FROM subscriptions WHERE razorpay_subscription_id = $1',
@@ -131,6 +147,7 @@ const handlePaymentCaptured = async (payload) => {
   );
   if (orderResult.rows.length > 0) {
     await orderModel.updatePaymentStatusByRazorpayOrderId(razorpayOrderId, 'paid');
+    await subscriptionService.createFromCheckoutOrder(orderResult.rows[0].id);
     console.log(`[Razorpay webhook] Order ${orderResult.rows[0].id} marked paid`);
   }
 };
@@ -142,6 +159,19 @@ const handlePaymentFailed = async (payload) => {
   const payment = payload.payment.entity;
   console.log('Payment failed:', payment.id, payment.error_description);
   // Log for admin review - could send notification
+};
+
+/**
+ * Recurring subscription charge succeeded (same as payment.captured for subscription payments).
+ */
+const handleSubscriptionCharged = async (payload) => {
+  const payment = payload.payment?.entity;
+  const sub = payload.subscription?.entity;
+  if (!payment?.id || !sub?.id) return;
+  const renewed = await subscriptionService.applyAutopaySubscriptionRenewalFromPayment(sub.id, payment.id);
+  if (renewed) {
+    console.log(`[Razorpay webhook] subscription.charged applied for ${sub.id}`);
+  }
 };
 
 /**

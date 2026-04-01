@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { subscriptionsApi } from '@/lib/api';
+import { useParams, useRouter } from 'next/navigation';
+import { contentApi, subscriptionsApi } from '@/lib/api';
 import { Subscription } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
 import styles from './page.module.css';
@@ -20,6 +20,19 @@ function formatDateKey(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function getTodayDateKeyInIST(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const year = parts.find((p) => p.type === 'year')?.value ?? '0000';
+  const month = parts.find((p) => p.type === 'month')?.value ?? '01';
+  const day = parts.find((p) => p.type === 'day')?.value ?? '01';
+  return `${year}-${month}-${day}`;
 }
 
 function getCalendarDayClassName(
@@ -94,6 +107,48 @@ function addDays(input: Date, days: number) {
   return next;
 }
 
+/** IST midnight on the calendar day after subscription `end_date` (same rule as backend AutoPay charge). */
+function formatNextAutopayAtIst(endDateIso: string): string {
+  const endStr = (endDateIso || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endStr)) return '—';
+  const endStartIst = new Date(`${endStr}T00:00:00+05:30`);
+  const chargeAt = new Date(endStartIst.getTime() + 24 * 60 * 60 * 1000);
+  const timePart = chargeAt.toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const datePart = chargeAt.toLocaleDateString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  return `${timePart}, ${datePart}`;
+}
+
+function getRenewedAtValue(sub: Subscription): string | null {
+  const anySub = sub as Subscription & {
+    renewedAt?: string;
+    renewalDate?: string;
+    lastRenewedAt?: string;
+    renewedOn?: string;
+  };
+  const candidate =
+    anySub.renewedAt
+    || anySub.renewalDate
+    || anySub.lastRenewedAt
+    || anySub.renewedOn
+    || null;
+  if (!candidate) return null;
+  const purchased = sub.purchasedAt || sub.createdAt;
+  if (purchased && formatDateKey(new Date(candidate)) === formatDateKey(new Date(purchased))) {
+    return null;
+  }
+  return candidate;
+}
+
 function buildCalendarCells(month: Date, rangeStart: Date, rangeEnd: Date): CalendarCell[] {
   const firstDay = startOfMonth(month);
   const weekStartsOn = 0;
@@ -115,53 +170,97 @@ function buildCalendarCells(month: Date, rangeStart: Date, rangeEnd: Date): Cale
   return cells;
 }
 
-type BadgeVariant = 'active' | 'paused' | 'pending' | 'expired' | 'cancelled' | 'failed' | 'endingSoon';
+type BadgeVariant = 'active' | 'paused' | 'pending' | 'expired' | 'cancelled' | 'failed';
 
 function getStatusPresentation(
   sub: Subscription,
-  completionRatio: number,
 ): { label: string; variant: BadgeVariant; showTick: boolean } {
-  const end = new Date(sub.endDate);
+  if (sub.status === 'cancelled') return { label: 'Cancelled', variant: 'cancelled', showTick: false };
+  if (sub.status === 'expired') return { label: 'Expired', variant: 'expired', showTick: false };
+  if (sub.status === 'paused') return { label: 'Paused', variant: 'paused', showTick: false };
+  if (sub.status === 'pending') return { label: 'Pending', variant: 'pending', showTick: false };
+  if (sub.status === 'failed') return { label: 'Failed', variant: 'failed', showTick: false };
+  return { label: 'Active', variant: 'active', showTick: true };
+}
+
+function getStatusBadgeClass(variant: BadgeVariant): string {
+  if (variant === 'active') return styles.statusBadgeActive;
+  if (variant === 'paused') return styles.statusBadgePaused;
+  if (variant === 'pending') return styles.statusBadgePending;
+  if (variant === 'cancelled') return styles.statusBadgeCancelled;
+  if (variant === 'failed') return styles.statusBadgeFailed;
+  return styles.statusBadgeExpired;
+}
+
+function getNextDeliveryLabel(subscription: Subscription): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const endDateOnly = new Date(end);
-  endDateOnly.setHours(0, 0, 0, 0);
-  const isExpiredByDate = endDateOnly < today;
-  const isFullyUtilized = completionRatio >= 1;
 
-  if (sub.status === 'cancelled' && !isFullyUtilized) {
-    return { label: 'Cancelled', variant: 'cancelled', showTick: false };
+  const end = new Date(subscription.endDate);
+  end.setHours(0, 0, 0, 0);
+  if (end < today || subscription.status === 'expired' || subscription.status === 'cancelled') {
+    return '—';
   }
-  if (sub.status === 'expired' || isExpiredByDate || isFullyUtilized) {
-    return { label: 'Expired', variant: 'expired', showTick: false };
+
+  let nextDate: Date | null = null;
+  const paused = new Set(subscription.pausedDates || []);
+  const blockedDates = new Set(paused);
+  (subscription.deliverySchedules || []).forEach((d) => {
+    if (d.status === 'cancelled' || d.status === 'skipped') {
+      blockedDates.add(d.deliveryDate.slice(0, 10));
+    }
+  });
+
+  const pendingDates = (subscription.deliverySchedules || [])
+    .filter((d) => d.status === 'pending')
+    .map((d) => new Date(d.deliveryDate))
+    .map((d) => {
+      d.setHours(0, 0, 0, 0);
+      return d;
+    })
+    .filter((d) => !blockedDates.has(formatDateKey(d)))
+    .filter((d) => d >= today)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  if (pendingDates.length > 0) {
+    nextDate = pendingDates[0];
+  } else {
+    let cursor = new Date(today);
+    while (cursor <= end) {
+      if (!blockedDates.has(formatDateKey(cursor))) {
+        nextDate = new Date(cursor);
+        break;
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
   }
-  if (completionRatio >= 0.8) {
-    return { label: 'Ending Soon', variant: 'endingSoon', showTick: false };
-  }
-  if (sub.status === 'paused') {
-    return { label: 'Paused', variant: 'paused', showTick: false };
-  }
-  if (sub.status === 'pending') {
-    return { label: 'Pending', variant: 'pending', showTick: false };
-  }
-  if (sub.status === 'failed') {
-    return { label: 'Failed', variant: 'failed', showTick: false };
-  }
-  return { label: 'Active', variant: 'active', showTick: true };
+
+  if (!nextDate) return '—';
+
+  const dayDiff = Math.round((nextDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+  if (dayDiff <= 0) return 'today';
+  if (dayDiff === 1) return 'tomorrow';
+  return `${dayDiff} days later`;
 }
 
 export default function SubscriptionDetailsPage() {
   const params = useParams();
+  const router = useRouter();
   const subscriptionId = params?.id as string;
   const { showToast } = useToast();
 
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [autopayBusy, setAutopayBusy] = useState(false);
+  const [deleteAutopayBusy, setDeleteAutopayBusy] = useState(false);
+  const [renewBusy, setRenewBusy] = useState(false);
   const [error, setError] = useState('');
   const [showCancelTodayModal, setShowCancelTodayModal] = useState(false);
   const [showCancelSubscriptionModal, setShowCancelSubscriptionModal] = useState(false);
   const [showRefundBreakup, setShowRefundBreakup] = useState(false);
+  const [helpSupportNumber, setHelpSupportNumber] = useState<string>('');
+  const [todayIstKey, setTodayIstKey] = useState(() => getTodayDateKeyInIST());
 
   const fetchSubscription = useCallback(async () => {
     if (!subscriptionId) return;
@@ -182,25 +281,42 @@ export default function SubscriptionDetailsPage() {
     fetchSubscription();
   }, [fetchSubscription]);
 
+  useEffect(() => {
+    const tick = () => setTodayIstKey(getTodayDateKeyInIST());
+    tick();
+    const id = setInterval(tick, 30 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    contentApi.getByType('help_support').then((c) => {
+      setHelpSupportNumber((c?.metadata as { helpSupportNumber?: string })?.helpSupportNumber || '');
+    }).catch(() => setHelpSupportNumber(''));
+  }, []);
+
   const dateRange = useMemo(() => {
     if (!subscription) return null;
+    const purchasedBase = subscription.purchasedAt || subscription.createdAt || subscription.startDate;
+    const startFromSubscription = dateOnly(new Date(subscription.startDate));
+    const purchasedDateOnly = dateOnly(new Date(purchasedBase));
+    const effectiveStart =
+      startFromSubscription < purchasedDateOnly ? purchasedDateOnly : startFromSubscription;
     return {
-      start: dateOnly(new Date(subscription.startDate)),
+      start: effectiveStart,
       end: dateOnly(new Date(subscription.endDate)),
     };
   }, [subscription]);
 
   const calendarMonths = useMemo(() => {
     if (!dateRange) return [];
-    const startMonth = startOfMonth(dateRange.start);
+    const months: Date[] = [];
+    const cursor = startOfMonth(dateRange.start);
     const endMonth = startOfMonth(dateRange.end);
-    if (
-      startMonth.getFullYear() === endMonth.getFullYear()
-      && startMonth.getMonth() === endMonth.getMonth()
-    ) {
-      return [startMonth];
+    while (cursor <= endMonth) {
+      months.push(new Date(cursor));
+      cursor.setMonth(cursor.getMonth() + 1);
     }
-    return [startMonth, endMonth];
+    return months;
   }, [dateRange]);
 
   const scheduleByDate = useMemo(() => {
@@ -215,6 +331,11 @@ export default function SubscriptionDetailsPage() {
     () => new Set(subscription?.pausedDates ?? []),
     [subscription],
   );
+
+  const isTodayCancelled = useMemo(() => {
+    const status = scheduleByDate.get(todayIstKey);
+    return pausedDateSet.has(todayIstKey) || status === 'cancelled' || status === 'skipped';
+  }, [pausedDateSet, scheduleByDate, todayIstKey]);
 
   if (loading) {
     return (
@@ -240,12 +361,17 @@ export default function SubscriptionDetailsPage() {
   const orderId = subscription.razorpaySubscriptionId || subscription.id;
   const paidAmount = subscription.totalAmountPaid ?? subscription.totalAmount ?? 0;
   const canManage = subscription.status === 'active' || subscription.status === 'paused';
-  const autoPayConnected = Boolean(subscription.razorpaySubscriptionId);
+  const hasAutopayMandate = String(subscription.razorpaySubscriptionId || '').startsWith('sub_');
+  const nextAutopayDateDisplay = formatNextAutopayAtIst(subscription.endDate);
   const subscriptionItemName = subscription.product?.name || 'this item';
   const formatInr = (value: number) =>
     new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
-  const start = dateOnly(new Date(subscription.startDate));
+  const purchasedAtValue = subscription.purchasedAt || subscription.createdAt || null;
+  const renewedAtValue = getRenewedAtValue(subscription);
+  const effectiveStart = dateRange?.start ?? dateOnly(new Date(subscription.startDate));
+  const displayDeliveryStart = subscription.initialStartDate || effectiveStart.toISOString();
+  const start = effectiveStart;
   const end = dateOnly(new Date(subscription.endDate));
   const msPerDay = 1000 * 60 * 60 * 24;
   const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / msPerDay) + 1);
@@ -253,21 +379,17 @@ export default function SubscriptionDetailsPage() {
   const deliveredDays = subscription.deliverySchedules?.filter((d) => d.status === 'delivered').length ?? 0;
   const usedDays = Math.min(totalDays, Math.max(0, deliveredDays));
   const unusedDays = Math.max(0, totalDays - usedDays);
-  const completionRatio = totalDays > 0 ? usedDays / totalDays : 0;
   const paid = Number(paidAmount) || 0;
   const unusedAmount = totalDays > 0 ? (paid / totalDays) * unusedDays : 0;
   const unusedAmountInr = formatInr(Math.max(0, unusedAmount));
-  const status = getStatusPresentation(subscription, completionRatio);
-
-  const badgeClass = {
-    active: styles.statusBadgeActive,
-    paused: styles.statusBadgePaused,
-    pending: styles.statusBadgePending,
-    expired: styles.statusBadgeExpired,
-    cancelled: styles.statusBadgeCancelled,
-    failed: styles.statusBadgeFailed,
-    endingSoon: styles.statusBadgeEndingSoon,
-  }[status.variant];
+  const status = getStatusPresentation(subscription);
+  const badgeClass = getStatusBadgeClass(status.variant);
+  const isCancelledSubscription = subscription.status === 'cancelled';
+  const expiryDateForDisplay = isCancelledSubscription
+    ? (subscription.cancelledAt || null)
+    : subscription.endDate;
+  const expiryTextForDisplay = expiryDateForDisplay ? fmtFullDate(expiryDateForDisplay) : 'N/A';
+  const endLabel = subscription.status === 'cancelled' ? 'Ended' : 'Ends';
 
   return (
     <div className={styles.container}>
@@ -290,7 +412,7 @@ export default function SubscriptionDetailsPage() {
           </span>
           <span className={styles.metaMuted}>
             {' • '}
-            Ends {fmtFullDate(subscription.endDate)}
+            {endLabel} {expiryTextForDisplay}
             {' • '}
             ₹{Number(paidAmount).toFixed(2)}
           </span>
@@ -335,44 +457,6 @@ export default function SubscriptionDetailsPage() {
             ) : (
               <p className={styles.deliveryAddressLine}>No delivery address selected for this subscription.</p>
             )}
-          </div>
-        </section>
-
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Subscription details</h2>
-          <div className={styles.detailsGrid}>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Delivery start</span>
-              <span className={styles.detailValue}>{fmtFullDate(subscription.startDate)}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Expiry</span>
-              <span className={styles.detailValue}>{fmtFullDate(subscription.endDate)}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Purchased / renewed</span>
-              <span className={styles.detailValue}>{fmtFullDate(subscription.purchasedAt || subscription.createdAt)}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Delivery time</span>
-              <span className={styles.detailValue}>{subscription.deliveryTime}</span>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Order ID</span>
-              <button
-                type="button"
-                className={styles.copyValueBtn}
-                onClick={() => {
-                  navigator.clipboard.writeText(String(orderId)).then(() => showToast('Copied!', 'success')).catch(() => {});
-                }}
-              >
-                {orderId}
-              </button>
-            </div>
-            <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Total paid</span>
-              <span className={styles.detailValue}>₹{Number(paidAmount).toFixed(2)}</span>
-            </div>
           </div>
         </section>
 
@@ -454,23 +538,249 @@ export default function SubscriptionDetailsPage() {
         </section>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>AutoPay (Razorpay)</h2>
-          <p className={styles.autoPayText}>
-            {autoPayConnected
-              ? 'AutoPay reference is linked for this subscription.'
-              : 'AutoPay is not linked yet for this subscription.'}
-          </p>
-          <div className={styles.autoPayActions}>
-            <a
-              href="https://razorpay.com/"
-              target="_blank"
-              rel="noreferrer"
-              className={styles.autoPayButton}
-            >
-              Set AutoPay with Razorpay
-            </a>
+          <h2 className={styles.sectionTitle}>Subscription details</h2>
+          <div className={styles.detailsGrid}>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Delivery start</span>
+              <span className={styles.detailValue}>{fmtFullDate(displayDeliveryStart)}</span>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Expiry</span>
+              <span className={styles.detailValue}>{expiryTextForDisplay}</span>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Duration</span>
+              <span className={styles.detailValue}>
+                {subscription.durationMonths} month{subscription.durationMonths !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Next Delivery</span>
+              <span className={styles.detailValue}>{getNextDeliveryLabel(subscription)}</span>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Purchased</span>
+              <span className={styles.detailValue}>{fmtFullDate(purchasedAtValue)}</span>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Renewed</span>
+              <span className={styles.detailValue}>{renewedAtValue ? fmtFullDate(renewedAtValue) : 'N/A'}</span>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Delivery time</span>
+              <span className={styles.detailValue}>{subscription.deliveryTime}</span>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Order ID</span>
+              <button
+                type="button"
+                className={styles.copyValueBtn}
+                onClick={() => {
+                  navigator.clipboard.writeText(String(orderId)).then(() => showToast('Copied!', 'success')).catch(() => {});
+                }}
+              >
+                {orderId}
+              </button>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Total paid</span>
+              <span className={styles.detailValue}>₹{Number(paidAmount).toFixed(2)}</span>
+            </div>
           </div>
         </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{(subscription.status === 'cancelled' || subscription.status === 'expired') ? 'Renew' : 'AutoPay'}</h2>
+          {subscription.status === 'cancelled' ? (
+            <div className={styles.autoPayActions}>
+              <button
+                type="button"
+                className={styles.autoPayButton}
+                onClick={() => {
+                  const redirectProductId = subscription.productId || subscription.product?.id;
+                  const query = redirectProductId
+                    ? `?from=cart&renew=1&productId=${encodeURIComponent(String(redirectProductId))}`
+                    : '?from=cart&renew=1';
+                  router.push(`/subscribe${query}`);
+                }}
+              >
+                Create A New Subscription
+              </button>
+            </div>
+          ) : subscription.status === 'expired' ? (
+            <>
+              {subscription.autopayFailureReason ? (
+                <p className={styles.autopayFailureNote}>{subscription.autopayFailureReason}</p>
+              ) : null}
+              <div className={styles.autoPayActions}>
+              <button
+                type="button"
+                className={styles.autoPayButton}
+                disabled={renewBusy}
+                onClick={async () => {
+                  const loadRazorpayScript = (): Promise<void> => {
+                    if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
+                      return Promise.resolve();
+                    }
+                    return new Promise((resolve, reject) => {
+                      const s = document.createElement('script');
+                      s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                      s.async = true;
+                      s.onload = () => resolve();
+                      s.onerror = () => reject(new Error('Failed to load Razorpay'));
+                      document.head.appendChild(s);
+                    });
+                  };
+
+                  try {
+                    setRenewBusy(true);
+                    const init = await subscriptionsApi.renewInit(subscription.id);
+                    await loadRazorpayScript();
+                    const Razorpay = (window as unknown as { Razorpay: new (o: unknown) => { open: () => void } }).Razorpay;
+                    const rzp = new Razorpay({
+                      key: init.razorpayOrder.key,
+                      order_id: init.razorpayOrder.orderId,
+                      currency: init.razorpayOrder.currency || 'INR',
+                      name: 'Milko',
+                      description: 'Subscription renewal payment',
+                      handler: async function (resp: { razorpay_payment_id: string; razorpay_order_id: string }) {
+                        try {
+                          await subscriptionsApi.renewVerify(subscription.id, {
+                            razorpay_order_id: resp.razorpay_order_id,
+                            razorpay_payment_id: resp.razorpay_payment_id,
+                          });
+                          showToast('Subscription renewed successfully', 'success');
+                          await fetchSubscription();
+                        } catch (e) {
+                          showToast((e as { message?: string })?.message || 'Renewal verification failed', 'error');
+                        } finally {
+                          setRenewBusy(false);
+                        }
+                      },
+                      modal: {
+                        ondismiss: () => setRenewBusy(false),
+                      },
+                    });
+                    rzp.open();
+                  } catch (e) {
+                    setRenewBusy(false);
+                    showToast((e as { message?: string })?.message || 'Failed to start renewal', 'error');
+                  }
+                }}
+              >
+                {renewBusy ? 'Please wait...' : 'Renew This Subscription'}
+              </button>
+            </div>
+            </>
+          ) : (
+            <>
+              {hasAutopayMandate ? (
+                <>
+                  <p className={styles.autoPayText}>
+                    AutoPay is active. Renewal is charged at the end of each period (IST midnight on the day after your last subscription day). Until then, your plan stays as it is.
+                  </p>
+                  <p className={styles.nextAutopayDateLine}>
+                    <span className={styles.nextAutopayDateStrong}>Next Autopay date: </span>
+                    {nextAutopayDateDisplay}
+                    <span className={styles.nextAutopayDateHint}>
+                      {' '}
+                      (IST — 12:00 AM on the day after your subscription period ends; e.g. period ends 30 Apr → charge 1 May)
+                    </span>
+                  </p>
+                  <p className={styles.autopayPolicyNote}>
+                    Without AutoPay, the subscription ends when the period ends. With AutoPay, if renewal fails at that time we retry once; if it fails again, the subscription expires.
+                  </p>
+                  <div className={styles.autoPayActions}>
+                    <button
+                      type="button"
+                      className={styles.deleteAutopayButton}
+                      disabled={deleteAutopayBusy}
+                      onClick={async () => {
+                        try {
+                          setDeleteAutopayBusy(true);
+                          await subscriptionsApi.removeAutopay(subscription.id);
+                          showToast('AutoPay removed', 'success');
+                          await fetchSubscription();
+                        } catch (e) {
+                          showToast((e as { message?: string })?.message || 'Failed to remove AutoPay', 'error');
+                        } finally {
+                          setDeleteAutopayBusy(false);
+                        }
+                      }}
+                    >
+                      {deleteAutopayBusy ? 'Please wait...' : 'Delete Autopay'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className={styles.autoPayText}>
+                    AutoPay is not linked yet. Without it, your subscription ends when the current period ends. When linked, renewal is charged at the end of the period—not before.
+                  </p>
+                  <div className={styles.autoPayActions}>
+                    <button
+                      type="button"
+                      className={styles.autoPayButton}
+                      disabled={autopayBusy}
+                      onClick={async () => {
+                        try {
+                          setAutopayBusy(true);
+                          const resp = await subscriptionsApi.setupAutopay(subscription.id);
+                          if (resp.shortUrl) {
+                            window.location.href = resp.shortUrl;
+                            return;
+                          }
+                          showToast('AutoPay is already linked', 'success');
+                          await fetchSubscription();
+                        } catch (e) {
+                          showToast((e as { message?: string })?.message || 'Failed to setup AutoPay', 'error');
+                          await fetchSubscription();
+                        } finally {
+                          setAutopayBusy(false);
+                        }
+                      }}
+                    >
+                      {autopayBusy ? 'Please wait...' : 'Set AutoPay'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </section>
+
+        {(subscription.status !== 'cancelled' && subscription.status !== 'expired') && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Help</h2>
+            <p className={styles.autoPayText}>Need Help with Subscription? Contact us regarding your doubt.</p>
+            <div className={styles.autoPayActions}>
+              <button
+                type="button"
+                className={styles.helpButton}
+                onClick={() => {
+                  const raw = (helpSupportNumber || '').trim();
+                  if (!raw) {
+                    showToast('Help number not configured', 'error');
+                    return;
+                  }
+                  if (/^https?:\/\//i.test(raw)) {
+                    window.open(raw, '_blank');
+                  } else {
+                    const digits = raw.replace(/\D/g, '');
+                    window.open(`https://wa.me/${digits || '0'}`, '_blank');
+                  }
+                }}
+              >
+                <svg className={styles.deliveredActionBtnIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                Contact Us
+              </button>
+            </div>
+          </section>
+        )}
 
         {canManage && (
           <section className={styles.section}>
@@ -479,8 +789,9 @@ export default function SubscriptionDetailsPage() {
               <button
                 type="button"
                 className={styles.secondaryButton}
-                disabled={busy}
+                disabled={busy || isTodayCancelled}
                 onClick={() => {
+                  if (isTodayCancelled) return;
                   setShowCancelTodayModal(true);
                 }}
               >
@@ -490,7 +801,7 @@ export default function SubscriptionDetailsPage() {
                   <path d="M19 2.80385C19.9121 3.33046 20.6695 4.08788 21.1962 5" stroke="#222222" strokeLinecap="round"></path>
                   <path d="M12 6.5V11.75C12 11.8881 12.1119 12 12.25 12H16.5" stroke="#222222" strokeLinecap="round"></path>
                 </svg>
-                Cancel Today&apos;s Delivery
+                {isTodayCancelled ? 'Today already cancelled' : "Cancel Today's Delivery"}
               </button>
               <button
                 type="button"

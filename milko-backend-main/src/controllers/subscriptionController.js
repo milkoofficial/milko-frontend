@@ -161,6 +161,66 @@ const cancelTodaysDelivery = async (req, res, next) => {
 };
 
 /**
+ * Setup Razorpay AutoPay mandate for a subscription.
+ * POST /api/subscriptions/:id/setup-autopay
+ */
+const setupAutoPay = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = await subscriptionService.setupAutoPay(id, req.user.id);
+    res.json({
+      success: true,
+      data,
+      message: data.alreadyLinked ? 'AutoPay already linked' : 'AutoPay setup created',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/subscriptions/:id/remove-autopay
+ */
+const removeAutoPay = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = await subscriptionService.removeAutoPay(id, req.user.id);
+    res.json({ success: true, data, message: 'AutoPay removed' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const renewExpiredInit = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = await subscriptionService.renewExpiredSubscriptionInit(id, req.user.id);
+    res.json({ success: true, data, message: 'Renewal payment initiated' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const renewExpiredVerify = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { razorpay_order_id: razorpayOrderId, razorpay_payment_id: razorpayPaymentId } = req.body || {};
+    if (!razorpayOrderId || !razorpayPaymentId) {
+      throw new ValidationError('razorpay_order_id and razorpay_payment_id are required');
+    }
+    const data = await subscriptionService.renewExpiredSubscriptionVerify(
+      id,
+      req.user.id,
+      razorpayOrderId,
+      razorpayPaymentId
+    );
+    res.json({ success: true, data, message: 'Subscription renewed successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Verify Razorpay payment and activate subscription
  * POST /api/subscriptions/verify-payment
  * Body: { razorpay_order_id, razorpay_payment_id }
@@ -202,5 +262,9 @@ module.exports = {
   resumeSubscription,
   cancelSubscription,
   cancelTodaysDelivery,
+  setupAutoPay,
+  removeAutoPay,
+  renewExpiredInit,
+  renewExpiredVerify,
   verifyPayment,
 };

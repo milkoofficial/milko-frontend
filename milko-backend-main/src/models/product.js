@@ -1,5 +1,12 @@
 const { query } = require('../config/database');
 const { transformProduct } = require('../utils/transform');
+let taxColumnEnsured = false;
+
+const ensureTaxColumn = async () => {
+  if (taxColumnEnsured) return;
+  await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_percent DECIMAL(5, 2) NOT NULL DEFAULT 0;`);
+  taxColumnEnsured = true;
+};
 
 /**
  * Product Model
@@ -12,6 +19,7 @@ const { transformProduct } = require('../utils/transform');
  * @returns {Promise<Object>} Created product (camelCase format)
  */
 const createProduct = async (productData) => {
+  await ensureTaxColumn();
   const { 
     name, 
     description, 
@@ -24,19 +32,20 @@ const createProduct = async (productData) => {
     categoryId = null,
     suffixAfterPrice = 'Litres',
     sellingPrice = null,
-    compareAtPrice = null
+    compareAtPrice = null,
+    taxPercent = 0
   } = productData;
 
   const result = await query(
     `INSERT INTO products (
       name, description, price_per_litre, image_url, is_active, 
       is_membership_eligible, quantity, low_stock_threshold, category_id, suffix_after_price,
-      selling_price, compare_at_price,
+      selling_price, compare_at_price, tax_percent,
       created_at, updated_at
     )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
      RETURNING *`,
-    [name, description, pricePerLitre, imageUrl, isActive, isMembershipEligible, quantity, lowStockThreshold, categoryId, suffixAfterPrice, sellingPrice, compareAtPrice]
+    [name, description, pricePerLitre, imageUrl, isActive, isMembershipEligible, quantity, lowStockThreshold, categoryId, suffixAfterPrice, sellingPrice, compareAtPrice, taxPercent]
   );
 
   return transformProduct(result.rows[0]);
@@ -47,6 +56,7 @@ const createProduct = async (productData) => {
  * @returns {Promise<Array>} Array of active products (camelCase format)
  */
 const getActiveProducts = async () => {
+  await ensureTaxColumn();
   const result = await query(
     'SELECT * FROM products WHERE is_active = true ORDER BY created_at DESC'
   );
@@ -59,6 +69,7 @@ const getActiveProducts = async () => {
  * @returns {Promise<Array>} Array of all products (camelCase format)
  */
 const getAllProducts = async () => {
+  await ensureTaxColumn();
   const result = await query(
     'SELECT * FROM products ORDER BY created_at DESC'
   );
@@ -72,6 +83,7 @@ const getAllProducts = async () => {
  * @returns {Promise<Object|null>} Product object or null (camelCase format)
  */
 const getProductById = async (productId) => {
+  await ensureTaxColumn();
   const result = await query(
     'SELECT * FROM products WHERE id = $1',
     [productId]
@@ -87,6 +99,7 @@ const getProductById = async (productId) => {
  * @returns {Promise<Object>} Updated product (camelCase format)
  */
 const updateProduct = async (productId, updates) => {
+  await ensureTaxColumn();
   const fields = [];
   const values = [];
   let paramCount = 1;
@@ -101,7 +114,8 @@ const updateProduct = async (productId, updates) => {
                   key === 'categoryId' ? 'category_id' : 
                   key === 'suffixAfterPrice' ? 'suffix_after_price' :
                   key === 'sellingPrice' ? 'selling_price' :
-                  key === 'compareAtPrice' ? 'compare_at_price' : key;
+                  key === 'compareAtPrice' ? 'compare_at_price' :
+                  key === 'taxPercent' ? 'tax_percent' : key;
     
     fields.push(`${dbKey} = $${paramCount}`);
     values.push(updates[key]);

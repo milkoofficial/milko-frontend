@@ -44,6 +44,7 @@ export default function AdminProductEditPage() {
   const [description, setDescription] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [compareAtPrice, setCompareAtPrice] = useState('');
+  const [taxPercent, setTaxPercent] = useState('');
   const [quantity, setQuantity] = useState('0');
   const [lowStockThreshold, setLowStockThreshold] = useState('10');
   const [categoryId, setCategoryId] = useState('');
@@ -71,6 +72,7 @@ export default function AdminProductEditPage() {
         setDescription(data.description || '');
         setSellingPrice(data.sellingPrice !== null && data.sellingPrice !== undefined ? String(data.sellingPrice) : '');
         setCompareAtPrice(data.compareAtPrice !== null && data.compareAtPrice !== undefined ? String(data.compareAtPrice) : '');
+        setTaxPercent(data.taxPercent !== null && data.taxPercent !== undefined ? String(data.taxPercent) : '');
         setQuantity(String(data.quantity ?? 0));
         setLowStockThreshold(String(data.lowStockThreshold ?? 10));
         setCategoryId(data.categoryId ?? '');
@@ -142,6 +144,7 @@ export default function AdminProductEditPage() {
         description: sanitizeHtml(description),
         sellingPrice: sellingPrice ? parseFloat(sellingPrice) : null,
         compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
+        taxPercent: taxPercent ? parseFloat(taxPercent) : 0,
         quantity: quantity ? parseInt(quantity) : 0,
         lowStockThreshold: lowStockThreshold ? parseInt(lowStockThreshold) : 10,
         categoryId: categoryId || null,
@@ -347,6 +350,20 @@ export default function AdminProductEditPage() {
               </div>
             </div>
             <div className={styles.formRow}>
+              <div style={{ flex: 1 }}>
+                <div className={styles.formGroup}>
+                  <label>Tax (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={taxPercent}
+                    onChange={(e) => setTaxPercent(e.target.value)}
+                    className={styles.input}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
               <div style={{ flex: 1 }}>
                 <div className={styles.formGroup}>
                   <label>Quantity</label>
