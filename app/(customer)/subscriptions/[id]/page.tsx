@@ -225,7 +225,7 @@ function getNextDeliveryLabel(subscription: Subscription): string {
   if (pendingDates.length > 0) {
     nextDate = pendingDates[0];
   } else {
-    let cursor = new Date(today);
+    const cursor = new Date(today);
     while (cursor <= end) {
       if (!blockedDates.has(formatDateKey(cursor))) {
         nextDate = new Date(cursor);
