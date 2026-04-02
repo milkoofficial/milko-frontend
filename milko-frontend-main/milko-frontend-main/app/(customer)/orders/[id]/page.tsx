@@ -541,8 +541,17 @@ export default function OrderDetailsPage() {
       <HowWasItModal
         isOpen={howWasItProductId !== null}
         onClose={() => setHowWasItProductId(null)}
-        order={order ? { id: order.id, items: order.items } : null}
-        productId={howWasItProductId}
+        order={
+          order
+            ? {
+                id: order.id,
+                // Filter to a single product so modal can infer target productId.
+                items: order.items
+                  .filter((i) => i.productId === howWasItProductId)
+                  .map((i) => ({ productId: i.productId })),
+              }
+            : null
+        }
         onSubmitSuccess={() => fetchOrder(true)}
       />
     </div>
