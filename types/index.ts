@@ -106,7 +106,11 @@ export interface Subscription {
   totalAmountPaid?: number;
   walletUsed?: number;
   purchasedAt?: string;
+  renewedAt?: string;
   cancelledAt?: string;
+  initialStartDate?: string;
+  /** Set when AutoPay setup failed twice (subscription expired automatically). */
+  autopayFailureReason?: string;
   createdAt: string;
   updatedAt: string;
   // Per-day delivery rows (when subscription detail includes schedules)
