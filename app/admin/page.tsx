@@ -44,6 +44,19 @@ interface SalesData {
   sales: number;
 }
 
+function removeRedundantPendingSubscriptions(subscriptions: Subscription[]): Subscription[] {
+  const activeKeys = new Set(
+    subscriptions
+      .filter((s) => s.status === 'active')
+      .map((s) => `${s.userId}::${s.productId}`),
+  );
+
+  return subscriptions.filter((s) => {
+    if (s.status !== 'pending') return true;
+    return !activeKeys.has(`${s.userId}::${s.productId}`);
+  });
+}
+
 /**
  * Admin Dashboard
  * Comprehensive overview with metrics, charts, and insights
@@ -56,10 +69,11 @@ export default function AdminDashboard() {
   const [customerRetention, setCustomerRetention] = useState(0);
   const [retentionChange, setRetentionChange] = useState(0);
   const [salesData, setSalesData] = useState<SalesData[]>([]);
-  const [chartPeriod, setChartPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+  const [chartPeriod, setChartPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [subscriptionsData, setSubscriptionsData] = useState<Subscription[]>([]);
   const [productsData, setProductsData] = useState<Product[]>([]);
   const [activeMemberships, setActiveMemberships] = useState(0);
+  const [expiredMemberships, setExpiredMemberships] = useState(0);
 
   useEffect(() => {
     fetchDashboardData();
@@ -78,13 +92,21 @@ export default function AdminDashboard() {
       setLoading(true);
       
       // Fetch all data in parallel
-      const [subscriptionsRes, productsRes, usersRes] = await Promise.all([
+      const [subscriptionsRes, productsRes, usersRes, cartAbandonmentRes] = await Promise.all([
         adminSubscriptionsApi.getAll().catch(() => []),
         adminProductsApi.getAll().catch(() => []),
         apiClient.getInstance().get<{ success: boolean; data: User[] }>(API_ENDPOINTS.ADMIN.USERS.LIST).catch(() => ({ data: { data: [] } })),
+        apiClient.get<{ since: string; sessionsWithAdd: number; abandonedSessions: number; abandonmentRatePercent: number }>(
+          '/admin/analytics/cart-abandonment?days=30'
+        ).catch(() => ({
+          since: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+          sessionsWithAdd: 0,
+          abandonedSessions: 0,
+          abandonmentRatePercent: 0,
+        })),
       ]);
 
-      const subscriptions: Subscription[] = subscriptionsRes || [];
+      const subscriptions: Subscription[] = removeRedundantPendingSubscriptions(subscriptionsRes || []);
       const products: Product[] = productsRes || [];
       const users: User[] = Array.isArray(usersRes.data.data) ? usersRes.data.data : [];
 
@@ -167,8 +189,8 @@ export default function AdminDashboard() {
         averageOrderValueChange: 3.1,
         returningCustomers: Math.round(returningCustomersPercent),
         returningCustomersChange: 2.4,
-        cartAbandonment: 23.8, // Placeholder
-        cartAbandonmentChange: -1.8,
+        cartAbandonment: Number(cartAbandonmentRes?.abandonmentRatePercent ?? 0),
+        cartAbandonmentChange: 0,
         productViews: 45210, // Placeholder
         productViewsChange: 15.3,
       });
@@ -181,6 +203,7 @@ export default function AdminDashboard() {
 
       // Count active memberships
       setActiveMemberships(activeSubscriptions.length);
+      setExpiredMemberships(subscriptions.filter((s) => s.status === 'expired').length);
 
       setTopCustomers(topCustomersData);
       setCustomerRetention(Math.round(retentionPercent));
@@ -193,85 +216,140 @@ export default function AdminDashboard() {
     }
   };
 
-  const generateSalesData = (subscriptions: Subscription[], products: Product[], period: 'daily' | 'weekly' | 'monthly'): SalesData[] => {
+  const generateSalesData = (
+    subscriptions: Subscription[],
+    products: Product[],
+    period: 'daily' | 'weekly' | 'monthly' | 'yearly'
+  ): SalesData[] => {
     const data: SalesData[] = [];
     const now = new Date();
+
+    const calcSubscriptionSales = (subs: Subscription[]) => {
+      return subs.reduce((sum, sub) => {
+        const product = products.find((p) => p.id === sub.productId);
+        if (product) {
+          const dailyCost = product.pricePerLitre * sub.litresPerDay;
+          const monthlyCost = dailyCost * 30;
+          return sum + monthlyCost * sub.durationMonths;
+        }
+        return sum;
+      }, 0);
+    };
+
+    const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+    const endOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    // Monday-based week start (local time)
+    const startOfWeek = (d: Date) => {
+      const date = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+      const day = date.getDay(); // 0 Sun .. 6 Sat
+      const diff = (day + 6) % 7; // Monday=0 ... Sunday=6
+      date.setDate(date.getDate() - diff);
+      return date;
+    };
+    const endOfWeek = (weekStart: Date) => {
+      const e = new Date(weekStart);
+      e.setDate(e.getDate() + 6);
+      e.setHours(23, 59, 59, 999);
+      return e;
+    };
+
+    const isDateInRange = (value: Date, from: Date, to: Date) => value >= from && value <= to;
     
     if (period === 'monthly') {
-      // Last 6 months
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-        
-        const monthSubs = subscriptions.filter(s => {
+      // Rolling last 12 months (latest on right)
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthStart = startOfMonth(d);
+        const monthEnd = endOfMonth(d);
+
+        const monthSubs = subscriptions.filter((s) => {
           const subDate = new Date(s.createdAt);
-          return subDate >= monthStart && subDate <= monthEnd;
+          return isDateInRange(subDate, monthStart, monthEnd);
         });
-        
-        const sales = monthSubs.reduce((sum, sub) => {
-          const product = products.find(p => p.id === sub.productId);
-          if (product) {
-            const dailyCost = product.pricePerLitre * sub.litresPerDay;
-            const monthlyCost = dailyCost * 30;
-            return sum + (monthlyCost * sub.durationMonths);
-          }
-          return sum;
-        }, 0);
-        
+
+        const sales = calcSubscriptionSales(monthSubs);
         data.push({
-          date: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          date: d.toLocaleDateString('en-US', { month: 'short' }),
+          sales: Math.round(sales),
+        });
+      }
+    } else if (period === 'yearly') {
+      // Year totals (sum of all months). Show last 3 years including current.
+      for (let i = 2; i >= 0; i--) {
+        const year = now.getFullYear() - i;
+        const yearStart = new Date(year, 0, 1, 0, 0, 0, 0);
+        const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
+
+        const yearSubs = subscriptions.filter((s) => {
+          const subDate = new Date(s.createdAt);
+          return isDateInRange(subDate, yearStart, yearEnd);
+        });
+
+        const sales = calcSubscriptionSales(yearSubs);
+        data.push({
+          date: String(year),
           sales: Math.round(sales),
         });
       }
     } else if (period === 'weekly') {
-      // Last 8 weeks
-      for (let i = 7; i >= 0; i--) {
-        const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
-        const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
-        
-        const weekSubs = subscriptions.filter(s => {
+      // Weekly: show up to last 4 weeks that fall in current month + 1 comparison week (previous week's bar).
+      const monthStart = startOfMonth(now);
+      const monthEnd = endOfMonth(now);
+
+      const weeksInMonth: Array<{ start: Date; end: Date }> = [];
+      let ws = startOfWeek(monthStart);
+      while (ws <= monthEnd) {
+        const we = endOfWeek(ws);
+        const intersects = we >= monthStart && ws <= monthEnd;
+        if (intersects) weeksInMonth.push({ start: new Date(ws), end: we });
+        ws = new Date(ws);
+        ws.setDate(ws.getDate() + 7);
+      }
+
+      const lastWeeks = weeksInMonth.slice(Math.max(0, weeksInMonth.length - 4));
+      const firstShown = lastWeeks[0]?.start;
+
+      const compareWeek =
+        firstShown != null
+          ? {
+              start: new Date(firstShown.getTime() - 7 * 24 * 60 * 60 * 1000),
+              end: new Date(firstShown.getTime() - 1),
+              isCompare: true as const,
+            }
+          : null;
+
+      const finalWeeks: Array<{ start: Date; end: Date; isCompare?: true }> = [];
+      if (compareWeek) finalWeeks.push(compareWeek);
+      for (const w of lastWeeks) finalWeeks.push(w);
+
+      for (const w of finalWeeks) {
+        const weekSubs = subscriptions.filter((s) => {
           const subDate = new Date(s.createdAt);
-          return subDate >= weekStart && subDate < weekEnd;
+          return isDateInRange(subDate, w.start, w.end);
         });
-        
-        const sales = weekSubs.reduce((sum, sub) => {
-          const product = products.find(p => p.id === sub.productId);
-          if (product) {
-            const dailyCost = product.pricePerLitre * sub.litresPerDay;
-            const monthlyCost = dailyCost * 30;
-            return sum + (monthlyCost * sub.durationMonths);
-          }
-          return sum;
-        }, 0);
-        
+        const sales = calcSubscriptionSales(weekSubs);
+
         data.push({
-          date: `Week ${8 - i}`,
+          date: w.isCompare
+            ? 'Prev wk'
+            : w.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           sales: Math.round(sales),
         });
       }
     } else {
-      // Last 7 days
+      // Daily: last 7 days (latest on right)
       for (let i = 6; i >= 0; i--) {
         const day = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        const dayStart = new Date(day.setHours(0, 0, 0, 0));
-        const dayEnd = new Date(day.setHours(23, 59, 59, 999));
-        
-        const daySubs = subscriptions.filter(s => {
+        const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
+        const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999);
+
+        const daySubs = subscriptions.filter((s) => {
           const subDate = new Date(s.createdAt);
-          return subDate >= dayStart && subDate <= dayEnd;
+          return isDateInRange(subDate, dayStart, dayEnd);
         });
-        
-        const sales = daySubs.reduce((sum, sub) => {
-          const product = products.find(p => p.id === sub.productId);
-          if (product) {
-            const dailyCost = product.pricePerLitre * sub.litresPerDay;
-            const monthlyCost = dailyCost * 30;
-            return sum + (monthlyCost * sub.durationMonths);
-          }
-          return sum;
-        }, 0);
-        
+
+        const sales = calcSubscriptionSales(daySubs);
         data.push({
           date: day.toLocaleDateString('en-US', { weekday: 'short' }),
           sales: Math.round(sales),
@@ -292,7 +370,22 @@ export default function AdminDashboard() {
 
   const getMaxSales = () => {
     if (salesData.length === 0) return 10000;
-    return Math.max(...salesData.map(d => d.sales));
+    const max = Math.max(...salesData.map((d) => d.sales));
+    if (max <= 0) return 10000;
+
+    // Round up to a "nice" number for axis ticks
+    const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
+    const scaled = max / magnitude;
+    const niceScaled = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+    return niceScaled * magnitude;
+  };
+
+  const getYAxisTicks = () => {
+    const max = getMaxSales();
+    const ticks = 5;
+    const step = Math.max(1, Math.round(max / (ticks - 1)));
+    const values = Array.from({ length: ticks }, (_, i) => i * step);
+    return values.reverse(); // high at top, 0 at bottom
   };
 
   if (loading) {
@@ -309,79 +402,181 @@ export default function AdminDashboard() {
     );
   }
 
+  const googleAnalyticsUrl = 'https://analytics.google.com/analytics/web/';
+
   return (
     <div className={styles.dashboard}>
-      <h1 className={adminStyles.adminPageTitle}>Dashboard</h1>
+      <h1 className={`${adminStyles.adminPageTitle} ${styles.mobileHideTitle}`}>Dashboard</h1>
+      <p className={styles.statsMobileNote}>Respective to month</p>
 
-      {/* Top Row - KPIs */}
-      <div className={styles.kpiRow}>
+      <div className={styles.statsDesktop}>
+        {/* Top Row - KPIs */}
+        <div className={styles.kpiRow}>
+          <div className={styles.kpiCard}>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
+            <div className={styles.kpiLabel}>Total Sales</div>
+            <div className={styles.kpiValue}>
+              {stats ? formatCurrency(stats.totalSales) : '₹0'}
+            </div>
+            <div className={styles.kpiChange}>
+              <span className={styles.positiveChange}>
+                +{stats?.totalSalesChange || 0}%
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.kpiCard}>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
+            <div className={styles.kpiLabel}>Orders</div>
+            <div className={styles.kpiValue}>{stats?.orders || 0}</div>
+            <div className={styles.kpiChange}>
+              <span className={styles.positiveChange}>
+                +{stats?.ordersChange || 0}%
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.kpiCard}>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
+            <div className={styles.kpiLabel}>Average Order Value</div>
+            <div className={styles.kpiValue}>
+              {stats ? formatCurrency(stats.averageOrderValue) : '₹0'}
+            </div>
+            <div className={styles.kpiChange}>
+              <span className={styles.positiveChange}>
+                +{stats?.averageOrderValueChange || 0}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Middle Row - Metrics */}
+        <div className={styles.metricsRow}>
+          <div className={styles.metricCard}>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
+            <div className={styles.metricLabel}>Returning Customers</div>
+            <div className={styles.metricValue}>{stats?.returningCustomers || 0}%</div>
+            <div className={styles.metricChange}>
+              <span className={styles.positiveChange}>
+                +{stats?.returningCustomersChange || 0}%
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.metricCard}>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconDown}`} aria-hidden="true" />
+            <div className={styles.metricLabel}>Cart Abandonment</div>
+            <div className={styles.metricValue}>{stats?.cartAbandonment || 0}%</div>
+            <div className={styles.metricChange}>
+              <span className={styles.negativeChange}>
+                -{stats?.cartAbandonmentChange || 0}%
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.metricCard}>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
+            <div className={styles.metricLabel}>Product Views</div>
+            <a
+              className={styles.metricReportLink}
+              href={googleAnalyticsUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="View full report in Google Analytics (Measurement ID: G-VP156V95WB)"
+              title="Opens Google Analytics (Measurement ID: G-VP156V95WB)"
+            >
+              View full report
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile-only combined stats grid */}
+      <div className={styles.statsMobile}>
         <div className={styles.kpiCard}>
-          <div className={styles.kpiLabel}>Total Sales</div>
+          <div className={styles.statsMobileHeader}>
+            <div className={styles.kpiLabel}>Total Sales</div>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
+          </div>
           <div className={styles.kpiValue}>
             {stats ? formatCurrency(stats.totalSales) : '₹0'}
           </div>
           <div className={styles.kpiChange}>
             <span className={styles.positiveChange}>
-              ↑ +{stats?.totalSalesChange || 0}% This month
+              +{stats?.totalSalesChange || 0}%
             </span>
           </div>
         </div>
 
         <div className={styles.kpiCard}>
-          <div className={styles.kpiLabel}>Orders</div>
+          <div className={styles.statsMobileHeader}>
+            <div className={styles.kpiLabel}>Orders</div>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
+          </div>
           <div className={styles.kpiValue}>{stats?.orders || 0}</div>
           <div className={styles.kpiChange}>
             <span className={styles.positiveChange}>
-              ↑ +{stats?.ordersChange || 0}% This month
+              +{stats?.ordersChange || 0}%
             </span>
           </div>
         </div>
 
         <div className={styles.kpiCard}>
-          <div className={styles.kpiLabel}>Average Order Value</div>
+          <div className={styles.statsMobileHeader}>
+            <div className={styles.kpiLabel}>Average Order Value</div>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
+          </div>
           <div className={styles.kpiValue}>
             {stats ? formatCurrency(stats.averageOrderValue) : '₹0'}
           </div>
           <div className={styles.kpiChange}>
             <span className={styles.positiveChange}>
-              ↑ +{stats?.averageOrderValueChange || 0}% This month
+              +{stats?.averageOrderValueChange || 0}%
             </span>
           </div>
         </div>
-      </div>
 
-      {/* Middle Row - Metrics */}
-      <div className={styles.metricsRow}>
         <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>Returning Customers</div>
+          <div className={styles.statsMobileHeader}>
+            <div className={styles.metricLabel}>Returning Customers</div>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
+          </div>
           <div className={styles.metricValue}>{stats?.returningCustomers || 0}%</div>
           <div className={styles.metricChange}>
             <span className={styles.positiveChange}>
-              ↑ +{stats?.returningCustomersChange || 0}% This month
+              +{stats?.returningCustomersChange || 0}%
             </span>
           </div>
         </div>
 
         <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>Cart Abandonment</div>
+          <div className={styles.statsMobileHeader}>
+            <div className={styles.metricLabel}>Cart Abandonment</div>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconDown}`} aria-hidden="true" />
+          </div>
           <div className={styles.metricValue}>{stats?.cartAbandonment || 0}%</div>
           <div className={styles.metricChange}>
             <span className={styles.negativeChange}>
-              ↓ {stats?.cartAbandonmentChange || 0}% This month
+              -{stats?.cartAbandonmentChange || 0}%
             </span>
           </div>
         </div>
 
         <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>Product Views</div>
-          <div className={styles.metricValue}>
-            {stats?.productViews.toLocaleString() || '0'}
+          <div className={styles.statsMobileHeader}>
+            <div className={styles.metricLabel}>Product Views</div>
+            <span className={`${styles.cardTopIcon} ${styles.cardTopIconSales}`} aria-hidden="true" />
           </div>
-          <div className={styles.metricChange}>
-            <span className={styles.positiveChange}>
-              ↑ +{stats?.productViewsChange || 0}% This month
-            </span>
-          </div>
+          <a
+            className={styles.metricReportLink}
+            href={googleAnalyticsUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="View full report in Google Analytics (Measurement ID: G-VP156V95WB)"
+            title="Opens Google Analytics (Measurement ID: G-VP156V95WB)"
+          >
+            View full report
+          </a>
         </div>
       </div>
 
@@ -410,11 +605,17 @@ export default function AdminDashboard() {
               >
                 Monthly
               </button>
+              <button
+                className={chartPeriod === 'yearly' ? styles.activeFilter : styles.filterButton}
+                onClick={() => setChartPeriod('yearly')}
+              >
+                Yearly
+              </button>
             </div>
           </div>
           <div className={styles.chartContainer}>
             <div className={styles.chartYAxis}>
-              {[0, 2500, 5000, 7500, 10000].map((val) => (
+              {getYAxisTicks().map((val) => (
                 <div key={val} className={styles.yAxisLabel}>
                   {val.toLocaleString()}
                 </div>
@@ -446,7 +647,12 @@ export default function AdminDashboard() {
             <h3>Customer Insights</h3>
             <div className={styles.insightItems}>
               <div className={styles.insightItem}>
-                <div className={styles.insightIcon}>👤</div>
+                <div className={styles.insightIcon} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 12C14.7614 12 17 9.7614 17 7C17 4.2386 14.7614 2 12 2C9.2386 2 7 4.2386 7 7C7 9.7614 9.2386 12 12 12Z" />
+                    <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" />
+                  </svg>
+                </div>
                 <div>
                   <div className={styles.insightLabel}>New Customers</div>
                   <div className={styles.insightValue}>{customerInsights?.newCustomers || 0}</div>
@@ -454,7 +660,12 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className={styles.insightItem}>
-                <div className={styles.insightIcon}>👑</div>
+                <div className={styles.insightIcon} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" />
+                    <path d="M3 16H21" />
+                  </svg>
+                </div>
                 <div>
                   <div className={styles.insightLabel}>Subscription Customers</div>
                   <div className={styles.insightValue}>{customerInsights?.vipCustomers || 0}</div>
@@ -462,7 +673,15 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className={styles.insightItem}>
-                <div className={styles.insightIcon}>👥</div>
+                <div className={styles.insightIcon} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 11C17.6569 11 19 9.6569 19 8C19 6.3431 17.6569 5 16 5C14.3431 5 13 6.3431 13 8C13 9.6569 14.3431 11 16 11Z" />
+                    <path d="M8 11C9.65685 11 11 9.6569 11 8C11 6.3431 9.65685 5 8 5C6.34315 5 5 6.3431 5 8C5 9.6569 6.34315 11 8 11Z" />
+                    <path d="M2 19C2 16.7909 4.23858 15 7 15H9" />
+                    <path d="M22 19C22 16.7909 19.7614 15 17 15H15" />
+                    <path d="M12 14C14.2091 14 16 12.2091 16 10C16 7.79086 14.2091 6 12 6C9.79086 6 8 7.79086 8 10C8 12.2091 9.79086 14 12 14Z" />
+                  </svg>
+                </div>
                 <div>
                   <div className={styles.insightLabel}>Total Customers</div>
                   <div className={styles.insightValue}>{customerInsights?.totalCustomers || 0}</div>
@@ -518,15 +737,22 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Active Memberships */}
+          {/* Subscription */}
           <div className={styles.insightCard}>
-            <h3>Active Subscriptions</h3>
+            <h3>Subscription</h3>
             <div className={styles.promotionItem}>
               <div className={styles.promotionInfo}>
                 <div className={styles.promotionName}>Total Active</div>
                 <div className={styles.promotionDetails}>{activeMemberships} active subscriptions</div>
               </div>
               <span className={styles.promotionBadge}>Active</span>
+            </div>
+            <div className={styles.promotionItem}>
+              <div className={styles.promotionInfo}>
+                <div className={styles.promotionName}>Total Expired</div>
+                <div className={styles.promotionDetails}>{expiredMemberships} expired subscriptions</div>
+              </div>
+              <span className={styles.promotionBadgeExpired}>Expired</span>
             </div>
           </div>
         </div>

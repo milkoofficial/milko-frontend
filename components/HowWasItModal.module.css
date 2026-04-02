@@ -44,14 +44,14 @@
   border: none;
   background: white;
   border-radius: 50%;
-  font-size: 1.7rem !Important;
+  font-size: 2.5rem;
   line-height: 1;
   cursor: pointer;
   color: #555;
   display: flex;
   align-items: stretch;
   justify-content: center;
-  padding: 5px 13px 8px 13px !important;
+  padding: 2px 13px 0px 13px;
 }
 
 .closeBtn:hover {

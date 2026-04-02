@@ -7,6 +7,7 @@ import { productsApi, subscriptionsApi, contentApi, walletApi, addressesApi } fr
 import { useAuth } from '@/contexts/AuthContext';
 import { Product, Address } from '@/types';
 import styles from './SubscribePage.module.css';
+import Link from 'next/link';
 
 const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
 const DEFAULT_DELIVERY_TIME_OPTIONS = [
@@ -24,13 +25,14 @@ export default function SubscribePage() {
   const { isAuthenticated } = useAuth();
   const productId = searchParams.get('productId');
   const isCartFlow = searchParams.get('from') === 'cart';
+  const isRenewFlow = searchParams.get('renew') === '1';
 
   const [product, setProduct] = useState<Product | null>(null);
   const [resolvedProductId, setResolvedProductId] = useState(productId || '');
   const [cartFlowProducts, setCartFlowProducts] = useState<Product[]>([]);
   const [litresPerDay, setLitresPerDay] = useState(1);
   const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('daily');
-  const [durationMonths, setDurationMonths] = useState(1);
+  const [durationDays, setDurationDays] = useState(30);
   const [deliveryTime, setDeliveryTime] = useState(DEFAULT_DELIVERY_TIME_OPTIONS[0].value);
   const [deliveryTimeOptions, setDeliveryTimeOptions] = useState<Array<{ label: string; value: string }>>(DEFAULT_DELIVERY_TIME_OPTIONS);
   const [loading, setLoading] = useState(true);
@@ -80,11 +82,9 @@ export default function SubscribePage() {
       setLitresPerDay(parseFloat(litersParam));
     }
     if (monthsParam) {
-      setDurationMonths(parseInt(monthsParam));
+      setDurationDays(parseInt(monthsParam, 10) * 30);
     } else if (daysParam) {
-      // Convert days to months (approximate)
-      const days = parseInt(daysParam);
-      setDurationMonths(Math.ceil(days / 30));
+      setDurationDays(parseInt(daysParam, 10));
     }
 
     if (
@@ -270,16 +270,19 @@ export default function SubscribePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resolvedProductId) return;
-    if (isCartFlow) {
+    if (isCartFlow && !isRenewFlow) {
       if (!product) return;
+      const durationMonths = Math.max(1, Math.ceil(durationDays / 30));
       const subscriptionCartItem = {
         type: 'subscription',
         productId: resolvedProductId,
         productName: product.name,
         litresPerDay,
+        durationDays,
         durationMonths,
         deliveryTime,
-        totalAmount: Number((product.pricePerLitre * litresPerDay * 30 * durationMonths).toFixed(2)),
+        paymentMethod,
+        totalAmount: Number((product.pricePerLitre * litresPerDay * durationDays).toFixed(2)),
         updatedAt: new Date().toISOString(),
       };
       localStorage.setItem('milko_subscription_cart_item_v1', JSON.stringify(subscriptionCartItem));
@@ -312,6 +315,7 @@ export default function SubscribePage() {
     setSubmitting(true);
     let openedRazorpay = false;
     try {
+      const durationMonths = Math.max(1, Math.ceil(durationDays / 30));
       const result = await subscriptionsApi.create({
         productId: resolvedProductId,
         litresPerDay,
@@ -389,7 +393,7 @@ export default function SubscribePage() {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Product not found</div>;
   }
 
-  const subscriptionTotal = product.pricePerLitre * litresPerDay * 30 * durationMonths;
+  const subscriptionTotal = product.pricePerLitre * litresPerDay * durationDays;
   const walletUsedPreview = Math.max(0, Math.min(walletBalance, subscriptionTotal));
   const onlineDuePreview = Math.max(0, Math.round((subscriptionTotal - walletUsedPreview) * 100) / 100);
   const perLitreDiscount = Math.max(
@@ -599,6 +603,9 @@ export default function SubscribePage() {
                 </button>
               </>
             )}
+            <p className={styles.deliveryAddressFixedNote}>
+              Delivery Address can&apos;t be changed once subscribed
+            </p>
           </div>
 
           {pincodeStatus === 'missing' && (
@@ -688,19 +695,21 @@ export default function SubscribePage() {
           <div className={styles.field}>
             <div className={styles.controlWrap}>
               <label className={styles.labelInBorder} htmlFor="durationMonths">
-                Duration (months)
+                Duration
               </label>
               <select
                 id="durationMonths"
                 className={styles.select}
-                value={durationMonths}
-                onChange={(e) => setDurationMonths(Number(e.target.value))}
+                value={durationDays}
+                onChange={(e) => setDurationDays(Number(e.target.value))}
                 required
               >
-                <option value={1}>1 month</option>
-                <option value={3}>3 months</option>
-                <option value={6}>6 months</option>
-                <option value={12}>12 months</option>
+                <option value={7}>7 days</option>
+                <option value={15}>15 days</option>
+                <option value={30}>1 month</option>
+                <option value={90}>3 months</option>
+                <option value={180}>6 months</option>
+                <option value={360}>12 months</option>
               </select>
               <svg className={styles.selectArrow} viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -737,15 +746,15 @@ export default function SubscribePage() {
               Total per day: <strong>₹{product.pricePerLitre * litresPerDay}</strong>
             </p>
             <p className={styles.totalLine} style={{ marginTop: 8 }}>
-              Total for {durationMonths} month(s):{' '}
+              Total for {durationDays} day(s):{' '}
               <strong>₹{subscriptionTotal}</strong>
             </p>
             <p className={styles.amountBreakdown}>
-              Breakdown: {litresPerDay} L/day × ₹{product.pricePerLitre}/L × {30 * durationMonths} day(s) = ₹{subscriptionTotal}
+              Breakdown: {litresPerDay} L/day × ₹{product.pricePerLitre}/L × {durationDays} day(s) = ₹{subscriptionTotal}
             </p>
           </div>
 
-          {!isCartFlow && (
+          {(!isCartFlow || isRenewFlow) && (
             <div className={`${styles.field} ${styles.paymentMethodField}`}>
               <label className={styles.label}>Payment method</label>
               <div className={styles.controlWrap} style={{ display: 'block' }}>
@@ -804,9 +813,15 @@ export default function SubscribePage() {
             </div>
           )}
 
-          <button type="submit" disabled={submitting || (!isCartFlow && pincodeStatus !== 'available')} className={`${styles.button} ${styles.submitBottomBtn}`}>
-            {submitting ? 'Processing...' : isCartFlow ? 'Add to cart' : pincodeStatus === 'missing' ? 'Add Pincode to Continue' : pincodeStatus === 'unavailable' ? 'Pincode Not Deliverable' : 'Proceed to Payment'}
+          <button type="submit" disabled={submitting || ((!isCartFlow || isRenewFlow) && pincodeStatus !== 'available')} className={`${styles.button} ${styles.submitBottomBtn}`}>
+            {submitting ? 'Processing...' : isCartFlow ? (isRenewFlow ? 'Proceed to Payment' : 'Add to cart') : pincodeStatus === 'missing' ? 'Add Pincode to Continue' : pincodeStatus === 'unavailable' ? 'Pincode Not Deliverable' : 'Proceed to Payment'}
           </button>
+          <div className={styles.termsConsent}>
+            By clicking, you agree to{' '}
+            <Link href="/terms" className={styles.termsLink}>
+              Terms &amp; Condition
+            </Link>
+          </div>
         </form>
 
         {mapModalAddress ? (

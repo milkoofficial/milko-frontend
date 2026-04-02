@@ -49,6 +49,23 @@
   animation: loadingShimmer 2.8s ease-in-out infinite;
 }
 
+.shimmerText {
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    #999 0%,
+    #bbb 20%,
+    #e8e8e8 50%,
+    #bbb 80%,
+    #999 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: loadingShimmer 2.8s ease-in-out infinite;
+  display: inline-block;
+}
+
 @keyframes loadingShimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
@@ -276,6 +293,25 @@ letter-spacing: -1.2px;
   background: #ccc;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.termsConsent {
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.termsLink {
+  color: #0070f3;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.termsLink:hover {
+  text-decoration: underline;
 }
 
 @media (max-width: 768px) {

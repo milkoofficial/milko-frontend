@@ -5,8 +5,10 @@ import { productsApi } from '@/lib/api';
 import { Product } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/contexts/ToastContext';
 import styles from './MembershipSection.module.css';
 import Select from '@/components/ui/Select';
+import Link from 'next/link';
 
 /**
  * Membership Section Component
@@ -20,13 +22,15 @@ import Select from '@/components/ui/Select';
 export default function MembershipSection() {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [litersPerDay, setLitersPerDay] = useState<string>('1');
   const [durationDays, setDurationDays] = useState<string>('30');
   const [loading, setLoading] = useState(true);
 
-  // Fallback demo products
+  // Fallback demo products (dev-only). Never show these on production if backend is slow/unavailable.
+  const showDemoFallback = process.env.NODE_ENV !== 'production';
   const fallbackProducts: Product[] = [
     {
       id: '1',
@@ -72,16 +76,8 @@ export default function MembershipSection() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      // Set a timeout to show fallback products if API takes too long
-      const timeoutId = setTimeout(() => {
-        setProducts(fallbackProducts);
-        setSelectedProduct(fallbackProducts[0].id);
-        setLoading(false);
-      }, 2000); // 2 second timeout
-
       try {
         const data = await productsApi.getAll();
-        clearTimeout(timeoutId);
         if (data && data.length > 0) {
           // Filter to only show membership-eligible products
           const eligibleProducts = data.filter(p => p.isMembershipEligible === true);
@@ -95,15 +91,25 @@ export default function MembershipSection() {
             setSelectedProduct(activeProducts.length > 0 ? activeProducts[0].id : data[0].id);
           }
         } else {
-          setProducts(fallbackProducts);
-          setSelectedProduct(fallbackProducts[0].id);
+          if (showDemoFallback) {
+            setProducts(fallbackProducts);
+            setSelectedProduct(fallbackProducts[0].id);
+          } else {
+            setProducts([]);
+            setSelectedProduct('');
+          }
         }
       } catch (error) {
-        clearTimeout(timeoutId);
         console.error('Failed to fetch products:', error);
-        // Use fallback products if API fails
-        setProducts(fallbackProducts);
-        setSelectedProduct(fallbackProducts[0].id);
+        if (showDemoFallback) {
+          // Use fallback products if API fails (dev only)
+          setProducts(fallbackProducts);
+          setSelectedProduct(fallbackProducts[0].id);
+        } else {
+          setProducts([]);
+          setSelectedProduct('');
+          showToast('Unable to load subscription options right now.', 'error');
+        }
       } finally {
         setLoading(false);
       }
@@ -148,7 +154,55 @@ export default function MembershipSection() {
     return (
       <div id="membership" className={styles.membershipSection}>
         <div className={styles.container}>
-          <div className={styles.loading}>Loading subscription options...</div>
+          <span id="subscriptions" style={{ display: 'block', height: 0 }} aria-hidden="true" />
+          <h2 className={styles.sectionTitle}>Become a Subscriber</h2>
+          <p className={styles.sectionSubtitle}>Get fresh milk delivered to your doorstep daily</p>
+
+          <div className={styles.twoColumnLayout}>
+            {/* Left Column - Benefits (shimmer) */}
+            <div className={styles.benefitsColumn}>
+              <h3 className={styles.benefitsTitle}>Why Choose Our Subscription?</h3>
+              <ul className={styles.benefitsList}>
+                <li className={styles.benefitItem}>
+                  <span className={styles.benefitIcon} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M20 6L9 17l-5-5"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className={`${styles.benefitText} ${styles.shimmerText}`}>
+                    Fresh, home-handled milk delivered daily.
+                  </span>
+                </li>
+                <li className={styles.benefitItem}>
+                  <span className={styles.benefitIcon} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M20 6L9 17l-5-5"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className={`${styles.benefitText} ${styles.shimmerText}`}>
+                    Cancel Anytime, unused amount transferred to wallet.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Right Column placeholder (shimmer) */}
+            <div className={styles.membershipCard}>
+              <div className={styles.loading}>Loading subscription options...</div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -157,6 +211,7 @@ export default function MembershipSection() {
   return (
     <div id="membership" className={styles.membershipSection}>
       <div className={styles.container}>
+        <span id="subscriptions" style={{ display: 'block', height: 0 }} aria-hidden="true" />
         <h2 className={styles.sectionTitle}>Become a Subscriber</h2>
         <p className={styles.sectionSubtitle}>Get fresh milk delivered to your doorstep daily</p>
         
@@ -224,6 +279,20 @@ export default function MembershipSection() {
               <li className={styles.benefitItem}>
                 <span className={styles.benefitIcon}>💰</span>
                 <span className={styles.benefitText}>Proof of Adulteration? We’ll pay you ₹5100.</span>
+              </li>
+              <li className={styles.benefitItem}>
+                <span className={styles.benefitIcon} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M20 6L9 17l-5-5"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span className={styles.benefitText}>Cancel Anytime, unused amount transferred to wallet.</span>
               </li>
             </ul>
           </div>
@@ -304,6 +373,12 @@ export default function MembershipSection() {
           >
             {isAuthenticated ? 'Subscribe Now' : 'Login to Subscribe'}
           </button>
+          <div className={styles.termsConsent}>
+            By clicking, you agree to{' '}
+            <Link href="/terms" className={styles.termsLink}>
+              Terms &amp; Condition
+            </Link>
+          </div>
           </div>
         </div>
       </div>

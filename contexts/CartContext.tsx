@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { cartStorage, CartItem } from '@/lib/utils/cart';
+import { trackCartEvent } from '@/lib/api';
 
 interface CartContextType {
   items: CartItem[];
@@ -34,6 +35,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setItems(cartStorage.get());
   }, []);
 
+  const getCartItemCount = useCallback(() => {
+    return cartStorage.get().reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  }, []);
+
   useEffect(() => {
     refreshCart();
     
@@ -51,12 +56,24 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const addItem = useCallback((item: CartItem) => {
     cartStorage.add(item);
     refreshCart();
-  }, [refreshCart]);
+    void trackCartEvent({
+      eventType: 'add',
+      cartItemCount: getCartItemCount(),
+      productId: item.productId,
+      variationId: item.variationId,
+    });
+  }, [refreshCart, getCartItemCount]);
 
   const removeItem = useCallback((productId: string, variationId?: string) => {
     cartStorage.remove(productId, variationId);
     refreshCart();
-  }, [refreshCart]);
+    void trackCartEvent({
+      eventType: 'remove',
+      cartItemCount: getCartItemCount(),
+      productId,
+      variationId,
+    });
+  }, [refreshCart, getCartItemCount]);
 
   const setItemQuantity = useCallback((productId: string, quantity: number, variationId?: string) => {
     cartStorage.setQuantity(productId, quantity, variationId);
@@ -66,6 +83,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const clearCart = useCallback(() => {
     cartStorage.clear();
     refreshCart();
+    void trackCartEvent({
+      eventType: 'clear',
+      cartItemCount: 0,
+    });
   }, [refreshCart]);
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);

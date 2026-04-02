@@ -16,7 +16,7 @@ interface MenuItem {
 
 export default function AdminMobileHeader() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -278,3 +278,4 @@ export default function AdminMobileHeader() {
     </div>
   );
 }
+

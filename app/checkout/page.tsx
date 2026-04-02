@@ -531,6 +531,7 @@ export default function CheckoutPage() {
           variationSize: v?.size,
           imageUrl: p?.images?.[0]?.imageUrl || p?.imageUrl,
           unitPrice,
+          taxPercent: p?.taxPercent ?? 0,
         };
       }),
       ...(subscriptionCartItem
@@ -543,6 +544,7 @@ export default function CheckoutPage() {
               variationSize: `Qty: ${subscriptionCartItem.litresPerDay} L/day | Period: ${subscriptionCartItem.durationMonths} month(s) | Delivery: ${subscriptionCartItem.deliveryTime}`,
               imageUrl: products[subscriptionCartItem.productId]?.images?.[0]?.imageUrl || products[subscriptionCartItem.productId]?.imageUrl,
               unitPrice: subscriptionCartItem.totalAmount,
+              taxPercent: products[subscriptionCartItem.productId]?.taxPercent ?? 0,
             },
           ]
         : []),

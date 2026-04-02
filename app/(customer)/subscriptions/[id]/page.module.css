@@ -422,26 +422,107 @@
   line-height: 1.5;
 }
 
+.autopayFailureNote {
+  margin: 0 0 0.75rem;
+  color: #b45309;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.nextAutopayDateLine {
+  margin: 0.65rem 0 0.35rem;
+  color: #333;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.nextAutopayDateStrong {
+  font-weight: 600;
+}
+
+.nextAutopayDateHint {
+  font-weight: 400;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.autopayPolicyNote {
+  margin: 0 0 0.85rem;
+  color: #666;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.deleteAutopayButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #991b1b;
+  background: #fff;
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.deleteAutopayButton:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.deleteAutopayButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .autoPayActions {
   margin-top: 1rem;
 }
 
 .autoPayButton {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.65rem 1rem;
-  border-radius: 10px;
-  border: 1px solid #111;
-  background: #111;
-  color: #fff;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.9rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.65rem 1rem;
+    border-radius: 10px;
+    border: 0px solid #008f3f;
+    background: linear-gradient(166deg, #007940, #007940);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+ font-size: 0.9rem;
 }
 
 .autoPayButton:hover {
-  background: #333;
+  background: #00582f;
+}
+
+.helpButton {
+  display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.65rem 1rem;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    background: #ffffff;
+    color: #000000;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.helpButton:hover {
+  background: #f1f1f1;
+}
+
+.deliveredActionBtnIcon {
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
+  margin-right: 0.35rem;
 }
 
 .actionRow {
@@ -493,10 +574,10 @@
 }
 
 .deliveryAddressBlock {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: white;
+  border: 0px solid #e5e7eb;
   border-radius: 10px;
-  padding: 0.75rem;
+  padding: 0rem;
 }
 
 .deliveryAddressName {

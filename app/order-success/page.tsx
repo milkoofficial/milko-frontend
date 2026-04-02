@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { productsApi } from '@/lib/api';
+import { productsApi, trackCartEvent } from '@/lib/api';
 import { Product } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -23,6 +23,7 @@ export default function OrderSuccessPage() {
     productName?: string;
     variationSize?: string;
     imageUrl?: string | null;
+    taxPercent?: number;
   }>>([]);
   const [deliveryAddress, setDeliveryAddress] = useState<any>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -70,6 +71,7 @@ export default function OrderSuccessPage() {
           variationSize?: string;
           imageUrl?: string | null;
           unitPrice?: number;
+          taxPercent?: number;
         }) => {
           const product = map[stored.productId] ?? null;
           const variation = product && stored.variationId
@@ -77,7 +79,12 @@ export default function OrderSuccessPage() {
             : null;
           const multiplier = variation?.priceMultiplier ?? 1;
           const base = product && (product.sellingPrice != null && product.sellingPrice !== undefined) ? product.sellingPrice : (product?.pricePerLitre ?? 0);
-          const price = product ? (variation?.price ?? base * multiplier) : (stored.unitPrice ?? 0);
+          const hasStoredUnitPrice = stored.unitPrice !== null && stored.unitPrice !== undefined;
+          const isSubscriptionItem = (stored.productName || '').startsWith('Subscription for ');
+          const price = hasStoredUnitPrice
+            ? Number(stored.unitPrice)
+            : (product ? (variation?.price ?? base * multiplier) : 0);
+          const taxPercent = stored.taxPercent ?? product?.taxPercent ?? 0;
 
           return {
             productId: stored.productId,
@@ -89,6 +96,7 @@ export default function OrderSuccessPage() {
             productName: stored.productName,
             variationSize: stored.variationSize,
             imageUrl: stored.imageUrl,
+            taxPercent: isSubscriptionItem ? Number(taxPercent) : Number(taxPercent),
           };
         });
 
@@ -114,10 +122,19 @@ export default function OrderSuccessPage() {
     loadOrderData();
   }, [router]);
 
+  useEffect(() => {
+    // Marks the cart session as converted to an order, so it won't count as abandoned.
+    void trackCartEvent({ eventType: 'order_placed', cartItemCount: 0 });
+  }, []);
+
   // Calculate totals
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryCharges = 0; // Free delivery
-  const tax = subtotal * 0.08; // 8% tax (adjust as needed)
+  const tax = orderItems.reduce((sum, item) => {
+    const lineTotal = item.price * item.quantity;
+    const taxRate = Number(item.taxPercent ?? 0);
+    return sum + (lineTotal * taxRate / 100);
+  }, 0);
   const total = subtotal + deliveryCharges + tax;
 
   if (loading) {

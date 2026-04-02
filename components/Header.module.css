@@ -1618,6 +1618,42 @@
   line-height: 1.2;
 }
 
+@keyframes greenShimmerFlow {
+  0% {
+    background-position: 200% 50%;
+  }
+  100% {
+    background-position: -200% 50%;
+  }
+}
+
+/* Desktop: shimmer only when delivery is available */
+.deliverTo.deliveryIconAvailable .deliverToTime,
+.deliverTo.deliveryIconAvailable .deliverToAddress {
+  background: linear-gradient(90deg, #0a7d45 0%, #10b981 30%, #19c98e 50%, #10b981 70%, #0a7d45 100%);
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: greenShimmerFlow 2.2s linear infinite;
+}
+
+.deliverTo.deliveryIconAvailable .locationIcon {
+  color: #10b981;
+  filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.35));
+}
+
+/* Mobile: same shimmer effect for top delivery badge */
+.deliveryAtLogo.deliveryIconAvailable .deliverToTime,
+.deliveryAtLogo.deliveryIconAvailable .deliverToAddress {
+  background: linear-gradient(90deg, #0a7d45 0%, #10b981 30%, #19c98e 50%, #10b981 70%, #0a7d45 100%);
+  background-size: 220% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: greenShimmerFlow 2.2s linear infinite;
+}
+
 /* Desktop: color icon when deliverTo has available/unavailable state */
 .deliverTo.deliveryIconAvailable .locationIcon {
   color: #10b981;

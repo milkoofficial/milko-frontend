@@ -10,22 +10,15 @@ import ProductDetailsModal from '@/components/ProductDetailsModal';
 import HowWasItModal from '@/components/HowWasItModal';
 import styles from './page.module.css';
 import Link from 'next/link';
+import { formatDdMmYyIST, formatFullDateIST, formatTimelineStepIST } from '@/lib/utils/datetime';
 
-function fmtDdMmYy(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)}`;
-}
-
-/** e.g. "20 Jan, 2026" for Delivered on / Ordered on */
-function fmtFullDate(iso: string | null | undefined): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const day = d.getDate();
-  const month = d.toLocaleString('en-US', { month: 'short' });
-  const year = d.getFullYear();
-  return `${day} ${month}, ${year}`;
-}
+type DetailedFeedback = {
+  qualityStars: number;
+  deliveryAgentStars: number | null;
+  onTimeStars: number | null;
+  valueForMoneyStars: number | null;
+  wouldOrderAgain: string | null;
+};
 
 type OrderItem = {
   productName: string;
@@ -36,6 +29,7 @@ type OrderItem = {
   lineTotal: number;
   productId: number | null;
   imageUrl: string | null;
+  detailedFeedback?: DetailedFeedback | null;
 };
 
 type OrderDetail = {
@@ -66,12 +60,11 @@ type OrderDetail = {
   vatAmount?: number | null;
   cardLast4?: string | null;
   cardNetwork?: string | null;
-  qualityStars?: number | null;
-  deliveryAgentStars?: number | null;
-  onTimeStars?: number | null;
-  valueForMoneyStars?: number | null;
-  wouldOrderAgain?: string | null;
 };
+
+function isSubscriptionOrderItem(item: OrderItem): boolean {
+  return (item.productName || '').trim().toLowerCase().startsWith('subscription for ');
+}
 
 // Tick SVG for completed steps
 const TickIcon = () => (
@@ -114,7 +107,7 @@ function getTimelineSteps(order: OrderDetail) {
   steps.push({
     title: 'Order confirmed',
     description: 'Order placed and confirmed',
-    date: order.createdAt ? new Date(order.createdAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+    date: order.createdAt ? formatTimelineStepIST(order.createdAt) : '',
     iconType: 'tick',
     completed: true
   });
@@ -123,7 +116,7 @@ function getTimelineSteps(order: OrderDetail) {
   steps.push({
     title: 'Package prepared',
     description: 'Packed and handed to Milko Team',
-    date: order.packagePreparedAt ? new Date(order.packagePreparedAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+    date: order.packagePreparedAt ? formatTimelineStepIST(order.packagePreparedAt) : '',
     iconType: prepared ? 'tick' : 'package',
     completed: prepared
   });
@@ -132,7 +125,7 @@ function getTimelineSteps(order: OrderDetail) {
   steps.push({
     title: 'Out for delivery',
     description: 'Will be delivered today',
-    date: order.outForDeliveryAt ? new Date(order.outForDeliveryAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+    date: order.outForDeliveryAt ? formatTimelineStepIST(order.outForDeliveryAt) : '',
     iconType: outForDelivery ? 'tick' : 'truck',
     completed: outForDelivery
   });
@@ -141,7 +134,7 @@ function getTimelineSteps(order: OrderDetail) {
   steps.push({
     title: 'Delivered',
     description: 'Package delivered successfully',
-    date: order.deliveredAt ? new Date(order.deliveredAt).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+    date: order.deliveredAt ? formatTimelineStepIST(order.deliveredAt) : '',
     iconType: delivered ? 'tick' : 'delivery',
     completed: delivered
   });
@@ -172,7 +165,7 @@ export default function OrderDetailsPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [helpSupportNumber, setHelpSupportNumber] = useState<string>('');
-  const [isHowWasItOpen, setIsHowWasItOpen] = useState(false);
+  const [howWasItProductId, setHowWasItProductId] = useState<number | null>(null);
   const { showToast } = useToast();
   const { addItem } = useCart();
 
@@ -228,6 +221,11 @@ export default function OrderDetailsPage() {
   const paymentLabel = order.status === 'cancelled' ? 'Cancelled' : order.status === 'refunded' ? 'Refunded' : order.paymentStatus === 'paid' ? 'Paid' : 'Pending';
   const paymentVariant = order.status === 'cancelled' ? 'cancelled' : order.status === 'refunded' ? 'refunded' : order.paymentStatus === 'paid' ? 'paid' : 'pending';
   const totalQty = order.items.reduce((s, i) => s + i.quantity, 0);
+
+  const hasSubscriptionItem = order.items.some(isSubscriptionOrderItem);
+  const nonSubscriptionItemCount = order.items.filter((i) => !isSubscriptionOrderItem(i)).length;
+  const showSubscriptionTransferNote = hasSubscriptionItem && nonSubscriptionItemCount === 1;
+
   const variationStr = (() => {
     const v = [...new Set(order.items.map((i) => i.variationSize).filter(Boolean))] as string[];
     return v.length ? ` • ${v.join(', ')}` : '';
@@ -251,7 +249,7 @@ export default function OrderDetailsPage() {
 
         <div className={styles.orderDateRow}>
           <span className={styles.orderDate}>
-            {fmtDdMmYy(order.createdAt)}
+            {formatDdMmYyIST(order.createdAt)}
           </span>
           <span className={styles.orderTotal}>
             {' • '}Qty: {totalQty}{variationStr} • ₹{order.total.toFixed(2)}
@@ -262,7 +260,7 @@ export default function OrderDetailsPage() {
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>ORDER SUMMARY</h2>
           <p className={styles.orderSummaryText}>
-            {(order.deliveredAt || order.deliveryDate) ? `Delivered on ${fmtFullDate(order.deliveredAt || order.deliveryDate)}` : `Ordered on ${fmtFullDate(order.createdAt)}`}
+            {(order.deliveredAt || order.deliveryDate) ? `Delivered on ${formatFullDateIST(order.deliveredAt || order.deliveryDate)}` : `Ordered on ${formatFullDateIST(order.createdAt)}`}
           </p>
         </section>
 
@@ -381,7 +379,7 @@ export default function OrderDetailsPage() {
             </div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Order Date</span>
-              <span className={styles.detailValue}>{fmtDdMmYy(order.createdAt)}</span>
+              <span className={styles.detailValue}>{formatDdMmYyIST(order.createdAt)}</span>
             </div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Product Total</span>
@@ -422,8 +420,19 @@ export default function OrderDetailsPage() {
         {/* ORDER ITEMS WITH RATINGS */}
         <section className={styles.section}>
           <h2 className={styles.orderItemsTitle}>Order Items ({order.items.length})</h2>
+          {showSubscriptionTransferNote && (
+            <p className={styles.subscriptionTransferNote}>
+              Subscriptions are transferred in My Account &gt;{' '}
+              <Link href="/subscriptions" className={styles.subscriptionTransferLink}>
+                Subscriptions
+              </Link>
+            </p>
+          )}
           <div className={styles.orderItemsList}>
-            {order.items.map((item, idx) => (
+            {order.items.map((item, idx) => {
+              const df = item.detailedFeedback;
+              const hasReview = df != null && df.qualityStars >= 1;
+              return (
               <div key={idx} className={styles.productCard}>
                 <div
                   className={`${styles.productCardTop} ${item.productId ? styles.productCardTopClickable : ''}`}
@@ -446,9 +455,6 @@ export default function OrderDetailsPage() {
                     ) : (
                       <div className={styles.productImagePlaceholder}>📦</div>
                     )}
-                    {order.items.length > 1 && idx === 0 && (
-                      <div className={styles.productCountBadge}>+{order.items.length - 1}</div>
-                    )}
                   </div>
                   <div className={styles.productCardInfo}>
                     <h3 className={styles.productCardName}>{item.productName}</h3>
@@ -456,37 +462,36 @@ export default function OrderDetailsPage() {
                     <p className={styles.productCardQuantity}>Qty: {item.quantity}</p>
                   </div>
                 </div>
+                {order.status === 'delivered' && (
+                  <div className={styles.orderRatingBlock}>
+                    {hasReview && df ? (
+                      <div className={styles.detailedFeedbackReadOnly}>
+                        <div className={styles.detailedFeedbackRow}><span>Quality of the product</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= df.qualityStars ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
+                        <div className={styles.detailedFeedbackRow}><span>Delivery agent behaviour</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (df.deliveryAgentStars ?? 0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
+                        <div className={styles.detailedFeedbackRow}><span>On time delivery</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (df.onTimeStars ?? 0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
+                        <div className={styles.detailedFeedbackRow}><span>Value for money</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (df.valueForMoneyStars ?? 0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
+                        <div className={styles.detailedFeedbackRow}><span>Would you order again</span><span>{df.wouldOrderAgain || '—'}</span></div>
+                      </div>
+                    ) : item.productId != null ? (
+                      <div
+                        className={styles.orderRowRate}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setHowWasItProductId(item.productId!)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setHowWasItProductId(item.productId!); } }}
+                      >
+                        <span className={styles.orderRowRateIcon} aria-hidden>★</span>
+                        <span>Rate this product</span>
+                        <svg className={styles.orderRowRateArrow} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                          <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
-            ))}
+            );})}
           </div>
-          {/* Order-level rating: if already submitted HowWasIt show 5 rows read-only; else Rate + HowWasItModal */}
-          {order.status === 'delivered' && (
-            <div className={styles.orderRatingBlock}>
-              {order.qualityStars != null && order.qualityStars >= 1 ? (
-                <div className={styles.detailedFeedbackReadOnly}>
-                  <div className={styles.detailedFeedbackRow}><span>Quality of the product</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (order.qualityStars||0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
-                  <div className={styles.detailedFeedbackRow}><span>Delivery agent behaviour</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (order.deliveryAgentStars||0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
-                  <div className={styles.detailedFeedbackRow}><span>On time delivery</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (order.onTimeStars||0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
-                  <div className={styles.detailedFeedbackRow}><span>Value for money</span><span className={styles.detailedFeedbackStars}>{[1,2,3,4,5].map(n => <span key={n} className={n <= (order.valueForMoneyStars||0) ? styles.starFilled : styles.starEmpty}>★</span>)}</span></div>
-                  <div className={styles.detailedFeedbackRow}><span>Would you order again</span><span>{order.wouldOrderAgain || '—'}</span></div>
-                </div>
-              ) : (
-                <div
-                  className={styles.orderRowRate}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setIsHowWasItOpen(true)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsHowWasItOpen(true); } }}
-                >
-                  <span className={styles.orderRowRateIcon} aria-hidden>★</span>
-                  <span>Rate this product</span>
-                  <svg className={styles.orderRowRateArrow} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                    <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-              )}
-            </div>
-          )}
           {order.status === 'delivered' && (
             <div className={styles.deliveredActions}>
               <button
@@ -551,9 +556,19 @@ export default function OrderDetailsPage() {
       )}
 
       <HowWasItModal
-        isOpen={isHowWasItOpen}
-        onClose={() => setIsHowWasItOpen(false)}
-        order={order ? { id: order.id, items: order.items } : null}
+        isOpen={howWasItProductId !== null}
+        onClose={() => setHowWasItProductId(null)}
+        order={
+          order
+            ? {
+                id: order.id,
+                // Filter to a single product so modal can infer target productId.
+                items: order.items
+                  .filter((i) => i.productId === howWasItProductId)
+                  .map((i) => ({ productId: i.productId })),
+              }
+            : null
+        }
         onSubmitSuccess={() => fetchOrder(true)}
       />
     </div>

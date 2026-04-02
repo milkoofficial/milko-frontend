@@ -41,3 +41,4 @@ export async function trackCartEvent(input: {
 export function getCartSessionIdForDebug(): string {
   return getOrCreateCartSessionId();
 }
+
