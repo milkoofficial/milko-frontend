@@ -104,5 +104,8 @@ router.post('/coupons', adminController.createCoupon);
 router.put('/coupons/:id', adminController.updateCoupon);
 router.delete('/coupons/:id', adminController.deleteCoupon);
 
+// Analytics
+router.get('/analytics/cart-abandonment', adminController.getCartAbandonment);
+
 module.exports = router;
 

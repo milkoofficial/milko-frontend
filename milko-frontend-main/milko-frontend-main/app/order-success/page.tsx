@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { productsApi } from '@/lib/api';
+import { productsApi, trackCartEvent } from '@/lib/api';
 import { Product } from '@/types';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -121,6 +121,11 @@ export default function OrderSuccessPage() {
 
     loadOrderData();
   }, [router]);
+
+  useEffect(() => {
+    // Marks the cart session as converted to an order, so it won't count as abandoned.
+    void trackCartEvent({ eventType: 'order_placed', cartItemCount: 0 });
+  }, []);
 
   // Calculate totals
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);

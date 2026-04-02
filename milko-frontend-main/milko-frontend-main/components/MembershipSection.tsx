@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/contexts/ToastContext';
 import styles from './MembershipSection.module.css';
 import Select from '@/components/ui/Select';
+import Link from 'next/link';
 
 /**
  * Membership Section Component
@@ -153,7 +154,55 @@ export default function MembershipSection() {
     return (
       <div id="membership" className={styles.membershipSection}>
         <div className={styles.container}>
-          <div className={styles.loading}>Loading subscription options...</div>
+          <span id="subscriptions" style={{ display: 'block', height: 0 }} aria-hidden="true" />
+          <h2 className={styles.sectionTitle}>Become a Subscriber</h2>
+          <p className={styles.sectionSubtitle}>Get fresh milk delivered to your doorstep daily</p>
+
+          <div className={styles.twoColumnLayout}>
+            {/* Left Column - Benefits (shimmer) */}
+            <div className={styles.benefitsColumn}>
+              <h3 className={styles.benefitsTitle}>Why Choose Our Subscription?</h3>
+              <ul className={styles.benefitsList}>
+                <li className={styles.benefitItem}>
+                  <span className={styles.benefitIcon} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M20 6L9 17l-5-5"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className={`${styles.benefitText} ${styles.shimmerText}`}>
+                    Fresh, home-handled milk delivered daily.
+                  </span>
+                </li>
+                <li className={styles.benefitItem}>
+                  <span className={styles.benefitIcon} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M20 6L9 17l-5-5"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className={`${styles.benefitText} ${styles.shimmerText}`}>
+                    Cancel Anytime, unused amount transferred to wallet.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Right Column placeholder (shimmer) */}
+            <div className={styles.membershipCard}>
+              <div className={styles.loading}>Loading subscription options...</div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -162,6 +211,7 @@ export default function MembershipSection() {
   return (
     <div id="membership" className={styles.membershipSection}>
       <div className={styles.container}>
+        <span id="subscriptions" style={{ display: 'block', height: 0 }} aria-hidden="true" />
         <h2 className={styles.sectionTitle}>Become a Subscriber</h2>
         <p className={styles.sectionSubtitle}>Get fresh milk delivered to your doorstep daily</p>
         
@@ -229,6 +279,20 @@ export default function MembershipSection() {
               <li className={styles.benefitItem}>
                 <span className={styles.benefitIcon}>💰</span>
                 <span className={styles.benefitText}>Proof of Adulteration? We’ll pay you ₹5100.</span>
+              </li>
+              <li className={styles.benefitItem}>
+                <span className={styles.benefitIcon} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M20 6L9 17l-5-5"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span className={styles.benefitText}>Cancel Anytime, unused amount transferred to wallet.</span>
               </li>
             </ul>
           </div>
@@ -309,6 +373,12 @@ export default function MembershipSection() {
           >
             {isAuthenticated ? 'Subscribe Now' : 'Login to Subscribe'}
           </button>
+          <div className={styles.termsConsent}>
+            By clicking, you agree to{' '}
+            <Link href="/terms" className={styles.termsLink}>
+              Terms &amp; Condition
+            </Link>
+          </div>
           </div>
         </div>
       </div>

@@ -14,6 +14,7 @@ const { uploadImage, deleteImage } = require('../config/cloudinary');
 const { query } = require('../config/database');
 const { transformDeliverySchedule } = require('../utils/transform');
 const orderModel = require('../models/order');
+const cartAnalytics = require('../models/cartAnalytics');
 
 /**
  * Admin Controller
@@ -1331,6 +1332,23 @@ const getPendingOrdersCount = async (req, res, next) => {
   }
 };
 
+/**
+ * Cart abandonment (admin analytics)
+ * GET /api/admin/analytics/cart-abandonment?days=30
+ */
+const getCartAbandonment = async (req, res, next) => {
+  try {
+    const daysRaw = req.query?.days;
+    const days = daysRaw != null ? Math.max(1, Math.min(365, parseInt(String(daysRaw), 10))) : 30;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const data = await cartAnalytics.getCartAbandonment({ sinceIso: since.toISOString() });
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   // Products
   getAllProducts,
@@ -1356,6 +1374,7 @@ module.exports = {
   getAllOrders,
   getOrderById,
   getPendingOrdersCount,
+  getCartAbandonment,
   markOrderAsPackagePrepared,
   listOrderDeliveries,
   markOrderAsOutForDelivery,

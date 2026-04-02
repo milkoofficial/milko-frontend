@@ -111,7 +111,7 @@
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  
 }
 
 .chartHeader {
@@ -234,7 +234,7 @@
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  
 }
 
 .insightCard h3 {

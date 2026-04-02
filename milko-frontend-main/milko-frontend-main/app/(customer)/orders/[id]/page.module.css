@@ -531,6 +531,23 @@
   margin: 0 0 1.5rem 0;
 }
 
+.subscriptionTransferNote {
+  margin: -1.25rem 0 1.5rem 0;
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.subscriptionTransferLink {
+  color: #0070f3;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.subscriptionTransferLink:hover {
+  text-decoration: underline;
+}
+
 .orderItemsList {
   display: flex;
   flex-direction: column;

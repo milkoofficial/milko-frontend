@@ -9,6 +9,8 @@ import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import AdminPasswordGate from '@/components/admin/AdminPasswordGate';
 import AdminSidebar from '@/components/AdminSidebar';
 import AdminTopBar from '@/components/AdminTopBar';
+import AdminMobileHeader from '@/components/admin/AdminMobileHeader';
+import AdminMobileNav from '@/components/admin/AdminMobileNav';
 import layoutStyles from './layout.module.css';
 
 /**
@@ -105,10 +107,14 @@ export default function AdminLayout({
       <AdminSidebar />
       <div className={layoutStyles.contentWrapper}>
         <AdminTopBar />
+        <div className={layoutStyles.mobileHeader}>
+          <AdminMobileHeader />
+        </div>
         <main className={layoutStyles.mainContent}>
           {children}
         </main>
       </div>
+      <AdminMobileNav />
     </div>
   );
 }

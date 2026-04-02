@@ -871,16 +871,16 @@ box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
 }
 
 .showMoreButton {
-  padding: 5px 12px;
-  background: transparent;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  padding: 0px 0px;
+    background: transparent;
+    border: 0px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #000000;
+    cursor: pointer;
+    transition: all -0.2s ease;
+    font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 .showMoreButton:hover {

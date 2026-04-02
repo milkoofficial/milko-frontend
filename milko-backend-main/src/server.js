@@ -16,6 +16,7 @@ const addressRoutes = require('./routes/addresses');
 const orderRoutes = require('./routes/orders');
 const orderController = require('./controllers/orderController');
 const walletRoutes = require('./routes/wallet');
+const analyticsRoutes = require('./routes/analytics');
 
 // Import middleware
 const { authenticate } = require('./middleware/auth');
@@ -112,6 +113,7 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/addresses', addressRoutes);
+app.use('/api/analytics', analyticsRoutes);
 // Registered on app before order router so GET is never captured as GET /:id (uuid error).
 app.get('/api/orders/review-deliverables', authenticate, orderController.getDeliveredForReview);
 // Legacy URLs (old frontends / bookmarks / cached bundles)

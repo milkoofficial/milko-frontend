@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { adminOrdersApi } from '@/lib/api';
+import Logo from '@/components/Logo';
 import styles from './AdminSidebar.module.css';
 
 interface MenuItem {
@@ -180,8 +181,16 @@ export default function AdminSidebar() {
       {/* Logo */}
       <div className={styles.logoSection}>
         <Link href="/admin" className={styles.logo}>
-          <span className={styles.logoIcon}>🥛</span>
-          <span className={styles.logoText}>Milko Admin</span>
+          <span className={styles.logoMark} aria-hidden="true">
+            <Logo
+              textClassName={styles.logoTextFallback}
+              imageClassName={styles.logoImage}
+              fallbackText="Milko"
+            />
+          </span>
+          <span className={styles.logoText}>
+            <span className={styles.logoAdmin}>Admin</span>
+          </span>
         </Link>
       </div>
 
@@ -211,7 +220,30 @@ export default function AdminSidebar() {
             className={styles.userButton}
           >
             <div className={styles.userAvatar}>
-              {user?.name?.charAt(0).toUpperCase() || 'A'}
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
+                  stroke="#000000"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M20.5899 22C20.5899 18.13 16.7399 15 11.9999 15C7.25991 15 3.40991 18.13 3.40991 22"
+                  stroke="#000000"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
             <div className={styles.userInfo}>
               <div className={styles.userName}>{user?.name || 'Admin'}</div>

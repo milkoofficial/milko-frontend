@@ -25,6 +25,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Milko.in - Fresh Milk Delivery',
   description: 'Daily milk delivery subscription service',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  openGraph: {
+    type: 'website',
+    siteName: 'Milko.in',
+  },
 };
 
 export const viewport = { width: 'device-width', initialScale: 1 };

@@ -177,13 +177,13 @@
 
 .doneBtn {
   padding: 0.65rem 1.25rem;
-  background: #f3f4f6;
-  color: #6b7280;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: not-allowed;
+    background: #bbffd9;
+    color: #00ab65;
+    border: 1px solid #bbffd9;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: not-allowed;
 }
 
 .detailedFeedbackReadOnly {
