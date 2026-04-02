@@ -7,6 +7,7 @@ import { productsApi, subscriptionsApi, contentApi, walletApi, addressesApi } fr
 import { useAuth } from '@/contexts/AuthContext';
 import { Product, Address } from '@/types';
 import styles from './SubscribePage.module.css';
+import Link from 'next/link';
 
 const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
 const DEFAULT_DELIVERY_TIME_OPTIONS = [
@@ -815,6 +816,12 @@ export default function SubscribePage() {
           <button type="submit" disabled={submitting || ((!isCartFlow || isRenewFlow) && pincodeStatus !== 'available')} className={`${styles.button} ${styles.submitBottomBtn}`}>
             {submitting ? 'Processing...' : isCartFlow ? (isRenewFlow ? 'Proceed to Payment' : 'Add to cart') : pincodeStatus === 'missing' ? 'Add Pincode to Continue' : pincodeStatus === 'unavailable' ? 'Pincode Not Deliverable' : 'Proceed to Payment'}
           </button>
+          <div className={styles.termsConsent}>
+            By clicking, you agree to{' '}
+            <Link href="/terms" className={styles.termsLink}>
+              Terms &amp; Condition
+            </Link>
+          </div>
         </form>
 
         {mapModalAddress ? (

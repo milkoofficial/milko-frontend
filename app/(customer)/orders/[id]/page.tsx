@@ -62,6 +62,10 @@ type OrderDetail = {
   cardNetwork?: string | null;
 };
 
+function isSubscriptionOrderItem(item: OrderItem): boolean {
+  return (item.productName || '').trim().toLowerCase().startsWith('subscription for ');
+}
+
 // Tick SVG for completed steps
 const TickIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className={styles.timelineSvg} aria-hidden>
@@ -217,6 +221,11 @@ export default function OrderDetailsPage() {
   const paymentLabel = order.status === 'cancelled' ? 'Cancelled' : order.status === 'refunded' ? 'Refunded' : order.paymentStatus === 'paid' ? 'Paid' : 'Pending';
   const paymentVariant = order.status === 'cancelled' ? 'cancelled' : order.status === 'refunded' ? 'refunded' : order.paymentStatus === 'paid' ? 'paid' : 'pending';
   const totalQty = order.items.reduce((s, i) => s + i.quantity, 0);
+
+  const hasSubscriptionItem = order.items.some(isSubscriptionOrderItem);
+  const nonSubscriptionItemCount = order.items.filter((i) => !isSubscriptionOrderItem(i)).length;
+  const showSubscriptionTransferNote = hasSubscriptionItem && nonSubscriptionItemCount === 1;
+
   const variationStr = (() => {
     const v = [...new Set(order.items.map((i) => i.variationSize).filter(Boolean))] as string[];
     return v.length ? ` • ${v.join(', ')}` : '';
@@ -411,6 +420,14 @@ export default function OrderDetailsPage() {
         {/* ORDER ITEMS WITH RATINGS */}
         <section className={styles.section}>
           <h2 className={styles.orderItemsTitle}>Order Items ({order.items.length})</h2>
+          {showSubscriptionTransferNote && (
+            <p className={styles.subscriptionTransferNote}>
+              Subscriptions are transferred in My Account &gt;{' '}
+              <Link href="/subscriptions" className={styles.subscriptionTransferLink}>
+                Subscriptions
+              </Link>
+            </p>
+          )}
           <div className={styles.orderItemsList}>
             {order.items.map((item, idx) => {
               const df = item.detailedFeedback;

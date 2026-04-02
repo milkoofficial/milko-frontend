@@ -38,16 +38,36 @@
   opacity: 0.8;
 }
 
-.logoIcon {
-  font-size: 1.75rem;
-  line-height: 1;
-}
-
 .logoText {
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.5px;
   color: #000000;
+}
+
+.logoMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logoImage {
+  height: 20px;
+  width: auto;
+  max-width: 140px;
+  margin-left: 4px;
+}
+
+.logoTextFallback {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #000;
+}
+
+.logoAdmin {
+  font-weight: 800;
+  color: #6b7280;
 }
 
 /* Navigation */
@@ -163,18 +183,19 @@
 
 .userAvatar {
   width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #0070f3 0%, #005bb5 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    color: #e3e3e3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    flex-shrink: 0;
+    box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
+    border: 1px solid #ddd;
+  }
 .userInfo {
   flex: 1;
   min-width: 0;
@@ -278,7 +299,7 @@
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar {
-    width: 70px;
+    display: none;
   }
 
   .logoText,
@@ -309,9 +330,4 @@
   }
 }
 
-/* Update main content margin on mobile */
-@media (max-width: 768px) {
-  .sidebar + div {
-    margin-left: 70px !important;
-  }
-}
+/* On mobile we use a bottom nav + mobile header */
