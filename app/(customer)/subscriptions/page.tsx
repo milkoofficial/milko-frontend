@@ -47,7 +47,7 @@ function getNextDeliveryLabel(subscription: Subscription): string {
     nextDate = pendingDates[0];
   } else {
     // Fallback when delivery schedules are not present in list response.
-    let cursor = new Date(today);
+    const cursor = new Date(today);
     while (cursor <= end) {
       if (!blockedDates.has(toDateKey(cursor))) {
         nextDate = new Date(cursor);
