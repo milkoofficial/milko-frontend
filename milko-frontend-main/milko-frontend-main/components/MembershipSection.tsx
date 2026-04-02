@@ -5,6 +5,7 @@ import { productsApi } from '@/lib/api';
 import { Product } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/contexts/ToastContext';
 import styles from './MembershipSection.module.css';
 import Select from '@/components/ui/Select';
 
@@ -20,13 +21,15 @@ import Select from '@/components/ui/Select';
 export default function MembershipSection() {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [litersPerDay, setLitersPerDay] = useState<string>('1');
   const [durationDays, setDurationDays] = useState<string>('30');
   const [loading, setLoading] = useState(true);
 
-  // Fallback demo products
+  // Fallback demo products (dev-only). Never show these on production if backend is slow/unavailable.
+  const showDemoFallback = process.env.NODE_ENV !== 'production';
   const fallbackProducts: Product[] = [
     {
       id: '1',
@@ -72,16 +75,8 @@ export default function MembershipSection() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      // Set a timeout to show fallback products if API takes too long
-      const timeoutId = setTimeout(() => {
-        setProducts(fallbackProducts);
-        setSelectedProduct(fallbackProducts[0].id);
-        setLoading(false);
-      }, 2000); // 2 second timeout
-
       try {
         const data = await productsApi.getAll();
-        clearTimeout(timeoutId);
         if (data && data.length > 0) {
           // Filter to only show membership-eligible products
           const eligibleProducts = data.filter(p => p.isMembershipEligible === true);
@@ -95,15 +90,25 @@ export default function MembershipSection() {
             setSelectedProduct(activeProducts.length > 0 ? activeProducts[0].id : data[0].id);
           }
         } else {
-          setProducts(fallbackProducts);
-          setSelectedProduct(fallbackProducts[0].id);
+          if (showDemoFallback) {
+            setProducts(fallbackProducts);
+            setSelectedProduct(fallbackProducts[0].id);
+          } else {
+            setProducts([]);
+            setSelectedProduct('');
+          }
         }
       } catch (error) {
-        clearTimeout(timeoutId);
         console.error('Failed to fetch products:', error);
-        // Use fallback products if API fails
-        setProducts(fallbackProducts);
-        setSelectedProduct(fallbackProducts[0].id);
+        if (showDemoFallback) {
+          // Use fallback products if API fails (dev only)
+          setProducts(fallbackProducts);
+          setSelectedProduct(fallbackProducts[0].id);
+        } else {
+          setProducts([]);
+          setSelectedProduct('');
+          showToast('Unable to load subscription options right now.', 'error');
+        }
       } finally {
         setLoading(false);
       }

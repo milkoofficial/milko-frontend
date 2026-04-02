@@ -17,7 +17,6 @@ import styles from './ProductsSection.module.css';
 /**
  * Products Section Component
  * Displays products in a grid (4 per row)
- * Shows 4 demo products on homepage
  */
 export default function ProductsSection() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -29,7 +28,8 @@ export default function ProductsSection() {
   const { addItem } = useCart();
   const { showToast } = useToast();
 
-  // Fallback demo products
+  // Fallback demo products (dev-only). Never show these on production if backend is slow/unavailable.
+  const showDemoFallback = process.env.NODE_ENV !== 'production';
   const fallbackProducts: Product[] = [
     {
       id: '1',
@@ -109,16 +109,9 @@ export default function ProductsSection() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      // Set a timeout to show fallback products if API takes too long
-      const timeoutId = setTimeout(() => {
-        setProducts(fallbackProducts);
-        setLoading(false);
-      }, 2000); // 2 second timeout
-
       try {
         const limit = Math.max(1, rowsToShow) * Math.max(2, gridCols);
         const data = await productsApi.getAll();
-        clearTimeout(timeoutId);
         // Show only first N products for homepage, or fallback if empty
         if (data && data.length > 0) {
           const base = data.slice(0, limit);
@@ -134,13 +127,16 @@ export default function ProductsSection() {
           );
           setProducts(withDetails);
         } else {
-          setProducts(fallbackProducts);
+          setProducts(showDemoFallback ? fallbackProducts : []);
         }
       } catch (error) {
-        clearTimeout(timeoutId);
         console.error('Failed to fetch products:', error);
-        // Use fallback products if API fails
-        setProducts(fallbackProducts);
+        if (showDemoFallback) {
+          setProducts(fallbackProducts);
+        } else {
+          setProducts([]);
+          showToast('Unable to load products right now.', 'error');
+        }
       } finally {
         setLoading(false);
       }
