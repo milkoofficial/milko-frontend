@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRequireAdmin } from '@/hooks/useRequireAuth';
-import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import AdminPasswordGate from '@/components/admin/AdminPasswordGate';
 import AdminSidebar from '@/components/AdminSidebar';
 import AdminTopBar from '@/components/AdminTopBar';
+import AdminMobileHeader from '@/components/admin/AdminMobileHeader';
+import AdminMobileNav from '@/components/admin/AdminMobileNav';
 import layoutStyles from './layout.module.css';
 
 /**
@@ -21,8 +21,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAdmin, isAuthenticated, loading, user, logout } = useAuth();
-  const router = useRouter();
+  const { isAuthenticated, loading, user } = useAuth();
   const [isPasswordVerified, setIsPasswordVerified] = useState(false);
   const [checkingPassword, setCheckingPassword] = useState(true);
   
@@ -46,15 +45,6 @@ export default function AdminLayout({
       };
     }
   }, [isPasswordVerified]);
-
-  const handleLogout = async () => {
-    // Clear password verification on logout
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('adminPanelVerified');
-    }
-    await logout();
-    router.push('/auth/login');
-  };
 
   // CRITICAL SECURITY: Always check authentication and admin role
   // Don't render anything if not admin - prevents any content flash
@@ -105,11 +95,14 @@ export default function AdminLayout({
       <AdminSidebar />
       <div className={layoutStyles.contentWrapper}>
         <AdminTopBar />
+        <div className={layoutStyles.mobileHeader}>
+          <AdminMobileHeader />
+        </div>
         <main className={layoutStyles.mainContent}>
           {children}
         </main>
       </div>
+      <AdminMobileNav />
     </div>
   );
 }
-
