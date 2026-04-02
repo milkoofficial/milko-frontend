@@ -67,6 +67,7 @@ export interface Product {
   pricePerLitre: number;
   sellingPrice?: number | null;
   compareAtPrice?: number | null;
+  taxPercent?: number;
   imageUrl?: string;
   isActive: boolean;
   isMembershipEligible?: boolean;
