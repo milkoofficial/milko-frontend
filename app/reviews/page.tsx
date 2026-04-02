@@ -190,7 +190,6 @@ export default function ReviewsPage() {
             ? { id: modalLine.orderId, items: [{ productId: modalLine.productId }] }
             : null
         }
-        productId={modalLine?.productId ?? null}
         onSubmitSuccess={() => {
           setModalLine(null);
           fetchLines();

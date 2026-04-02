@@ -288,8 +288,17 @@ export default function OrdersPage() {
       <HowWasItModal
         isOpen={!!ratingModal}
         onClose={() => setRatingModal(null)}
-        order={ratingModal ? { id: ratingModal.order.id, items: ratingModal.order.items } : null}
-        productId={ratingModal?.productId ?? null}
+        order={
+          ratingModal
+            ? {
+                id: ratingModal.order.id,
+                // Filter to the rated product so the modal can infer it without productId prop.
+                items: ratingModal.order.items
+                  .filter((i) => i.productId === ratingModal.productId)
+                  .map((i) => ({ productId: i.productId })),
+              }
+            : null
+        }
         onSubmitSuccess={async () => {
           setRatingModal(null);
           try {
