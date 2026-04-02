@@ -16,20 +16,103 @@
   color: #1a1a1a;
 }
 
+.statsDesktop {
+  display: block;
+}
+
+.statsMobile {
+  display: none;
+}
+
+.mobileHideTitle {
+  display: block;
+}
+
+.statsMobileNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 0 0 0.45rem;
+  padding: 0 2px;
+}
+
+.statsMobileNote::before {
+  content: 'i';
+  width: 14px;
+  height: 14px;
+  border: 1px solid #818181;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #6b7280;
+}
+
 /* KPI Row */
 .kpiRow {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
   padding-top: 30px;
 }
 
-.kpiCard {
+.kpiCard,
+.metricCard {
   background: white;
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.cardTopIcon {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.7rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardTopIcon::before {
+  content: '';
+  width: 22px !Important;
+  height: 22px !Important;
+  background: #6b7280;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-position: center;
+  -webkit-mask-position: center;
+}
+
+.cardTopIconDown::before {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M200-280v-80h264L200-624l56-56 264 264v-264h80v400H200Z'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='M200-280v-80h264L200-624l56-56 264 264v-264h80v400H200Z'/%3E%3C/svg%3E");
+}
+
+.cardTopIconSales::before {
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  mask-image: none;
+  -webkit-mask-image: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='%23000'%3E%3Cpath d='M55 15c0-3.3086-2.6914-6-6-6s-6 2.6914-6 6c0 2.902 2.0709 5.3283 4.8124 5.881-2.8929 14.9008-7.5906 30.5594-10.3656 30.5594-1.3521 0-3.3027-5.0781-4.8701-9.1582l-.2197-.5713c-.6377-1.6572-1.1924-3.459-1.7295-5.2012-1.4668-4.7627-2.626-8.5234-5.1221-8.5234-2.718 0-6.7 9.1346-9.0449 15.2009-.4684-.1178-.9559-.1873-1.4604-.1873-3.3086 0-6 2.6914-6 6s2.6914 6 6 6 6-2.6914 6-6c0-2.0912-1.0768-3.9337-2.7036-5.008 2.5555-6.5809 5.9831-13.5909 7.2089-14.0057 1.0195 0 2.3384 4.2803 3.2109 7.1123.5464 1.7744 1.1118 3.6094 1.7739 5.3311l.2192.5693c2.415 6.2881 4.0107 10.4414 6.7373 10.4414 5.6334 0 10.7479-23.9513 12.3929-32.5062 2.9114-.4105 5.1603-2.9113 5.1603-5.9342ZM15 53c-2.2056 0-4-1.7939-4-4s1.7944-4 4-4 4 1.7939 4 4-1.7944 4-4 4Zm34-34c-2.2056 0-4-1.7939-4-4s1.7944-4 4-4 4 1.7939 4 4-1.7944 4-4 4Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
 }
 
 .kpiLabel {
@@ -52,32 +135,40 @@
 }
 
 .positiveChange {
-  color: #10b981;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+  color: #009b68;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #ddffef;
+    border: 0px solid #a7f3d0;
+    border-radius: 8px;
+    padding: 4px 7px 4px 7px;
+    width: -moz-fit-content;
+    width: fit-content;
+    font-weight: 600;
+    font-size: 11px;
 }
 
 .negativeChange {
+  border-radius: 8px !important;
   color: #ef4444;
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  background: #fef2f2;
+  border-radius: 999px;
+  padding: 4px 7px 4px 7px;
+  width: fit-content;
+  font-weight: 600;
+  font-size: 11px;
 }
 
 /* Metrics Row */
 .metricsRow {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.metricCard {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .metricLabel {
@@ -89,7 +180,7 @@
 
 .metricValue {
   font-size: 2rem;
-  font-weight: 500;
+  font-weight: 400;
   color: #1a1a1a;
   margin-bottom: 0.5rem;
   letter-spacing: -1.2px;
@@ -99,17 +190,39 @@
   font-size: 0.875rem;
 }
 
+.metricReportLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.95rem;
+    border-radius: 6px;
+    border: 0px solid #e5e5e5;
+    background: #f0f0f0;
+  
+  color: #111;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.metricReportLink:hover {
+  background: #f0f0f0;
+  border-color: #d6d6d6;
+}
+
 /* Bottom Section */
 .bottomSection {
   display: grid;
   grid-template-columns: 2fr 0.97fr;
-  gap: 1.5rem;
+  gap: 0.5rem;
 }
 
 /* Chart Card */
 .chartCard {
   background: white;
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
@@ -186,6 +299,140 @@
   justify-content: space-around;
   gap: 0.5rem;
   padding-bottom: 2rem;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .mobileHideTitle {
+    display: none;
+  }
+
+  .statsDesktop {
+    display: none;
+  }
+
+  .statsMobile {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-top: 0px;
+  }
+
+  .statsMobileHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .statsMobile .kpiLabel,
+  .statsMobile .metricLabel {
+    margin-bottom: 0;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .statsMobile .cardTopIcon {
+    position: static;
+    flex: 0 0 auto;
+  }
+
+  .kpiRow,
+  .metricsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .bottomSection {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard {
+    padding: 1rem;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .kpiCard,
+  .metricCard,
+  .chartCard,
+  .insightCard {
+    padding: 1rem;
+    box-shadow: none;
+    border: 0px solid #ddd;
+    border-radius: 12px;
+  }
+
+  .chartContainer {
+    height: auto;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden; /* prevent any child from forcing page width */
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: end;
+    gap: 0.6rem;
+  }
+
+  .chartYAxis {
+    min-width: 44px;
+    flex: 0 0 44px;
+    padding-right: 0.5rem;
+  }
+
+  .barLabel {
+    max-width: 44px;
+  }
+
+  /* Make chart usable under 500px (many bars like 12 months) */
+  .chartHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .chartFilters {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .filterButton,
+  .activeFilter {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.75rem;
+  }
+
+  .chartBars {
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 1.5rem;
+    -webkit-overflow-scrolling: touch;
+    min-width: 0; /* allow flex child to shrink */
+    max-width: 100%;
+    padding-right: 0.25rem;
+  }
+
+  .barWrapper {
+    flex: 0 0 auto;
+    min-width: 48px;
+    scroll-snap-align: start;
+  }
+
+  .bar {
+    max-width: 44px;
+  }
+
+  .chartCard {
+    max-width: 100%;
+    overflow: hidden;
+  }
 }
 
 .barWrapper {
@@ -200,16 +447,17 @@
 .bar {
   width: 100%;
   max-width: 60px;
-  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  background: linear-gradient(180deg, #fbbf24 0%, #c37b00 100%);
   border-radius: 4px 4px 0 0;
-  transition: all 0.3s;
+  transition: all 0.1s;
   cursor: pointer;
   min-height: 4px;
+  box-shadow: 0 0 0px 1px #c37b00;
 }
 
 .bar:hover {
   opacity: 0.8;
-  transform: scaleY(1.05);
+  transform: scaleY(1);
 }
 
 .barLabel {
@@ -227,14 +475,14 @@
 .insightsColumn {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0.5rem;
 }
 
 .insightCard {
   background: white;
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 }
 
 .insightCard h3 {
@@ -257,7 +505,6 @@
 }
 
 .insightIcon {
-  font-size: 1.5rem;
   width: 40px;
   height: 40px;
   display: flex;
@@ -265,12 +512,19 @@
   justify-content: center;
   background: #f5f5f5;
   border-radius: 8px;
+  color: #555;
+}
+
+.insightIcon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .insightLabel {
   font-size: 0.875rem;
-  color: #666;
-  margin-bottom: 0.25rem;
+    color: #353535;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
 }
 
 .insightValue {
@@ -289,34 +543,34 @@
 .topCustomersList {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
 .topCustomerItem {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.75rem;
+  padding: 0;
   border-radius: 8px;
   transition: background 0.2s;
 }
 
 .topCustomerItem:hover {
-  background: #f5f5f5;
+  background: white;
 }
 
 .customerAvatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: 1rem;
-  flex-shrink: 0;
+  width: 33px;
+    height: 33px;
+    border-radius: 50%;
+    background: #ededed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #161616;
+    font-weight: 600;
+    font-size: 1rem;
+    flex-shrink: 0;
 }
 
 .customerInfo {
@@ -327,6 +581,7 @@
   font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 0.25rem;
+  font-size: 14px;
 }
 
 .customerDetails {
@@ -370,7 +625,7 @@
 
 .retentionFill {
   height: 100%;
-  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(90deg, #6bffce 0%, #00a975 100%);
   border-radius: 4px;
   transition: width 0.5s;
 }
@@ -382,11 +637,15 @@
 /* Promotions */
 .promotionItem {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: #f5f5f5;
-  border-radius: 8px;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0px;
+    background: #ffffff;
+    border-radius: 8px;
+}
+
+.promotionItem + .promotionItem {
+  margin-top: 0.5rem;
 }
 
 .promotionInfo {
@@ -397,6 +656,7 @@
   font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 0.25rem;
+  font-size: 14px;
 }
 
 .promotionDetails {
@@ -406,8 +666,17 @@
 
 .promotionBadge {
   padding: 0.25rem 0.75rem;
-  background: #10b981;
-  color: white;
+  background: #ddffef;
+  color: #009b68;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.promotionBadgeExpired {
+  padding: 0.25rem 0.75rem;
+  background: #fef2f2;
+  color: #ef4444;
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
@@ -421,16 +690,23 @@
 }
 
 @media (max-width: 768px) {
-  .kpiRow,
-  .metricsRow {
-    grid-template-columns: 1fr;
-  }
-
   .chartContainer {
     height: 200px;
   }
 
   .barLabel {
     font-size: 0.625rem;
+  }
+}
+
+/* Keep 2 cards per row on small screens too */
+@media (max-width: 400px) {
+  .statsMobile {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .kpiRow,
+  .metricsRow {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
