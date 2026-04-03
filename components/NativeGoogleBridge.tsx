@@ -9,24 +9,27 @@ const RETURN_TO_KEY = 'milko_return_after_auth';
 
 declare global {
   interface Window {
-    onNativeGoogleLoginSuccess?: (idToken: string, returnTo?: string) => Promise<void>;
+    /** Called from Android WebView after native Google sign-in: `(email, idToken)`. Email is optional for logging; `token` is the Google ID token. */
+    onNativeGoogleLoginSuccess?: (email: string, token: string) => Promise<void>;
     onNativeGoogleLoginError?: (message?: string) => void;
   }
 }
 
 export default function NativeGoogleBridge() {
   useEffect(() => {
-    window.onNativeGoogleLoginSuccess = async (idToken: string, returnTo?: string) => {
+    window.onNativeGoogleLoginSuccess = async (email: string, token: string) => {
       try {
-        if (!idToken) throw new Error('Missing Google idToken');
+        if (token) {
+          console.log('[NATIVE_GOOGLE_BRIDGE] Login signal from app for:', email || '(no email)');
+        }
+        if (!token) throw new Error('Missing Google idToken (second argument)');
 
-        const redirectPath =
-          typeof returnTo === 'string' && returnTo.startsWith('/') ? returnTo : '/';
+        const redirectPath = '/';
         localStorage.setItem(RETURN_TO_KEY, redirectPath);
 
         const { data, error } = await supabase.auth.signInWithIdToken({
           provider: 'google',
-          token: idToken,
+          token,
         });
 
         if (error) throw error;
@@ -40,7 +43,7 @@ export default function NativeGoogleBridge() {
           tokenStorage.set(accessToken);
         }
 
-        window.location.href = redirectPath;
+        window.location.href = redirectPath; // home (same as Android template)
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'Native Google login could not be completed.';
