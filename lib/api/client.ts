@@ -77,7 +77,12 @@ class ApiClient {
             
             // Only redirect if not on a public route
             if (!isPublicRoute) {
-              window.location.href = '/auth/login';
+              const r =
+                currentPath +
+                (typeof window !== 'undefined' ? window.location.search : '');
+              window.location.replace(
+                `/auth/login?redirect=${encodeURIComponent(r)}`
+              );
             }
           }
         }
