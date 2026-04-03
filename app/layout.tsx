@@ -15,6 +15,7 @@ import ConditionalFooter from '@/components/ConditionalFooter';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import Toast from '@/components/Toast';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
+import NativeGoogleBridge from '@/components/NativeGoogleBridge';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -48,6 +49,7 @@ export default function RootLayout({
               <Suspense fallback={null}>
                 <OAuthErrorHandler />
               </Suspense>
+              <NativeGoogleBridge />
               <ConditionalHeader />
               {children}
               <ConditionalFooter />
