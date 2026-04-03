@@ -292,7 +292,7 @@ export default function SubscribePage() {
     if (!isAuthenticated) {
       const returnPath = `/subscribe${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
       localStorage.setItem('milko_return_after_auth', returnPath);
-      router.push(`/auth/login?redirect=${encodeURIComponent(returnPath)}`);
+      router.replace(`/auth/login?redirect=${encodeURIComponent(returnPath)}`);
       return;
     }
     if (!selectedAddressId) {
