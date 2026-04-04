@@ -10,8 +10,14 @@
 
 .adminPageTitle {
   font-weight: 800;
-  letter-spacing: -1.6px;
+  letter-spacing: -1.1px;
   color: #1a1a1a;
+}
+
+@media (max-width: 768px) {
+  .adminPageTitle {
+    font-size: 1.25rem;
+  }
 }
 
 .adminButton {

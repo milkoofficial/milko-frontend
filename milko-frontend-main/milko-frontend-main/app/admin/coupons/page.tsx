@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { adminCouponsApi, Coupon, CreateCouponInput } from '@/lib/api';
 import LoadingSpinner, { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
 import adminStyles from '../admin-styles.module.css';
@@ -32,11 +33,24 @@ export default function AdminCouponsPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [sort, setSort] = useState<'codeAsc' | 'codeDesc' | 'createdDesc' | 'expiryAsc'>('createdDesc');
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchExpandRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
     fetchCoupons();
   }, []);
+
+  useEffect(() => {
+    if (!searchExpanded) return;
+    const onDown = (e: MouseEvent) => {
+      const el = searchExpandRef.current;
+      if (el && e.target instanceof Node && el.contains(e.target)) return;
+      setSearchExpanded(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [searchExpanded]);
 
   const fetchCoupons = async () => {
     try {
@@ -61,7 +75,7 @@ export default function AdminCouponsPage() {
         discountValue: parseFloat(formData.discountValue.toString()),
         minPurchaseAmount: formData.minPurchaseAmount ? parseFloat(formData.minPurchaseAmount.toString()) : 0,
         maxDiscountAmount: formData.maxDiscountAmount ? parseFloat(formData.maxDiscountAmount.toString()) : null,
-        usageLimit: formData.usageLimit ? parseInt(formData.usageLimit.toString()) : null,
+        usageLimit: formData.usageLimit ? parseInt(formData.usageLimit.toString(), 10) : null,
         validFrom: formData.validFrom || new Date().toISOString(),
         validUntil: formData.validUntil || null,
       };
@@ -76,9 +90,9 @@ export default function AdminCouponsPage() {
 
       handleCancel();
       fetchCoupons();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to save coupon:', error);
-      showToast(error.message || 'Failed to save coupon', 'error');
+      showToast(error instanceof Error ? error.message : 'Failed to save coupon', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -138,10 +152,7 @@ export default function AdminCouponsPage() {
       .filter((c) => {
         const q = query.trim().toLowerCase();
         if (!q) return true;
-        return (
-          c.code.toLowerCase().includes(q) ||
-          (c.description || '').toLowerCase().includes(q)
-        );
+        return c.code.toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q);
       })
       .filter((c) => {
         if (statusFilter === 'all') return true;
@@ -155,7 +166,6 @@ export default function AdminCouponsPage() {
           const bDate = b.validUntil ? new Date(b.validUntil).getTime() : Infinity;
           return aDate - bDate;
         }
-        // createdDesc default
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
   }, [coupons, query, statusFilter, sort]);
@@ -172,13 +182,15 @@ export default function AdminCouponsPage() {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        minHeight: '50vh',
-        padding: '2rem'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '50vh',
+          padding: '2rem',
+        }}
+      >
         <LoadingSpinnerWithText text="Loading coupons..." />
       </div>
     );
@@ -196,57 +208,65 @@ export default function AdminCouponsPage() {
                 {coupons.length !== filtered.length ? ` (filtered from ${coupons.length})` : ''}
               </div>
             </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className={adminStyles.adminButton}
-            >
+            <button type="button" onClick={() => setShowForm(true)} className={`${adminStyles.adminButton} ${styles.addCouponDesktop}`}>
               Add Coupon
+            </button>
+            <button type="button" onClick={() => setShowForm(true)} className={styles.addCouponIconLink} aria-label="Add new coupon">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+              </svg>
             </button>
           </div>
 
-          <div className={styles.toolbar}>
-            <div className={styles.searchWrap}>
-              <span className={styles.searchIcon} aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M20 20l-3.5-3.5" />
-                </svg>
-              </span>
-              <input
-                className={styles.searchInput}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by code or description…"
-              />
+          <div className={`${styles.toolbar} ${searchExpanded ? styles.toolbarSearchExpanded : ''}`}>
+            <div className={styles.searchSlot} ref={searchExpandRef}>
+              <div className={styles.searchWrap}>
+                <span className={styles.searchIcon} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M20 20l-3.5-3.5" />
+                  </svg>
+                </span>
+                <input
+                  className={styles.searchInput}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onFocus={() => setSearchExpanded(true)}
+                  placeholder="Search by code or description…"
+                  aria-label="Search coupons"
+                />
+              </div>
             </div>
 
-            <CustomSelect<'all' | 'active' | 'inactive'>
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={[
-                { value: 'all', label: 'All statuses' },
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
-              ]}
-            />
+            <div className={styles.filterSlot}>
+              <CustomSelect<'all' | 'active' | 'inactive'>
+                value={statusFilter}
+                onChange={setStatusFilter}
+                modalTitle="Status"
+                options={[
+                  { value: 'all', label: 'All statuses' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+              />
 
-            <CustomSelect<'codeAsc' | 'codeDesc' | 'createdDesc' | 'expiryAsc'>
-              value={sort}
-              onChange={setSort}
-              options={[
-                { value: 'createdDesc', label: 'Sort: Recently created' },
-                { value: 'codeAsc', label: 'Sort: Code (A → Z)' },
-                { value: 'codeDesc', label: 'Sort: Code (Z → A)' },
-                { value: 'expiryAsc', label: 'Sort: Expiry (soonest)' },
-              ]}
-            />
+              <CustomSelect<'codeAsc' | 'codeDesc' | 'createdDesc' | 'expiryAsc'>
+                value={sort}
+                onChange={setSort}
+                modalTitle="Sort"
+                options={[
+                  { value: 'createdDesc', label: 'Sort: Recently created' },
+                  { value: 'codeAsc', label: 'Sort: Code (A → Z)' },
+                  { value: 'codeDesc', label: 'Sort: Code (Z → A)' },
+                  { value: 'expiryAsc', label: 'Sort: Expiry (soonest)' },
+                ]}
+              />
+            </div>
           </div>
 
           <div className={styles.panel}>
             {filtered.length === 0 ? (
-              <div className={styles.emptyState}>
-                No coupons found. Try clearing filters or create a new coupon.
-              </div>
+              <div className={styles.emptyState}>No coupons found. Try clearing filters or create a new coupon.</div>
             ) : (
               <table className={styles.table}>
                 <thead className={styles.thead}>
@@ -256,25 +276,24 @@ export default function AdminCouponsPage() {
                     <th className={styles.th}>Usage</th>
                     <th className={styles.th}>Validity</th>
                     <th className={styles.th}>Status</th>
-                    <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
+                    <th className={styles.th} style={{ textAlign: 'right' }}>
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((coupon) => {
                     const expired = isExpired(coupon);
                     const limitReached = isUsageLimitReached(coupon);
-                    const discountText = coupon.discountType === 'percentage' 
-                      ? `${coupon.discountValue}% OFF`
-                      : `₹${coupon.discountValue} OFF`;
+                    const discountText =
+                      coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`;
 
                     return (
                       <tr key={coupon.id} className={styles.row}>
                         <td className={styles.td}>
                           <div className={styles.couponCell}>
                             <div className={styles.couponCode}>{coupon.code}</div>
-                            {coupon.description && (
-                              <div className={styles.couponMeta}>{coupon.description}</div>
-                            )}
+                            {coupon.description && <div className={styles.couponMeta}>{coupon.description}</div>}
                           </div>
                         </td>
                         <td className={styles.td}>
@@ -317,13 +336,11 @@ export default function AdminCouponsPage() {
                         </td>
                         <td className={styles.td}>
                           <div className={styles.actions}>
-                            <button
-                              onClick={() => handleEdit(coupon)}
-                              className={styles.linkButton}
-                            >
+                            <button type="button" onClick={() => handleEdit(coupon)} className={styles.linkButton}>
                               Edit
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleDelete(coupon.id)}
                               className={`${styles.linkButton} ${styles.deleteButton}`}
                               aria-label="Delete coupon"
@@ -344,15 +361,98 @@ export default function AdminCouponsPage() {
               </table>
             )}
           </div>
+
+          <div className={styles.cards}>
+            {filtered.length === 0 ? (
+              <div className={styles.card}>
+                <div className={styles.emptyState} style={{ padding: '1rem' }}>
+                  No coupons found. Try clearing filters or create a new coupon.
+                </div>
+              </div>
+            ) : (
+              filtered.map((coupon) => {
+                const expired = isExpired(coupon);
+                const limitReached = isUsageLimitReached(coupon);
+                const discountText =
+                  coupon.discountType === 'percentage' ? `${coupon.discountValue}% OFF` : `₹${coupon.discountValue} OFF`;
+
+                return (
+                  <div className={styles.card} key={coupon.id}>
+                    <div className={styles.cardTop}>
+                      <div className={styles.cardTitleBlock}>
+                        <div className={styles.couponCode}>{coupon.code}</div>
+                        {coupon.description ? <div className={styles.couponMeta}>{coupon.description}</div> : null}
+                      </div>
+                      <div className={styles.cardBadges}>
+                        <span className={`${styles.badge} ${coupon.isActive ? styles.badgeActive : styles.badgeInactive}`}>
+                          {coupon.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {expired ? <span className={`${styles.badge} ${styles.badgeExpired}`}>Expired</span> : null}
+                        {limitReached ? <span className={`${styles.badge} ${styles.badgeWarning}`}>Limit</span> : null}
+                      </div>
+                    </div>
+                    <div className={styles.cardBody}>
+                      <div className={styles.kv}>
+                        <div className={styles.kvLabel}>DISCOUNT</div>
+                        <div className={styles.kvValue}>{discountText}</div>
+                        {coupon.minPurchaseAmount != null && coupon.minPurchaseAmount > 0 ? (
+                          <div className={styles.kvSub}>Min cart: ₹{coupon.minPurchaseAmount}</div>
+                        ) : null}
+                        {coupon.maxDiscountAmount != null ? (
+                          <div className={styles.kvSub}>Max off: ₹{coupon.maxDiscountAmount}</div>
+                        ) : null}
+                      </div>
+                      <div className={styles.kv}>
+                        <div className={styles.kvLabel}>USAGE</div>
+                        <div className={styles.kvValue}>
+                          {coupon.usedCount}
+                          {coupon.usageLimit ? ` / ${coupon.usageLimit}` : ' (unlimited)'}
+                        </div>
+                      </div>
+                      <div className={`${styles.kv} ${styles.kvWide}`}>
+                        <div className={styles.kvLabel}>VALIDITY</div>
+                        <div className={styles.kvValue}>
+                          From {new Date(coupon.validFrom).toLocaleDateString()}
+                          {coupon.validUntil ? (
+                            <span className={expired ? styles.expiredText : ''}>
+                              {' '}
+                              → {new Date(coupon.validUntil).toLocaleDateString()}
+                            </span>
+                          ) : (
+                            <span className={styles.noExpiry}> · No expiry</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={styles.cardActions}>
+                      <button type="button" onClick={() => handleEdit(coupon)} className={styles.linkButton}>
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(coupon.id)}
+                        className={`${styles.linkButton} ${styles.deleteButton}`}
+                        aria-label="Delete coupon"
+                      >
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </>
       )}
 
       {showForm && (
         <div className={styles.formPanel}>
           <div className={styles.formHeader}>
-            <h2 className={styles.formTitle}>
-              {editingCoupon ? 'Edit Coupon' : 'Add New Coupon'}
-            </h2>
+            <h2 className={styles.formTitle}>{editingCoupon ? 'Edit Coupon' : 'Add New Coupon'}</h2>
             <a
               href="#"
               onClick={(e) => {
@@ -376,9 +476,7 @@ export default function AdminCouponsPage() {
                 required
                 maxLength={50}
               />
-              <div className={styles.helpText}>
-                Code will be automatically converted to uppercase
-              </div>
+              <div className={styles.helpText}>Code will be automatically converted to uppercase</div>
             </div>
 
             <div className={styles.formGroup}>
@@ -419,9 +517,7 @@ export default function AdminCouponsPage() {
                   step={formData.discountType === 'percentage' ? '1' : '0.01'}
                   max={formData.discountType === 'percentage' ? '100' : undefined}
                 />
-                <div className={styles.helpText}>
-                  {formData.discountType === 'percentage' ? 'Maximum 100%' : 'Amount in ₹'}
-                </div>
+                <div className={styles.helpText}>{formData.discountType === 'percentage' ? 'Maximum 100%' : 'Amount in ₹'}</div>
               </div>
             </div>
 
@@ -437,9 +533,7 @@ export default function AdminCouponsPage() {
                   min="0"
                   step="0.01"
                 />
-                <div className={styles.helpText}>
-                  Minimum cart value required (0 = no minimum)
-                </div>
+                <div className={styles.helpText}>Minimum cart value required (0 = no minimum)</div>
               </div>
 
               <div className={styles.formGroup} style={{ flex: 1 }}>
@@ -453,9 +547,7 @@ export default function AdminCouponsPage() {
                   min="0"
                   step="0.01"
                 />
-                <div className={styles.helpText}>
-                  Maximum discount cap (only for percentage discounts)
-                </div>
+                <div className={styles.helpText}>Maximum discount cap (only for percentage discounts)</div>
               </div>
             </div>
 
@@ -465,14 +557,12 @@ export default function AdminCouponsPage() {
                 <input
                   type="number"
                   value={formData.usageLimit || ''}
-                  onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value ? parseInt(e.target.value) : null })}
+                  onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value ? parseInt(e.target.value, 10) : null })}
                   className={styles.input}
                   placeholder="Unlimited"
                   min="1"
                 />
-                <div className={styles.helpText}>
-                  Maximum number of times this coupon can be used (leave empty for unlimited)
-                </div>
+                <div className={styles.helpText}>Maximum uses (leave empty for unlimited)</div>
               </div>
 
               <div className={styles.formGroup} style={{ flex: 1 }}>
@@ -496,9 +586,7 @@ export default function AdminCouponsPage() {
                 className={styles.input}
                 min={formData.validFrom}
               />
-              <div className={styles.helpText}>
-                Leave empty for no expiry date
-              </div>
+              <div className={styles.helpText}>Leave empty for no expiry date</div>
             </div>
 
             <div className={styles.formGroup}>
@@ -514,23 +602,19 @@ export default function AdminCouponsPage() {
             </div>
 
             <div className={styles.formActions}>
-              <button
-                type="submit"
-                disabled={submitting}
-                className={styles.saveButton}
-              >
+              <button type="submit" disabled={submitting} className={styles.saveButton}>
                 {submitting ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <LoadingSpinner size="small" />
                     Saving...
                   </span>
-                ) : editingCoupon ? 'Update Coupon' : 'Create Coupon'}
+                ) : editingCoupon ? (
+                  'Update Coupon'
+                ) : (
+                  'Create Coupon'
+                )}
               </button>
-              <button
-                type="button"
-                onClick={handleCancel}
-                className={styles.cancelButton}
-              >
+              <button type="button" onClick={handleCancel} className={styles.cancelButton}>
                 Cancel
               </button>
             </div>
@@ -545,33 +629,82 @@ function CustomSelect<T extends string>({
   value,
   onChange,
   options,
+  modalTitle,
 }: {
   value: T;
   onChange: (next: T) => void;
   options: Array<{ value: T; label: string }>;
+  modalTitle: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const modalTitleId = useId();
 
   const selected = options.find((o) => o.value === value) || options[0];
+  const useModal = isNarrow;
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
+    const mq = window.matchMedia('(max-width: 720px)');
+    const apply = () => setIsNarrow(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || useModal) return;
     const onDocClick = (e: MouseEvent) => {
       if (!ref.current) return;
       if (e.target instanceof Node && !ref.current.contains(e.target)) {
         setOpen(false);
       }
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
     document.addEventListener('mousedown', onDocClick);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, []);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open, useModal]);
+
+  useEffect(() => {
+    if (open && useModal) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [open, useModal]);
+
+  const optionList = options.map((opt) => {
+    const isActive = opt.value === value;
+    return (
+      <button
+        key={opt.value}
+        type="button"
+        role="option"
+        aria-selected={isActive}
+        className={`${styles.dropdownItem} ${isActive ? styles.dropdownItemActive : ''}`}
+        onClick={() => {
+          onChange(opt.value);
+          setOpen(false);
+        }}
+      >
+        <span>{opt.label}</span>
+        {isActive ? <span className={styles.dropdownHint}>Selected</span> : null}
+      </button>
+    );
+  });
 
   return (
     <div className={styles.selectWrap} ref={ref}>
@@ -590,29 +723,44 @@ function CustomSelect<T extends string>({
         </span>
       </button>
 
-      {open && (
-        <div className={styles.dropdown} role="listbox" aria-label="Select option">
-          {options.map((opt) => {
-            const isActive = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="option"
-                aria-selected={isActive}
-                className={`${styles.dropdownItem} ${isActive ? styles.dropdownItemActive : ''}`}
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-              >
-                <span>{opt.label}</span>
-                {isActive ? <span style={{ fontWeight: 700, color: '#004e85', fontSize: '.85rem', background: '#cfe4ff', borderRadius: '5px', padding: '3px 6px' }}>Selected</span> : null}
-              </button>
-            );
-          })}
+      {open && !useModal && (
+        <div className={styles.dropdown} role="listbox" aria-label={modalTitle}>
+          {optionList}
         </div>
       )}
+
+      {mounted && open && useModal
+        ? createPortal(
+            <div
+              className={styles.selectModalBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setOpen(false);
+              }}
+            >
+              <div
+                className={styles.selectModalPanel}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={modalTitleId}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className={styles.selectModalHeader}>
+                  <h2 id={modalTitleId} className={styles.selectModalTitle}>
+                    {modalTitle}
+                  </h2>
+                  <button type="button" className={styles.selectModalClose} aria-label="Close" onClick={() => setOpen(false)}>
+                    ×
+                  </button>
+                </div>
+                <div className={styles.selectModalBody} role="listbox" aria-label={modalTitle}>
+                  {optionList}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
