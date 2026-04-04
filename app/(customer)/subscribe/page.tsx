@@ -272,7 +272,7 @@ export default function SubscribePage() {
     if (!resolvedProductId) return;
     if (isCartFlow && !isRenewFlow) {
       if (!product) return;
-      const durationMonths = Math.max(1, Math.ceil(durationDays / 30));
+      const durationMonths = Math.max(1, Math.round(durationDays / 30));
       const subscriptionCartItem = {
         type: 'subscription',
         productId: resolvedProductId,
@@ -315,11 +315,12 @@ export default function SubscribePage() {
     setSubmitting(true);
     let openedRazorpay = false;
     try {
-      const durationMonths = Math.max(1, Math.ceil(durationDays / 30));
+      const durationMonths = Math.max(1, Math.round(durationDays / 30));
       const result = await subscriptionsApi.create({
         productId: resolvedProductId,
         litresPerDay,
         frequency,
+        durationDays,
         durationMonths,
         deliveryTime,
         paymentMethod,
@@ -709,7 +710,7 @@ export default function SubscribePage() {
                 <option value={30}>1 month</option>
                 <option value={90}>3 months</option>
                 <option value={180}>6 months</option>
-                <option value={360}>12 months</option>
+                <option value={365}>12 months (365 days)</option>
               </select>
               <svg className={styles.selectArrow} viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

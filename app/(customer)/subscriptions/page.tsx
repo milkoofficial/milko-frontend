@@ -7,6 +7,7 @@ import Link from 'next/link';
 import styles from './page.module.css';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
+import { parseLocalDateFromYmd } from '@/lib/utils/datetime';
 
 function toDateKey(d: Date): string {
   const y = d.getFullYear();
@@ -19,9 +20,8 @@ function getNextDeliveryLabel(subscription: Subscription): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const end = new Date(subscription.endDate);
-  end.setHours(0, 0, 0, 0);
-  if (end < today || subscription.status === 'expired' || subscription.status === 'cancelled') {
+  const end = parseLocalDateFromYmd(subscription.endDate);
+  if (!end || end < today || subscription.status === 'expired' || subscription.status === 'cancelled') {
     return 'Next Delivery: —';
   }
 
@@ -35,11 +35,8 @@ function getNextDeliveryLabel(subscription: Subscription): string {
   });
   const pendingDates = (subscription.deliverySchedules || [])
     .filter((d) => d.status === 'pending')
-    .map((d) => new Date(d.deliveryDate))
-    .map((d) => {
-      d.setHours(0, 0, 0, 0);
-      return d;
-    })
+    .map((d) => parseLocalDateFromYmd(d.deliveryDate))
+    .filter((d): d is Date => d != null)
     .filter((d) => !blockedDates.has(toDateKey(d)))
     .filter((d) => d >= today)
     .sort((a, b) => a.getTime() - b.getTime());
@@ -182,22 +179,33 @@ export default function SubscriptionsPage() {
       ) : (
         <div className={styles.grid}>
           {subscriptions.map((s) => {
-            const end = new Date(s.endDate);
+            const endDateOnly = parseLocalDateFromYmd(s.endDate);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const endDateOnly = new Date(end);
-            endDateOnly.setHours(0, 0, 0, 0);
             const statusMeta = getStatusMeta(s.status);
             const statusClass = `${styles.statusPill} ${statusMeta.className}`;
             const displayStatus = statusMeta.label;
-            const formattedEndDate = end.toLocaleDateString('en-GB', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            });
+            const formattedEndDate =
+              endDateOnly?.toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              }) ?? '—';
             const msPerDay = 24 * 60 * 60 * 1000;
-            const daysLeftRaw = Math.ceil((endDateOnly.getTime() - today.getTime()) / msPerDay);
-            const daysLeft = Math.max(0, daysLeftRaw);
+            const daysLeftCalendarRaw =
+              endDateOnly != null
+                ? Math.floor((endDateOnly.getTime() - today.getTime()) / msPerDay) + 1
+                : 0;
+            const daysLeftCalendar = Math.max(0, daysLeftCalendarRaw);
+            const planDayCount =
+              s.durationDays != null && s.durationDays >= 1 ? s.durationDays : null;
+            const deliveredSlotCount =
+              s.deliverySchedules?.filter((d) => d.status === 'delivered').length ?? 0;
+            const daysLeft =
+              planDayCount != null &&
+              (s.status === 'active' || s.status === 'paused' || s.status === 'pending')
+                ? Math.max(0, planDayCount - deliveredSlotCount)
+                : daysLeftCalendar;
             const isCancelled = s.status === 'cancelled';
             const isExpired = s.status === 'expired';
 
@@ -219,12 +227,18 @@ export default function SubscriptionsPage() {
                 ? 'Remaining: No days remaining'
                 : `Remaining: ${daysLeft} days left`;
             const orderId = s.razorpaySubscriptionId || s.id;
-            const unitPrice = Number(
-              s.perUnitPrice ??
-              s.product?.sellingPrice ??
-              s.product?.pricePerLitre ??
-              0
-            );
+            let planTotal: number | null = null;
+            if (s.totalAmount != null) {
+              const t = Number(s.totalAmount);
+              if (Number.isFinite(t)) planTotal = t;
+            }
+            if (planTotal == null) {
+              const unit = s.perUnitPrice != null ? Number(s.perUnitPrice) : NaN;
+              const qty = s.totalQty != null ? Number(s.totalQty) : NaN;
+              if (Number.isFinite(unit) && Number.isFinite(qty) && qty > 0) {
+                planTotal = unit * qty;
+              }
+            }
             return (
               <div key={s.id} className={styles.card}>
                 <div className={styles.cardTop}>
@@ -238,7 +252,9 @@ export default function SubscriptionsPage() {
                     ) : (
                       <div className={styles.imagePlaceholder} />
                     )}
-                    <div className={styles.imagePrice}>₹{unitPrice.toFixed(2)}</div>
+                    <div className={styles.imagePrice}>
+                      {planTotal != null ? `₹${planTotal.toFixed(2)}` : '—'}
+                    </div>
                   </div>
                   <div className={styles.meta}>
                     <div className={styles.metaHeader}>

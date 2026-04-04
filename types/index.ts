@@ -92,6 +92,8 @@ export interface Subscription {
   product?: Product;
   litresPerDay: number;
   durationMonths: number;
+  /** Calendar days in the plan when set (preferred for display and renewals). */
+  durationDays?: number;
   deliveryTime: string; // e.g., "08:00"
   status: 'pending' | 'active' | 'paused' | 'cancelled' | 'expired' | 'failed';
   startDate: string;
@@ -192,7 +194,8 @@ export interface RazorpayOrder {
 export interface SubscriptionCreateRequest {
   productId: string;
   litresPerDay: number;
-  durationMonths: number;
+  durationDays?: number;
+  durationMonths?: number;
   deliveryTime: string;
   frequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
   paymentMethod?: 'online' | 'wallet';

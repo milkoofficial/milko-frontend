@@ -30,6 +30,7 @@ type SubscriptionCartItem = {
   productName: string;
   litresPerDay: number;
   durationMonths: number;
+  durationDays?: number;
   deliveryTime: string;
   totalAmount: number;
   updatedAt: string;
@@ -142,12 +143,15 @@ export default function CheckoutPage() {
           return;
         }
         const parsed = JSON.parse(raw) as Partial<SubscriptionCartItem>;
+        const hasDuration =
+          (typeof parsed.durationDays === 'number' && parsed.durationDays >= 1) ||
+          (typeof parsed.durationMonths === 'number' && parsed.durationMonths >= 1);
         if (
           parsed?.type === 'subscription'
           && typeof parsed.productId === 'string'
           && typeof parsed.productName === 'string'
           && typeof parsed.litresPerDay === 'number'
-          && typeof parsed.durationMonths === 'number'
+          && hasDuration
           && typeof parsed.deliveryTime === 'string'
           && typeof parsed.totalAmount === 'number'
         ) {
@@ -541,7 +545,11 @@ export default function CheckoutPage() {
               variationId: undefined,
               quantity: 1,
               productName: `Subscription for ${subscriptionCartItem.productName}`,
-              variationSize: `Qty: ${subscriptionCartItem.litresPerDay} L/day | Period: ${subscriptionCartItem.durationMonths} month(s) | Delivery: ${subscriptionCartItem.deliveryTime}`,
+              variationSize: `Qty: ${subscriptionCartItem.litresPerDay} L/day | Period: ${
+                subscriptionCartItem.durationDays != null && subscriptionCartItem.durationDays >= 1
+                  ? `${subscriptionCartItem.durationDays} day(s)`
+                  : `${subscriptionCartItem.durationMonths} month(s)`
+              } | Delivery: ${subscriptionCartItem.deliveryTime}`,
               imageUrl: products[subscriptionCartItem.productId]?.images?.[0]?.imageUrl || products[subscriptionCartItem.productId]?.imageUrl,
               unitPrice: subscriptionCartItem.totalAmount,
               taxPercent: products[subscriptionCartItem.productId]?.taxPercent ?? 0,
@@ -595,6 +603,7 @@ export default function CheckoutPage() {
           ? {
               productId: subscriptionCartItem.productId,
               litresPerDay: subscriptionCartItem.litresPerDay,
+              durationDays: subscriptionCartItem.durationDays,
               durationMonths: subscriptionCartItem.durationMonths,
               deliveryTime: subscriptionCartItem.deliveryTime,
             }
@@ -990,7 +999,11 @@ export default function CheckoutPage() {
                     <div className={styles.orderItemInfo}>
                       <span className={styles.orderItemName}>Subscription for {subscriptionCartItem.productName}</span>
                       <span className={styles.orderItemQuantity}>
-                        Qty: {subscriptionCartItem.litresPerDay} L/day | Period: {subscriptionCartItem.durationMonths} month(s) | Delivery: {subscriptionCartItem.deliveryTime}
+                        Qty: {subscriptionCartItem.litresPerDay} L/day | Period:{' '}
+                        {subscriptionCartItem.durationDays != null && subscriptionCartItem.durationDays >= 1
+                          ? `${subscriptionCartItem.durationDays} day(s)`
+                          : `${subscriptionCartItem.durationMonths} month(s)`}{' '}
+                        | Delivery: {subscriptionCartItem.deliveryTime}
                       </span>
                     </div>
                     <span className={styles.orderItemPrice}>₹{subscriptionCartItem.totalAmount.toFixed(2)}</span>
