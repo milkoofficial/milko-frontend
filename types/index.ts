@@ -92,11 +92,15 @@ export interface Subscription {
   product?: Product;
   litresPerDay: number;
   durationMonths: number;
+  /** Calendar days in the plan when set (preferred for display and renewals). */
+  durationDays?: number;
   deliveryTime: string; // e.g., "08:00"
   status: 'pending' | 'active' | 'paused' | 'cancelled' | 'expired' | 'failed';
   startDate: string;
   endDate: string;
   razorpaySubscriptionId?: string;
+  /** Set when subscription was created from cart checkout (UUID of orders row). */
+  checkoutOrderId?: string;
   addressId?: string;
   deliveryAddress?: Address;
   totalQty?: number;
@@ -192,7 +196,10 @@ export interface RazorpayOrder {
 export interface SubscriptionCreateRequest {
   productId: string;
   litresPerDay: number;
-  durationMonths: number;
+  /** Exact plan length in days (e.g. 15). Prefer this over durationMonths when both are sent. */
+  durationDays?: number;
+  /** Legacy: month buckets of 30 days each when durationDays is omitted. */
+  durationMonths?: number;
   deliveryTime: string;
   frequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
   paymentMethod?: 'online' | 'wallet';

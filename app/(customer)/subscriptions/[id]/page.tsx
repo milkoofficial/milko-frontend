@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { contentApi, subscriptionsApi } from '@/lib/api';
 import { Subscription } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
+import { parseLocalDateFromYmd } from '@/lib/utils/datetime';
 import styles from './page.module.css';
 
 type CalendarCell = {
@@ -86,7 +87,8 @@ function getCalendarDayClassName(
 
 function fmtFullDate(iso: string | null | undefined): string {
   if (!iso) return '';
-  const d = new Date(iso);
+  const localDay = parseLocalDateFromYmd(iso);
+  const d = localDay ?? new Date(iso);
   const day = d.getDate();
   const month = d.toLocaleString('en-US', { month: 'short' });
   const year = d.getFullYear();
@@ -196,9 +198,8 @@ function getNextDeliveryLabel(subscription: Subscription): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const end = new Date(subscription.endDate);
-  end.setHours(0, 0, 0, 0);
-  if (end < today || subscription.status === 'expired' || subscription.status === 'cancelled') {
+  const end = parseLocalDateFromYmd(subscription.endDate);
+  if (!end || end < today || subscription.status === 'expired' || subscription.status === 'cancelled') {
     return '—';
   }
 
@@ -213,11 +214,8 @@ function getNextDeliveryLabel(subscription: Subscription): string {
 
   const pendingDates = (subscription.deliverySchedules || [])
     .filter((d) => d.status === 'pending')
-    .map((d) => new Date(d.deliveryDate))
-    .map((d) => {
-      d.setHours(0, 0, 0, 0);
-      return d;
-    })
+    .map((d) => parseLocalDateFromYmd(d.deliveryDate))
+    .filter((d): d is Date => d != null)
     .filter((d) => !blockedDates.has(formatDateKey(d)))
     .filter((d) => d >= today)
     .sort((a, b) => a.getTime() - b.getTime());
@@ -296,14 +294,12 @@ export default function SubscriptionDetailsPage() {
 
   const dateRange = useMemo(() => {
     if (!subscription) return null;
-    const purchasedBase = subscription.purchasedAt || subscription.createdAt || subscription.startDate;
-    const startFromSubscription = dateOnly(new Date(subscription.startDate));
-    const purchasedDateOnly = dateOnly(new Date(purchasedBase));
-    const effectiveStart =
-      startFromSubscription < purchasedDateOnly ? purchasedDateOnly : startFromSubscription;
+    // Always use API start/end (purchase day = day 1). Do not clamp start to `purchasedAt`:
+    // `new Date(purchasedAt)` in the browser TZ can fall on the *next* calendar day vs IST
+    // while `start_date` stays the correct subscription day — then the first day looks "missing" on the calendar.
     return {
-      start: effectiveStart,
-      end: dateOnly(new Date(subscription.endDate)),
+      start: dateOnly(parseLocalDateFromYmd(subscription.startDate) ?? new Date(subscription.startDate)),
+      end: dateOnly(parseLocalDateFromYmd(subscription.endDate) ?? new Date(subscription.endDate)),
     };
   }, [subscription]);
 
@@ -322,7 +318,8 @@ export default function SubscriptionDetailsPage() {
   const scheduleByDate = useMemo(() => {
     const m = new Map<string, 'pending' | 'delivered' | 'skipped' | 'cancelled'>();
     subscription?.deliverySchedules?.forEach((s) => {
-      m.set(s.deliveryDate, s.status);
+      const key = String(s.deliveryDate ?? '').slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(key)) m.set(key, s.status);
     });
     return m;
   }, [subscription]);
@@ -369,12 +366,26 @@ export default function SubscriptionDetailsPage() {
 
   const purchasedAtValue = subscription.purchasedAt || subscription.createdAt || null;
   const renewedAtValue = getRenewedAtValue(subscription);
-  const effectiveStart = dateRange?.start ?? dateOnly(new Date(subscription.startDate));
-  const displayDeliveryStart = subscription.initialStartDate || effectiveStart.toISOString();
+  const effectiveStart =
+    dateRange?.start ??
+    dateOnly(parseLocalDateFromYmd(subscription.startDate) ?? new Date(subscription.startDate));
+  // Never use Date.toISOString() for labels: IST midnight becomes previous UTC date, so fmtFullDate
+  // would show one calendar day *earlier* than start_date while the calendar uses startDate → mismatch.
+  const startYmdRaw = subscription.startDate ? String(subscription.startDate).slice(0, 10) : '';
+  const initialYmdRaw = subscription.initialStartDate ? String(subscription.initialStartDate).slice(0, 10) : '';
+  const displayDeliveryStart =
+    (/^\d{4}-\d{2}-\d{2}$/.test(startYmdRaw) && startYmdRaw) ||
+    (/^\d{4}-\d{2}-\d{2}$/.test(initialYmdRaw) && initialYmdRaw) ||
+    formatDateKey(effectiveStart);
   const start = effectiveStart;
-  const end = dateOnly(new Date(subscription.endDate));
+  const end =
+    dateRange?.end ??
+    dateOnly(parseLocalDateFromYmd(subscription.endDate) ?? new Date(subscription.endDate));
   const msPerDay = 1000 * 60 * 60 * 24;
-  const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / msPerDay) + 1);
+  const totalDays =
+    subscription.durationDays != null && subscription.durationDays >= 1
+      ? subscription.durationDays
+      : Math.max(1, Math.round((end.getTime() - start.getTime()) / msPerDay) + 1);
   // Only delivered (green) days are counted as used for refund calculation.
   const deliveredDays = subscription.deliverySchedules?.filter((d) => d.status === 'delivered').length ?? 0;
   const usedDays = Math.min(totalDays, Math.max(0, deliveredDays));
@@ -391,9 +402,21 @@ export default function SubscriptionDetailsPage() {
   const expiryTextForDisplay = expiryDateForDisplay ? fmtFullDate(expiryDateForDisplay) : 'N/A';
   const endLabel = subscription.status === 'cancelled' ? 'Ended' : 'Ends';
 
+  const showCodPendingNotice =
+    subscription.status === 'pending' && Boolean(subscription.checkoutOrderId);
+  /** Checkout COD (or any pending): no AutoPay until subscription is Active */
+  const autopayActionsDisabled = !canManage;
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
+        {showCodPendingNotice ? (
+          <p className={styles.codPendingNotice} role="status">
+            Subscription will be marked as <strong>Active</strong> when the COD amount is received from you at delivery.
+            Until then it stays <strong>Pending</strong> and becomes <strong>Active</strong> when an admin marks your
+            order as <strong>delivered</strong>.
+          </p>
+        ) : null}
         <div className={styles.header}>
           <h1 className={styles.pageTitle}>{subscription.product?.name || 'Subscription'}</h1>
           <div className={`${styles.statusBadge} ${badgeClass}`}>
@@ -551,7 +574,9 @@ export default function SubscriptionDetailsPage() {
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Duration</span>
               <span className={styles.detailValue}>
-                {subscription.durationMonths} month{subscription.durationMonths !== 1 ? 's' : ''}
+                {subscription.durationDays != null && subscription.durationDays >= 1
+                  ? `${subscription.durationDays} day${subscription.durationDays !== 1 ? 's' : ''}`
+                  : `${subscription.durationMonths} month${subscription.durationMonths !== 1 ? 's' : ''}`}
               </span>
             </div>
             <div className={styles.detailRow}>
@@ -694,7 +719,7 @@ export default function SubscriptionDetailsPage() {
                     <button
                       type="button"
                       className={styles.deleteAutopayButton}
-                      disabled={deleteAutopayBusy}
+                      disabled={deleteAutopayBusy || autopayActionsDisabled}
                       onClick={async () => {
                         try {
                           setDeleteAutopayBusy(true);
@@ -717,11 +742,18 @@ export default function SubscriptionDetailsPage() {
                   <p className={styles.autoPayText}>
                     AutoPay is not linked yet. Without it, your subscription ends when the current period ends. When linked, renewal is charged at the end of the period—not before.
                   </p>
+                  {autopayActionsDisabled ? (
+                    <p className={styles.autopayPendingHint}>
+                      {showCodPendingNotice
+                        ? 'AutoPay can be set after your COD order is delivered and this subscription becomes Active.'
+                        : 'AutoPay can be set once this subscription is Active.'}
+                    </p>
+                  ) : null}
                   <div className={styles.autoPayActions}>
                     <button
                       type="button"
                       className={styles.autoPayButton}
-                      disabled={autopayBusy}
+                      disabled={autopayBusy || autopayActionsDisabled}
                       onClick={async () => {
                         try {
                           setAutopayBusy(true);

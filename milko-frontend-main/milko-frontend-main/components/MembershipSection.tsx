@@ -144,7 +144,7 @@ export default function MembershipSection() {
 
     // Convert days to months (approximate - 30 days = 1 month)
     const days = parseInt(durationDays);
-    const months = Math.ceil(days / 30);
+    const months = Math.max(1, Math.round(days / 30));
 
     // Navigate to subscribe page with pre-filled data
     router.push(`/subscribe?productId=${selectedProduct}&liters=${litersPerDay}&days=${durationDays}&months=${months}`);

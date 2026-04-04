@@ -17,6 +17,7 @@ type SubscriptionCartItem = {
   productName: string;
   litresPerDay: number;
   durationMonths: number;
+  durationDays?: number;
   deliveryTime: string;
   totalAmount: number;
   updatedAt: string;
@@ -68,13 +69,16 @@ export default function CartPage() {
           return;
         }
         const parsed = JSON.parse(raw) as Partial<SubscriptionCartItem>;
+        const hasDuration =
+          (typeof parsed.durationDays === 'number' && parsed.durationDays >= 1) ||
+          (typeof parsed.durationMonths === 'number' && parsed.durationMonths >= 1);
         if (
           parsed
           && parsed.type === 'subscription'
           && typeof parsed.productId === 'string'
           && typeof parsed.productName === 'string'
           && typeof parsed.litresPerDay === 'number'
-          && typeof parsed.durationMonths === 'number'
+          && hasDuration
           && typeof parsed.deliveryTime === 'string'
           && typeof parsed.totalAmount === 'number'
         ) {
@@ -166,7 +170,11 @@ export default function CartPage() {
     if (firstProductId) next.set('productId', firstProductId);
     if (subscriptionCartItem) {
       next.set('liters', String(subscriptionCartItem.litresPerDay));
-      next.set('months', String(subscriptionCartItem.durationMonths));
+      if (subscriptionCartItem.durationDays != null && subscriptionCartItem.durationDays >= 1) {
+        next.set('days', String(subscriptionCartItem.durationDays));
+      } else {
+        next.set('months', String(subscriptionCartItem.durationMonths));
+      }
     }
     router.push(`/subscribe?${next.toString()}`);
   };
@@ -375,9 +383,20 @@ export default function CartPage() {
                 </div>
                 <div className={styles.itemDetails}>
                   <h3 className={styles.itemTitle}>Subscription for {subscriptionCartItem.productName}</h3>
+                  <p className={styles.subscriptionTransferNote}>
+                    Subscriptions are transferred in My Account &gt;{' '}
+                    <Link href="/subscriptions" className={styles.subscriptionTransferLink}>
+                      Subscriptions
+                    </Link>
+                  </p>
                   <div className={styles.itemInfo}>
                     <span>Qty: {subscriptionCartItem.litresPerDay} L/day</span>
-                    <span>Period: {subscriptionCartItem.durationMonths} month(s)</span>
+                    <span>
+                      Period:{' '}
+                      {subscriptionCartItem.durationDays != null && subscriptionCartItem.durationDays >= 1
+                        ? `${subscriptionCartItem.durationDays} day(s)`
+                        : `${subscriptionCartItem.durationMonths} month(s)`}
+                    </span>
                     <span>Delivery: {subscriptionCartItem.deliveryTime}</span>
                   </div>
                   <div className={styles.itemPrice}>₹{subscriptionCartItem.totalAmount.toFixed(2)}</div>

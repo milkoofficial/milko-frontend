@@ -6,6 +6,37 @@ const { transformSubscription } = require('../utils/transform');
  * Handles all database operations for subscriptions
  */
 
+function subscriptionInputToYmd(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'string') {
+    const s = value.trim().slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  }
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
+  }
+  const s = String(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
+function pgDateRowToYmd(v) {
+  if (v == null || v === undefined) return '';
+  if (v instanceof Date) {
+    if (Number.isNaN(v.getTime())) return '';
+    return `${v.getUTCFullYear()}-${String(v.getUTCMonth() + 1).padStart(2, '0')}-${String(v.getUTCDate()).padStart(2, '0')}`;
+  }
+  const s = String(v).trim().slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+
+function addOneCalendarDayYmd(ymd) {
+  const [y, m, d] = ymd.split('-').map((x) => parseInt(x, 10));
+  const ms = Date.UTC(y, m - 1, d) + 86400000;
+  const u = new Date(ms);
+  return `${u.getUTCFullYear()}-${String(u.getUTCMonth() + 1).padStart(2, '0')}-${String(u.getUTCDate()).padStart(2, '0')}`;
+}
+
 let schemaEnsured = false;
 
 async function ensureSubscriptionSchema() {
@@ -27,6 +58,7 @@ async function ensureSubscriptionSchema() {
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS address_id INTEGER;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS checkout_order_id UUID;`);
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_checkout_order_id ON subscriptions(checkout_order_id) WHERE checkout_order_id IS NOT NULL;`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS duration_days INTEGER;`);
 
   // Ensure delivery schedule + paused dates tables exist.
   // Live deployments may run partially without executing schema.sql migrations.
@@ -249,44 +281,40 @@ const updateSubscriptionStatus = async (subscriptionId, status) => {
 
 /**
  * Generate delivery schedules for a subscription
- * Creates daily delivery entries from start_date to end_date, skipping paused dates
- * @param {string} subscriptionId - Subscription ID
- * @param {Date} startDate - Start date
- * @param {Date} endDate - End date
- * @returns {Promise<Array>} Array of created delivery schedules
+ * Creates daily delivery entries from start_date to end_date (inclusive), skipping paused dates.
+ * Uses calendar YYYY-MM-DD stepping only — avoids mixing `new Date("YYYY-MM-DD")` (UTC) with local setDate (off-by-one).
  */
 const generateDeliverySchedules = async (subscriptionId, startDate, endDate) => {
   await ensureSubscriptionSchema();
   const client = await getClient();
   const schedules = [];
-  
+
+  const startYmd = subscriptionInputToYmd(startDate);
+  const endYmd = subscriptionInputToYmd(endDate);
+  if (!startYmd || !endYmd) {
+    throw new Error('generateDeliverySchedules: invalid start or end date');
+  }
+
   try {
     await client.query('BEGIN');
 
-    // Get paused dates for this subscription
     const pausedDatesResult = await client.query(
       'SELECT date FROM paused_dates WHERE subscription_id = $1',
       [subscriptionId]
     );
     const pausedDates = new Set(
-      pausedDatesResult.rows.map(row => row.date.toISOString().split('T')[0])
+      pausedDatesResult.rows.map((row) => pgDateRowToYmd(row.date)).filter(Boolean)
     );
 
-    // Generate dates from start to end
-    const currentDate = new Date(startDate);
-    const end = new Date(endDate);
-
-    while (currentDate <= end) {
-      const dateStr = currentDate.toISOString().split('T')[0];
-
-      // Skip paused dates
-      if (!pausedDates.has(dateStr)) {
+    let cur = startYmd;
+    while (cur.localeCompare(endYmd) <= 0) {
+      if (!pausedDates.has(cur)) {
         const result = await client.query(
           `INSERT INTO delivery_schedules (subscription_id, delivery_date, status, created_at)
            VALUES ($1, $2, 'pending', NOW())
            ON CONFLICT (subscription_id, delivery_date) DO NOTHING
            RETURNING *`,
-          [subscriptionId, dateStr]
+          [subscriptionId, cur]
         );
 
         if (result.rows.length > 0) {
@@ -294,7 +322,7 @@ const generateDeliverySchedules = async (subscriptionId, startDate, endDate) => 
         }
       }
 
-      currentDate.setDate(currentDate.getDate() + 1);
+      cur = addOneCalendarDayYmd(cur);
     }
 
     await client.query('COMMIT');

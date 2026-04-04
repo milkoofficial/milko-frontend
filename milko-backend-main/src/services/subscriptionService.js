@@ -1,4 +1,4 @@
-const subscriptionModel = require('../models/subscription');
+﻿const subscriptionModel = require('../models/subscription');
 const productModel = require('../models/product');
 const {
   createOrder,
@@ -27,6 +27,134 @@ function getAutopayFirstChargeUnixSeconds(endDateYmd) {
   return Math.floor(nextMidnightIst.getTime() / 1000);
 }
 
+const SUBSCRIPTION_CALENDAR_TZ = process.env.SUBSCRIPTION_CALENDAR_TZ || 'Asia/Kolkata';
+
+function ymdFromLocalDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Calendar YYYY-MM-DD in SUBSCRIPTION_CALENDAR_TZ for a given instant (e.g. order placed).
+ * Used so subscription start matches the customerâ€™s purchase day even if activation runs later
+ * (Razorpay verify / webhook the next calendar day).
+ */
+function ymdFromInstantInSubscriptionCalendar(dateLike) {
+  if (dateLike == null || dateLike === '') return null;
+  const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: SUBSCRIPTION_CALENDAR_TZ,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === 'year')?.value;
+    const m = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    if (y && m && day) return `${y}-${m}-${day}`;
+  } catch (e) {
+    /* ignore */
+  }
+  return null;
+}
+
+/** Subscription â€œtodayâ€ = calendar date in business TZ (default IST), not server UTC. */
+function ymdTodaySubscriptionCalendar() {
+  return ymdFromInstantInSubscriptionCalendar(new Date()) || ymdFromLocalDate(new Date());
+}
+
+/** IANA zone name safe to pass to PostgreSQL `AT TIME ZONE`. */
+function subscriptionCalendarPgZone() {
+  const z = String(SUBSCRIPTION_CALENDAR_TZ || 'Asia/Kolkata').trim();
+  if (!/^[\w/.+-]+$/.test(z) || z.length > 63) return 'Asia/Kolkata';
+  return z;
+}
+
+/**
+ * Todayâ€™s calendar date in SUBSCRIPTION_CALENDAR_TZ from PostgreSQL.
+ * Nodeâ€™s host timezone / `Date` parsing (and TIMESTAMP WITHOUT TIME ZONE on orders) often skews
+ * â€œtodayâ€ by one day vs what customers in India see â€” the DB conversion is the source of truth.
+ * @param {object | null} client - optional pg transaction client (same as `query()` if omitted)
+ */
+async function ymdTodayFromDatabase(client) {
+  const zone = subscriptionCalendarPgZone();
+  const sql = `SELECT (CURRENT_TIMESTAMP AT TIME ZONE $1)::date::text AS ymd`;
+  try {
+    const r = client ? await client.query(sql, [zone]) : await query(sql, [zone]);
+    const ymd = r.rows[0]?.ymd;
+    if (ymd && /^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd;
+  } catch (e) {
+    /* ignore */
+  }
+  return ymdTodaySubscriptionCalendar();
+}
+
+function ymdLexMax(a, b) {
+  const ok = (x) => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x);
+  if (!ok(a)) return ok(b) ? b : ymdTodaySubscriptionCalendar();
+  if (!ok(b)) return a;
+  return a >= b ? a : b;
+}
+
+/**
+ * First delivery / period anchor: max(DB â€œtodayâ€, Node IST â€œtodayâ€).
+ * Supabase/pooler clocks sometimes report one calendar day behind the real India purchase date;
+ * Intl in Node matches what the customer sees for â€œPurchasedâ€, so we never start the plan earlier.
+ */
+async function subscriptionStartYmdAnchor(client) {
+  const fromDb = await ymdTodayFromDatabase(client);
+  const fromNode = ymdFromInstantInSubscriptionCalendar(new Date());
+  return ymdLexMax(fromDb, fromNode || '');
+}
+
+/** Add whole calendar days to YYYY-MM-DD (UTC Gregorian; stable, no local/UTC parse mix). */
+function addCalendarDaysYmd(ymd, delta) {
+  const parts = String(ymd).slice(0, 10).split('-');
+  const y = parseInt(parts[0], 10);
+  const mo = parseInt(parts[1], 10) - 1;
+  const da = parseInt(parts[2], 10);
+  const ms = Date.UTC(y, mo, da) + delta * 86400000;
+  const u = new Date(ms);
+  return `${u.getUTCFullYear()}-${String(u.getUTCMonth() + 1).padStart(2, '0')}-${String(u.getUTCDate()).padStart(2, '0')}`;
+}
+
+function addLocalDaysYmd(ymd, delta) {
+  return addCalendarDaysYmd(ymd, delta);
+}
+
+/**
+ * Last delivery calendar day for exactly `deliveryDayCount` delivery days when `startYmd` is day 1
+ * (purchase day counts). `duration_days` and billing use `deliveryDayCount` unchanged â€” the `-1`
+ * in the math is only â€œfrom day 1 to day N you advance Nâˆ’1 steps on the calendar,â€ not a shorter plan.
+ */
+function lastInclusiveDeliveryYmd(startYmd, deliveryDayCount) {
+  const n = Math.max(1, Math.floor(Number(deliveryDayCount) || 1));
+  return addCalendarDaysYmd(startYmd, n - 1);
+}
+
+/** Prefer explicit calendar days from the client; else legacy month buckets (30 days each). */
+function resolvePlanDaysFromPayload({ durationDays, durationMonths }) {
+  const dd = Number(durationDays);
+  if (Number.isFinite(dd) && dd >= 1) return Math.min(3650, Math.floor(dd));
+  const mm = Number(durationMonths);
+  if (Number.isFinite(mm) && mm >= 1) return Math.max(1, Math.round(mm * 30));
+  return null;
+}
+
+/** DB row: use duration_days when set; else duration_months Ã— 30 (legacy). */
+function planDaysFromSubscriptionRow(row) {
+  if (row.duration_days != null && row.duration_days !== undefined) {
+    const d = parseInt(row.duration_days, 10);
+    if (Number.isFinite(d) && d >= 1) return d;
+  }
+  const m = Math.max(1, parseInt(row.duration_months || 1, 10));
+  return Math.max(1, Math.round(m * 30));
+}
+
 /**
  * Subscription Service
  * Handles subscription business logic
@@ -39,7 +167,16 @@ function getAutopayFirstChargeUnixSeconds(endDateYmd) {
  * @returns {Promise<Object>} Subscription and Razorpay order
  */
 const createSubscription = async (subscriptionData) => {
-  const { userId, productId, litresPerDay, durationMonths, deliveryTime, paymentMethod = 'wallet', addressId = null } = subscriptionData;
+  const {
+    userId,
+    productId,
+    litresPerDay,
+    durationMonths,
+    durationDays,
+    deliveryTime,
+    paymentMethod = 'wallet',
+    addressId = null,
+  } = subscriptionData;
 
   // Validate product exists and is active
   const product = await productModel.getProductById(productId);
@@ -54,13 +191,13 @@ const createSubscription = async (subscriptionData) => {
   await subscriptionModel.ensureSubscriptionSchema();
   await walletService.ensureWalletSchema();
 
-  // Calculate dates
-  const startDate = new Date();
-  const endDate = new Date();
-  endDate.setMonth(endDate.getMonth() + durationMonths);
+  const daysInDuration = resolvePlanDaysFromPayload({ durationDays, durationMonths });
+  if (!daysInDuration) {
+    throw new ValidationError('Invalid subscription duration');
+  }
+  const durationMonthsForDb = Math.max(1, Math.round(daysInDuration / 30));
 
   // Calculate total amount (price per litre * litres per day * days in duration)
-  const daysInDuration = durationMonths * 30;
   const perUnitPrice =
     product.sellingPrice !== null && product.sellingPrice !== undefined
       ? Number(product.sellingPrice)
@@ -104,7 +241,8 @@ const createSubscription = async (subscriptionData) => {
           userId,
           productId,
           litresPerDay,
-          durationMonths,
+          durationMonths: durationMonthsForDb,
+          durationDays: daysInDuration,
           deliveryTime,
         },
       });
@@ -113,31 +251,34 @@ const createSubscription = async (subscriptionData) => {
     const subRes = await client.query(
       `
       INSERT INTO subscriptions (
-        user_id, product_id, litres_per_day, duration_months, delivery_time,
+        user_id, product_id, litres_per_day, duration_months, duration_days, delivery_time,
         address_id,
         start_date, end_date, razorpay_subscription_id, status,
         total_qty, delivered_qty, remaining_qty, per_unit_price, total_amount, total_amount_paid, wallet_used, purchased_at,
         created_at, updated_at
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending',$10,$11,$12,$13,$14,$15,$16,$17,NOW(),NOW())
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,
+        (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
+        (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + ($5::integer - 1),
+        $8,'pending',
+        $9,0,$9,$10,$11,$12,$12,$13,
+        NOW(),NOW()
+      )
       RETURNING id
       `,
       [
         userId,
         productId,
         litresPerDay,
-        durationMonths,
+        durationMonthsForDb,
+        daysInDuration,
         deliveryTime,
         addressId,
-        startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0],
         razorpayOrder ? razorpayOrder.id : null,
-        totalQty,
-        0,
         totalQty,
         perUnitPrice,
         totalAmount,
-        walletUsed,
         walletUsed,
         new Date().toISOString(),
       ]
@@ -511,15 +652,11 @@ const setupAutoPay = async (subscriptionId, userId) => {
 
     const endYmd = formatSubscriptionEndDateYmd(s);
     const durationMonths = Math.max(1, parseInt(s.duration_months || 1, 10));
+    const planDays = planDaysFromSubscriptionRow(s);
 
     const periodAmountInr = Math.max(
       1,
-      Math.round(
-        parseFloat(s.per_unit_price || 0) *
-          parseFloat(s.litres_per_day || 0) *
-          durationMonths *
-          30
-      )
+      Math.round(parseFloat(s.per_unit_price || 0) * parseFloat(s.litres_per_day || 0) * planDays)
     );
     const amountPaise = Math.max(101, Math.round(periodAmountInr * 100));
 
@@ -567,15 +704,18 @@ const setupAutoPay = async (subscriptionId, userId) => {
     try {
       return await runRazorpaySetup();
     } catch (e2) {
+      // Mid-period AutoPay setup must never end the current subscription term.
+      const razorpayMsg =
+        e2?.message && String(e2.message).trim() ? String(e2.message).trim() : AUTOPAY_FAILURE_MESSAGE;
+      const reason = `AutoPay setup failed: ${razorpayMsg}`;
       await query(
         `UPDATE subscriptions
-         SET status = 'expired',
-             autopay_failure_reason = $1,
+         SET autopay_failure_reason = $1,
              updated_at = NOW()
-         WHERE id = $2`,
-        [AUTOPAY_FAILURE_MESSAGE, subscriptionId]
+         WHERE id = $2 AND status IN ('active', 'paused')`,
+        [reason, subscriptionId]
       );
-      throw new ValidationError(AUTOPAY_FAILURE_MESSAGE);
+      throw new ValidationError(reason);
     }
   }
 };
@@ -617,12 +757,8 @@ const applyAutopaySubscriptionRenewalFromPayment = async (razorpaySubscriptionId
       return null;
     }
 
-    const now = new Date();
-    const startDate = now.toISOString().split('T')[0];
-    const endDateObj = new Date(now);
-    endDateObj.setMonth(endDateObj.getMonth() + parseInt(s.duration_months || 1, 10));
-    const endDate = endDateObj.toISOString().split('T')[0];
-    const totalQty = parseFloat(s.litres_per_day || 0) * parseInt(s.duration_months || 1, 10) * 30;
+    const planDays = planDaysFromSubscriptionRow(s);
+    const totalQty = parseFloat(s.litres_per_day || 0) * planDays;
     const totalAmount = parseFloat(s.per_unit_price || 0) * totalQty;
 
     await client.query(
@@ -630,21 +766,21 @@ const applyAutopaySubscriptionRenewalFromPayment = async (razorpaySubscriptionId
       UPDATE subscriptions
       SET status = 'active',
           initial_start_date = COALESCE(initial_start_date, start_date),
-          start_date = $1,
-          end_date = $2,
+          start_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
+          end_date   = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + ($1::integer - 1),
           renewed_at = NOW(),
           renewal_order_id = NULL,
-          razorpay_payment_id = $3,
-          total_qty = $4,
+          razorpay_payment_id = $2,
+          total_qty = $3,
           delivered_qty = 0,
-          remaining_qty = $4,
-          total_amount = $5,
-          total_amount_paid = $5,
+          remaining_qty = $3,
+          total_amount = $4,
+          total_amount_paid = $4,
           autopay_failure_reason = NULL,
           updated_at = NOW()
-      WHERE id = $6
+      WHERE id = $5
       `,
-      [startDate, endDate, paymentId, totalQty, totalAmount, milkoSubscriptionId]
+      [planDays, paymentId, totalQty, totalAmount, milkoSubscriptionId]
     );
 
     await client.query(`DELETE FROM paused_dates WHERE subscription_id = $1`, [milkoSubscriptionId]);
@@ -721,9 +857,10 @@ const renewExpiredSubscriptionInit = async (subscriptionId, userId) => {
     if (String(s.user_id) !== String(userId)) throw new ValidationError('Unauthorized');
     if (s.status !== 'expired') throw new ValidationError('Only expired subscriptions can be renewed here');
 
+    const planDays = planDaysFromSubscriptionRow(s);
     const amountInr = Math.max(
       1,
-      Math.round(parseFloat(s.per_unit_price || 0) * parseFloat(s.litres_per_day || 0) * parseInt(s.duration_months || 1, 10) * 30)
+      Math.round(parseFloat(s.per_unit_price || 0) * parseFloat(s.litres_per_day || 0) * planDays)
     );
 
     const razorpayOrder = await createOrder({
@@ -782,12 +919,8 @@ const renewExpiredSubscriptionVerify = async (subscriptionId, userId, razorpayOr
       throw new ValidationError('Invalid renewal order');
     }
 
-    const now = new Date();
-    const startDate = now.toISOString().split('T')[0];
-    const endDateObj = new Date(now);
-    endDateObj.setMonth(endDateObj.getMonth() + parseInt(s.duration_months || 1, 10));
-    const endDate = endDateObj.toISOString().split('T')[0];
-    const totalQty = parseFloat(s.litres_per_day || 0) * parseInt(s.duration_months || 1, 10) * 30;
+    const planDays = planDaysFromSubscriptionRow(s);
+    const totalQty = parseFloat(s.litres_per_day || 0) * planDays;
     const totalAmount = parseFloat(s.per_unit_price || 0) * totalQty;
 
     await client.query(
@@ -795,20 +928,20 @@ const renewExpiredSubscriptionVerify = async (subscriptionId, userId, razorpayOr
       UPDATE subscriptions
       SET status = 'active',
           initial_start_date = COALESCE(initial_start_date, start_date),
-          start_date = $1,
-          end_date = $2,
+          start_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
+          end_date   = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + ($1::integer - 1),
           renewed_at = NOW(),
           renewal_order_id = NULL,
-          razorpay_payment_id = $3,
-          total_qty = $4,
+          razorpay_payment_id = $2,
+          total_qty = $3,
           delivered_qty = 0,
-          remaining_qty = $4,
-          total_amount = $5,
-          total_amount_paid = $5,
+          remaining_qty = $3,
+          total_amount = $4,
+          total_amount_paid = $4,
           updated_at = NOW()
-      WHERE id = $6
+      WHERE id = $5
       `,
-      [startDate, endDate, razorpayPaymentId, totalQty, totalAmount, subscriptionId]
+      [planDays, razorpayPaymentId, totalQty, totalAmount, subscriptionId]
     );
 
     await client.query(`DELETE FROM paused_dates WHERE subscription_id = $1`, [subscriptionId]);
@@ -849,8 +982,14 @@ const createFromCheckoutOrder = async (orderId) => {
     );
     if (existingRes.rows.length > 0) {
       const existingId = existingRes.rows[0].id;
+      const existingStatus = existingRes.rows[0].status;
+      const payRes = await client.query(
+        `SELECT payment_status FROM orders WHERE id = $1 LIMIT 1`,
+        [orderId]
+      );
       await client.query('COMMIT');
-      if (existingRes.rows[0].status !== 'active') {
+      const ps = String(payRes.rows[0]?.payment_status || '').toLowerCase();
+      if (existingStatus !== 'active' && ps === 'paid') {
         return await activateSubscription(existingId);
       }
       return await subscriptionModel.getSubscriptionById(existingId);
@@ -858,7 +997,7 @@ const createFromCheckoutOrder = async (orderId) => {
 
     const orderRes = await client.query(
       `
-      SELECT id, user_id, payment_status
+      SELECT id, user_id, payment_status, created_at
       FROM orders
       WHERE id = $1
       LIMIT 1
@@ -890,54 +1029,67 @@ const createFromCheckoutOrder = async (orderId) => {
     const item = itemRes.rows[0];
     const details = String(item.variation_size || '');
     const qtyMatch = details.match(/Qty:\s*([0-9]+(?:\.[0-9]+)?)\s*L\/day/i);
+    const daysMatch = details.match(/Period:\s*([0-9]+)\s*day/i);
     const monthsMatch = details.match(/Period:\s*([0-9]+)\s*month/i);
     const deliveryMatch = details.match(/Delivery:\s*(.+)$/i);
 
     const litresPerDay = qtyMatch ? parseFloat(qtyMatch[1]) : 0;
-    const durationMonths = monthsMatch ? parseInt(monthsMatch[1], 10) : 0;
+    let planDays = 0;
+    if (daysMatch) {
+      planDays = Math.max(1, parseInt(daysMatch[1], 10));
+    } else if (monthsMatch) {
+      planDays = Math.max(1, Math.round(parseInt(monthsMatch[1], 10) * 30));
+    }
+    const durationMonthsForDb = Math.max(1, Math.round(planDays / 30));
     const deliveryTime = deliveryMatch ? String(deliveryMatch[1]).trim() : '';
-    if (!item.product_id || !litresPerDay || !durationMonths || !deliveryTime) {
+    if (!item.product_id || !litresPerDay || !planDays || !deliveryTime) {
       await client.query('COMMIT');
       return null;
     }
 
-    const startDate = new Date();
-    const endDate = new Date(startDate);
-    endDate.setMonth(endDate.getMonth() + durationMonths);
-
-    const days = Math.max(1, Math.round(durationMonths * 30));
-    const totalQty = litresPerDay * days;
+    const totalQty = litresPerDay * planDays;
     const totalAmount = parseFloat(item.unit_price || 0);
     const perUnitPrice = totalQty > 0 ? (totalAmount / totalQty) : 0;
-    const isAlreadyPaid = ['paid', 'cod'].includes(String(order.payment_status || '').toLowerCase());
+    // COD uses payment_status 'cod' until collection — do not treat as paid here.
+    const isAlreadyPaid = String(order.payment_status || '').toLowerCase() === 'paid';
+    const purchasedAtIso = isAlreadyPaid
+      ? new Date().toISOString()
+      : order.created_at
+        ? new Date(order.created_at).toISOString()
+        : new Date().toISOString();
 
+    // start_date and end_date computed entirely in PostgreSQL (Asia/Kolkata) — no Node host-TZ skew.
     const insertRes = await client.query(
       `
       INSERT INTO subscriptions (
-        user_id, product_id, litres_per_day, duration_months, delivery_time,
+        user_id, product_id, litres_per_day, duration_months, duration_days, delivery_time,
         start_date, end_date, razorpay_subscription_id, status, checkout_order_id,
         total_qty, delivered_qty, remaining_qty, per_unit_price, total_amount, total_amount_paid, wallet_used, purchased_at,
         created_at, updated_at
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,NULL,'pending',$8,$9,$10,$11,$12,$13,$14,$15,NOW(),NOW(),NOW())
+      VALUES (
+        $1,$2,$3,$4,$5,$6,
+        (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
+        (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + ($5::integer - 1),
+        NULL,'pending',$7,
+        $8,0,$8,$9,$10,$11,0,$12,
+        NOW(),NOW()
+      )
       RETURNING id
       `,
       [
         order.user_id,
         item.product_id,
         litresPerDay,
-        durationMonths,
+        durationMonthsForDb,
+        planDays,
         deliveryTime,
-        startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0],
         orderId,
-        totalQty,
-        0,
         totalQty,
         perUnitPrice,
         totalAmount,
         isAlreadyPaid ? totalAmount : 0,
-        0,
+        purchasedAtIso,
       ]
     );
 
@@ -956,10 +1108,29 @@ const createFromCheckoutOrder = async (orderId) => {
   }
 };
 
+/**
+ * After checkout COD: subscription stays pending until admin marks the order delivered.
+ * Idempotent â€” no-op if no linked subscription or already active.
+ */
+const activateSubscriptionForCheckoutOrderIfPending = async (orderId) => {
+  await subscriptionModel.ensureSubscriptionSchema();
+  const res = await query(
+    `SELECT id, status FROM subscriptions WHERE checkout_order_id = $1 LIMIT 1`,
+    [orderId]
+  );
+  if (res.rows.length === 0) return null;
+  if (String(res.rows[0].status || '').toLowerCase() === 'active') {
+    return await subscriptionModel.getSubscriptionById(res.rows[0].id);
+  }
+  return await activateSubscription(res.rows[0].id);
+};
+
 module.exports = {
+  AUTOPAY_FAILURE_MESSAGE,
   createSubscription,
   activateSubscription,
   createFromCheckoutOrder,
+  activateSubscriptionForCheckoutOrderIfPending,
   pauseSubscription,
   resumeSubscription,
   cancelSubscription,

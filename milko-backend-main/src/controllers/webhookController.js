@@ -1,4 +1,5 @@
 const subscriptionService = require('../services/subscriptionService');
+const { AUTOPAY_FAILURE_MESSAGE } = subscriptionService;
 const { verifyWebhookSignature, getPayment } = require('../config/razorpay');
 const { ValidationError } = require('../utils/errors');
 
@@ -69,6 +70,10 @@ const handleRazorpayWebhook = async (req, res, next) => {
 
       case 'subscription.charged':
         await handleSubscriptionCharged(payload);
+        break;
+
+      case 'subscription.halted':
+        await handleSubscriptionHalted(payload);
         break;
 
       default:
@@ -171,6 +176,27 @@ const handleSubscriptionCharged = async (payload) => {
   const renewed = await subscriptionService.applyAutopaySubscriptionRenewalFromPayment(sub.id, payment.id);
   if (renewed) {
     console.log(`[Razorpay webhook] subscription.charged applied for ${sub.id}`);
+  }
+};
+
+/**
+ * Recurring charge exhausted Razorpay retries → expire Milko subscription (renewal window only).
+ * Does not apply to mid-period mandate setup failures (those never hit halted in our start_at flow).
+ */
+const handleSubscriptionHalted = async (payload) => {
+  const sub = payload.subscription?.entity;
+  if (!sub?.id) return;
+  const { query } = require('../config/database');
+  const result = await query(
+    `UPDATE subscriptions
+     SET status = 'expired',
+         autopay_failure_reason = $1,
+         updated_at = NOW()
+     WHERE razorpay_subscription_id = $2 AND status IN ('active', 'paused')`,
+    [AUTOPAY_FAILURE_MESSAGE, sub.id]
+  );
+  if (result.rowCount > 0) {
+    console.log(`[Razorpay webhook] subscription.halted → expired Milko row for ${sub.id}`);
   }
 };
 

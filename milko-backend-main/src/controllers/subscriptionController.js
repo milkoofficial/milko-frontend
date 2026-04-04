@@ -54,10 +54,17 @@ const getSubscriptionById = async (req, res, next) => {
  */
 const createSubscription = async (req, res, next) => {
   try {
-    const { productId, litresPerDay, durationMonths, deliveryTime, paymentMethod, addressId } = req.body;
+    const { productId, litresPerDay, durationMonths, durationDays, deliveryTime, paymentMethod, addressId } =
+      req.body;
 
-    if (!productId || !litresPerDay || !durationMonths || !deliveryTime) {
+    if (!productId || !litresPerDay || !deliveryTime) {
       throw new ValidationError('All fields are required');
+    }
+    const hasDuration =
+      (durationDays != null && durationDays !== '' && Number(durationDays) >= 1) ||
+      (durationMonths != null && durationMonths !== '' && Number(durationMonths) >= 1);
+    if (!hasDuration) {
+      throw new ValidationError('Duration is required (durationDays or durationMonths)');
     }
     const method = (paymentMethod || 'wallet').toString().toLowerCase();
     if (method !== 'wallet' && method !== 'online') {
@@ -69,6 +76,7 @@ const createSubscription = async (req, res, next) => {
       productId,
       litresPerDay,
       durationMonths,
+      durationDays,
       deliveryTime,
       paymentMethod: method,
       addressId: addressId || null,

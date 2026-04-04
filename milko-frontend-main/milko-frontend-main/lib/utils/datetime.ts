@@ -108,3 +108,21 @@ export function formatYyyyMmDdInputAsDDMMYYYY(yyyyMmDd: string): string {
   if (!m) return yyyyMmDd;
   return `${m[3]}/${m[2]}/${m[1]}`;
 }
+
+/**
+ * Parse API date-only strings (`YYYY-MM-DD` or ISO starting with that) as a **local** calendar day at 00:00.
+ * `new Date("YYYY-MM-DD")` uses UTC midnight and breaks day arithmetic after `setHours(0,0,0,0)` in non-UTC zones.
+ */
+export function parseLocalDateFromYmd(input: string | null | undefined): Date | null {
+  if (input == null || input === '') return null;
+  const ymd = String(input).trim().slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  const y = parseInt(m[1], 10);
+  const mo = parseInt(m[2], 10) - 1;
+  const d = parseInt(m[3], 10);
+  const date = new Date(y, mo, d);
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.getFullYear() !== y || date.getMonth() !== mo || date.getDate() !== d) return null;
+  return date;
+}

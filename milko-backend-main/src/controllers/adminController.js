@@ -545,6 +545,7 @@ const markOrderAsDelivered = async (req, res, next) => {
   try {
     const { id } = req.params;
     await orderModel.markAsDelivered(id);
+    await subscriptionService.activateSubscriptionForCheckoutOrderIfPending(id);
     res.json({ success: true, message: 'Order marked as delivered' });
   } catch (error) {
     next(error);

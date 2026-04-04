@@ -100,9 +100,21 @@ const createOrder = async (req, res, next) => {
       const subscriptionProductId = normalizeInt(subscriptionItem?.productId);
       const litresPerDay = Number(subscriptionItem?.litresPerDay);
       const durationMonths = Number(subscriptionItem?.durationMonths);
+      const durationDaysRaw = subscriptionItem?.durationDays;
+      const durationDays =
+        durationDaysRaw != null && durationDaysRaw !== ''
+          ? Number(durationDaysRaw)
+          : NaN;
       const deliveryTime = (subscriptionItem?.deliveryTime || '').toString();
 
-      if (!subscriptionProductId || !Number.isFinite(litresPerDay) || litresPerDay <= 0 || !Number.isFinite(durationMonths) || durationMonths <= 0) {
+      const hasMonthDuration = Number.isFinite(durationMonths) && durationMonths > 0;
+      const hasDayDuration = Number.isFinite(durationDays) && durationDays >= 1;
+      if (
+        !subscriptionProductId ||
+        !Number.isFinite(litresPerDay) ||
+        litresPerDay <= 0 ||
+        (!hasMonthDuration && !hasDayDuration)
+      ) {
         throw new ValidationError('Invalid subscription item');
       }
 
@@ -121,15 +133,21 @@ const createOrder = async (req, res, next) => {
       const perUnit = sp.selling_price !== null && sp.selling_price !== undefined
         ? parseFloat(sp.selling_price)
         : parseFloat(sp.price_per_litre);
-      const days = Math.max(1, Math.round(durationMonths * 30));
+      const days = hasDayDuration
+        ? Math.min(3650, Math.floor(durationDays))
+        : Math.max(1, Math.round(durationMonths * 30));
       const subscriptionAmount = perUnit * litresPerDay * days;
       subtotal += subscriptionAmount;
+
+      const periodLabel = hasDayDuration
+        ? `${Math.floor(durationDays)} day(s)`
+        : `${durationMonths} month(s)`;
 
       computedItems.push({
         productId: subscriptionProductId,
         variationId: null,
         productName: `Subscription for ${sp.name}`,
-        variationSize: `Qty: ${litresPerDay} L/day | Period: ${durationMonths} month(s) | Delivery: ${deliveryTime}`,
+        variationSize: `Qty: ${litresPerDay} L/day | Period: ${periodLabel} | Delivery: ${deliveryTime}`,
         unitPrice: subscriptionAmount,
         quantity: 1,
         lineTotal: subscriptionAmount,
@@ -374,7 +392,6 @@ const verifyPayment = async (req, res, next) => {
 
     const orderId = orderRow.rows[0].id;
     const walletUsed = parseFloat(orderRow.rows[0].wallet_used || 0);
-    const paymentStatus = String(orderRow.rows[0].payment_status || '');
 
     const client = await getClient();
     try {
@@ -416,8 +433,6 @@ const verifyPayment = async (req, res, next) => {
         [razorpayOrderId]
       );
 
-      await subscriptionService.createFromCheckoutOrder(orderId);
-
       if (payment.method === 'card' && payment.card) {
         const last4 = payment.card.last4 || '';
         const network = (payment.card.network || payment.card.brand || '').toString();
@@ -434,6 +449,10 @@ const verifyPayment = async (req, res, next) => {
     } finally {
       client.release();
     }
+
+    // Must run after COMMIT: createFromCheckoutOrder uses its own connection and reads payment_status.
+    // Inside the verify transaction, other connections cannot see the unpaid→paid update (READ COMMITTED).
+    await subscriptionService.createFromCheckoutOrder(orderId);
 
     res.json({
       success: true,

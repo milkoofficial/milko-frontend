@@ -729,6 +729,7 @@ async function getDeliveredItemsForReview(userId) {
         OR (o.delivered_at IS NOT NULL AND o.status NOT IN ('cancelled', 'refunded'))
       )
       AND COALESCE(oi.product_id, prod_match.match_id) IS NOT NULL
+      AND LOWER(TRIM(oi.product_name)) NOT LIKE 'subscription for %'
     ORDER BY COALESCE(o.delivered_at, o.created_at) DESC NULLS LAST, o.created_at DESC, oi.created_at ASC
     `,
     [userId]
@@ -881,7 +882,15 @@ async function markAsDelivered(orderId) {
   const result = await query(
     `
     UPDATE orders
-    SET status = 'delivered', delivered_at = NOW(), delivery_date = CURRENT_DATE, updated_at = NOW()
+    SET
+      status = 'delivered',
+      delivered_at = NOW(),
+      delivery_date = CURRENT_DATE,
+      payment_status = CASE
+        WHEN LOWER(payment_method) = 'cod' THEN 'paid'
+        ELSE payment_status
+      END,
+      updated_at = NOW()
     WHERE id = $1 AND status = 'out_for_delivery'
     RETURNING *
     `,

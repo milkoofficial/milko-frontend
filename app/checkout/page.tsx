@@ -7,6 +7,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient, productsApi, couponsApi, Coupon, addressesApi, walletApi } from '@/lib/api';
 import { Product, Address } from '@/types';
+import Link from 'next/link';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 import styles from './checkout.module.css';
 
@@ -30,6 +31,7 @@ type SubscriptionCartItem = {
   productName: string;
   litresPerDay: number;
   durationMonths: number;
+  durationDays?: number;
   deliveryTime: string;
   totalAmount: number;
   updatedAt: string;
@@ -142,12 +144,15 @@ export default function CheckoutPage() {
           return;
         }
         const parsed = JSON.parse(raw) as Partial<SubscriptionCartItem>;
+        const hasDuration =
+          (typeof parsed.durationDays === 'number' && parsed.durationDays >= 1) ||
+          (typeof parsed.durationMonths === 'number' && parsed.durationMonths >= 1);
         if (
           parsed?.type === 'subscription'
           && typeof parsed.productId === 'string'
           && typeof parsed.productName === 'string'
           && typeof parsed.litresPerDay === 'number'
-          && typeof parsed.durationMonths === 'number'
+          && hasDuration
           && typeof parsed.deliveryTime === 'string'
           && typeof parsed.totalAmount === 'number'
         ) {
@@ -541,7 +546,11 @@ export default function CheckoutPage() {
               variationId: undefined,
               quantity: 1,
               productName: `Subscription for ${subscriptionCartItem.productName}`,
-              variationSize: `Qty: ${subscriptionCartItem.litresPerDay} L/day | Period: ${subscriptionCartItem.durationMonths} month(s) | Delivery: ${subscriptionCartItem.deliveryTime}`,
+              variationSize: `Qty: ${subscriptionCartItem.litresPerDay} L/day | Period: ${
+                subscriptionCartItem.durationDays != null && subscriptionCartItem.durationDays >= 1
+                  ? `${subscriptionCartItem.durationDays} day(s)`
+                  : `${subscriptionCartItem.durationMonths} month(s)`
+              } | Delivery: ${subscriptionCartItem.deliveryTime}`,
               imageUrl: products[subscriptionCartItem.productId]?.images?.[0]?.imageUrl || products[subscriptionCartItem.productId]?.imageUrl,
               unitPrice: subscriptionCartItem.totalAmount,
               taxPercent: products[subscriptionCartItem.productId]?.taxPercent ?? 0,
@@ -595,6 +604,7 @@ export default function CheckoutPage() {
           ? {
               productId: subscriptionCartItem.productId,
               litresPerDay: subscriptionCartItem.litresPerDay,
+              durationDays: subscriptionCartItem.durationDays,
               durationMonths: subscriptionCartItem.durationMonths,
               deliveryTime: subscriptionCartItem.deliveryTime,
             }
@@ -990,8 +1000,18 @@ export default function CheckoutPage() {
                     <div className={styles.orderItemInfo}>
                       <span className={styles.orderItemName}>Subscription for {subscriptionCartItem.productName}</span>
                       <span className={styles.orderItemQuantity}>
-                        Qty: {subscriptionCartItem.litresPerDay} L/day | Period: {subscriptionCartItem.durationMonths} month(s) | Delivery: {subscriptionCartItem.deliveryTime}
+                        Qty: {subscriptionCartItem.litresPerDay} L/day | Period:{' '}
+                        {subscriptionCartItem.durationDays != null && subscriptionCartItem.durationDays >= 1
+                          ? `${subscriptionCartItem.durationDays} day(s)`
+                          : `${subscriptionCartItem.durationMonths} month(s)`}{' '}
+                        | Delivery: {subscriptionCartItem.deliveryTime}
                       </span>
+                      <p className={styles.subscriptionTransferNote}>
+                        Subscriptions are transferred in My Account &gt;{' '}
+                        <Link href="/subscriptions" className={styles.subscriptionTransferLink}>
+                          Subscriptions
+                        </Link>
+                      </p>
                     </div>
                     <span className={styles.orderItemPrice}>₹{subscriptionCartItem.totalAmount.toFixed(2)}</span>
                   </div>
@@ -1135,7 +1155,33 @@ export default function CheckoutPage() {
                       checked={paymentMethod === 'wallet'}
                       onChange={() => setPaymentMethod('wallet')}
                     />
-                    <span>Use Wallet</span>
+                    <span className={styles.paymentChoiceLabelWithIcon}>
+                      <span>Use Wallet</span>
+                      <span className={styles.paymentChoiceWalletBadge} aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect
+                            x="3"
+                            y="5.5"
+                            width="18"
+                            height="13"
+                            rx="2.2"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          />
+                          <path d="M3 10.25h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <rect
+                            x="13.5"
+                            y="11.25"
+                            width="6.5"
+                            height="4.5"
+                            rx="0.65"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
+                          <circle cx="16.75" cy="13.5" r="0.85" fill="currentColor" />
+                        </svg>
+                      </span>
+                    </span>
                   </label>
                 )}
 

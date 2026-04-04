@@ -3,6 +3,23 @@
  * Converts database snake_case to API camelCase
  */
 
+/** PostgreSQL `DATE` → `YYYY-MM-DD` using UTC calendar fields (matches node-pg DATE → Date at UTC midnight). */
+function pgDateOnlyToYmd(value) {
+  if (value == null || value === undefined) return undefined;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return undefined;
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(value.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(value).trim().slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return undefined;
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+}
+
 /**
  * Transform subscription row from database to API format
  * @param {Object} row - Database row with snake_case
@@ -40,11 +57,16 @@ const transformSubscription = (row) => {
     } : undefined,
     litresPerDay: parseFloat(row.litres_per_day),
     durationMonths: parseInt(row.duration_months),
+    durationDays:
+      row.duration_days !== null && row.duration_days !== undefined
+        ? parseInt(row.duration_days, 10)
+        : undefined,
     deliveryTime: row.delivery_time,
     status: row.status,
-    startDate: row.start_date?.toISOString().split('T')[0],
-    endDate: row.end_date?.toISOString().split('T')[0],
+    startDate: pgDateOnlyToYmd(row.start_date),
+    endDate: pgDateOnlyToYmd(row.end_date),
     razorpaySubscriptionId: row.razorpay_subscription_id,
+    checkoutOrderId: row.checkout_order_id ? String(row.checkout_order_id) : undefined,
     totalQty: row.total_qty !== null && row.total_qty !== undefined ? parseFloat(row.total_qty) : undefined,
     deliveredQty: row.delivered_qty !== null && row.delivered_qty !== undefined ? parseFloat(row.delivered_qty) : undefined,
     remainingQty: row.remaining_qty !== null && row.remaining_qty !== undefined ? parseFloat(row.remaining_qty) : undefined,
@@ -55,7 +77,7 @@ const transformSubscription = (row) => {
     purchasedAt: row.purchased_at ? new Date(row.purchased_at).toISOString() : undefined,
     cancelledAt: row.cancelled_at ? new Date(row.cancelled_at).toISOString() : undefined,
     renewedAt: row.renewed_at ? new Date(row.renewed_at).toISOString() : undefined,
-    initialStartDate: row.initial_start_date ? new Date(row.initial_start_date).toISOString().split('T')[0] : undefined,
+    initialStartDate: row.initial_start_date ? pgDateOnlyToYmd(row.initial_start_date) : undefined,
     autopayFailureReason: row.autopay_failure_reason || undefined,
     createdAt: row.created_at?.toISOString(),
     updatedAt: row.updated_at?.toISOString(),

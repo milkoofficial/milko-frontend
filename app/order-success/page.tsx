@@ -226,6 +226,21 @@ export default function OrderSuccessPage() {
                   </div>
                   <div className={styles.itemDetails}>
                     <h3 className={styles.itemName}>{productName}</h3>
+                    {(item.productName || '').trim().toLowerCase().startsWith('subscription for ') && (
+                      <p
+                        className={styles.subscriptionTransferNote}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Subscriptions are transferred in My Account &gt;{' '}
+                        <Link
+                          href="/subscriptions"
+                          className={styles.subscriptionTransferLink}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Subscriptions
+                        </Link>
+                      </p>
+                    )}
                     {variationText && <p className={styles.itemVariant}>{variationText}</p>}
                     <p className={styles.itemQuantity}>Qty: {item.quantity}</p>
                   </div>
