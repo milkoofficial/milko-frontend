@@ -12,30 +12,6 @@
   margin-bottom: 1.25rem;
 }
 
-.addCouponDesktop {
-  flex-shrink: 0;
-}
-
-.addCouponIconLink {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: #0070f3;
-  color: #fff;
-  border: 1px solid #3693ff;
-  box-shadow: inset 0px 0px 14px 0px #ffffff9e;
-  cursor: pointer;
-  transition: transform 0.06s ease, background 0.015s ease;
-}
-
-.addCouponIconLink:active {
-  transform: translateY(1px);
-}
-
 .subtitle {
   margin-top: 0.35rem;
   color: #6b7280;
@@ -45,7 +21,7 @@
 
 .toolbar {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   gap: 0.75rem;
   align-items: center;
   margin-bottom: 1.25rem;
@@ -73,9 +49,6 @@
   height: 18px;
   color: #64748b;
   pointer-events: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .searchInput {
@@ -100,7 +73,7 @@
 
 .selectButton {
   width: 100%;
-  min-width: 220px;
+  min-width: 200px;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -291,7 +264,7 @@
 }
 
 .thead {
-  background: #F7F7F7;
+  background: #f7f7f7;
 }
 
 .th,
@@ -313,140 +286,19 @@
   background: #fbfdff;
 }
 
-.couponCell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 150px;
-}
-
-.couponCode {
-  font-weight: 800;
-  color: #0f172a;
-  font-size: 1rem;
-  letter-spacing: 0.05em;
-  font-family: 'Courier New', monospace;
-}
-
-.couponMeta {
-  margin-top: 0.2rem;
-  color: #64748b;
-  font-size: 0.85rem;
-}
-
-.discountBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.discountMain {
+.customerName {
   font-weight: 800;
   color: #0f172a;
 }
 
-.discountSub {
+.customerEmail {
   color: #64748b;
-  font-size: 0.85rem;
-}
-
-.usageBlock {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.validityBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
   font-size: 0.9rem;
 }
 
-.expiredText {
-  color: #dc3545;
-  font-weight: 600;
-}
-
-.noExpiry {
-  color: #10b981;
-  font-weight: 600;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
+.amountCell {
   font-weight: 700;
-  border: 1px solid transparent;
-}
-
-.badgeActive {
-  background: #b6ffdd;
-  color: #007957;
-}
-
-.badgeInactive {
-  background: #fef2f2;
-  color: #991b1b;
-  border-color: #fecaca;
-}
-
-.badgeWarning {
-  background: #ffe5c5;
-  color: #9a3412;
-}
-
-.badgeExpired {
-  background: #fee;
-  color: #c33;
-}
-
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-
-.linkButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.55rem 0.85rem;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
   color: #0f172a;
-  font-weight: 700;
-  font-size: 0.9rem;
-  transition: background 0.015s ease, border-color 0.015s ease;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.linkButton:hover {
-  background: #e5e5e566;
-  border-color: #bebebe;
-}
-
-.deleteButton {
-  background: rgb(255 224 227);
-  color: #770000;
-  padding: 0.55rem;
-  min-width: auto;
-}
-
-.deleteButton:hover {
-  background: #ffabb4;
-  border-color: #bd2130;
-}
-
-.deleteButton svg {
-  display: block;
 }
 
 .emptyState {
@@ -471,22 +323,26 @@
 .cardTop {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 0.75rem;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #e0f2fe;
+  color: #0369a1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1rem;
+  flex: 0 0 auto;
 }
 
 .cardTitleBlock {
   min-width: 0;
   flex: 1;
-}
-
-.cardBadges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  justify-content: flex-end;
-  flex-shrink: 0;
-  max-width: 42%;
 }
 
 .cardBody {
@@ -505,10 +361,6 @@
   min-width: 0;
 }
 
-.kvWide {
-  grid-column: 1 / -1;
-}
-
 .kvLabel {
   font-size: 0.75rem;
   color: #94a3b8;
@@ -519,185 +371,11 @@
 .kvValue {
   font-weight: 700;
   color: #0f172a;
-  line-height: 1.35;
   word-break: break-word;
 }
 
-.kvSub {
-  font-size: 0.8rem;
-  color: #64748b;
-  font-weight: 600;
-}
-
-.cardActions {
-  margin-top: 0.85rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.formPanel {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  border: 1px solid #ddd;
-  margin-bottom: 1.5rem;
-}
-
-.formHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-}
-
-.formTitle {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.backLink {
-  color: #0070f3;
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.backLink:hover {
-  text-decoration: underline;
-}
-
-.formGroup {
-  margin-bottom: 1.5rem;
-}
-
-.formRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #1a1a1a;
-}
-
-.input,
-.textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 9px;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: border-color 0.2s;
-}
-
-.select {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 9px;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: border-color 0.2s;
-  background: white;
-  cursor: pointer;
-}
-
-.input:focus,
-.textarea:focus {
-  outline: none;
-  border-color: #0070f3;
-}
-
-.select:focus {
-  outline: none;
-  border-color: #0070f3;
-}
-
-.textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-.checkboxLabel {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.checkbox {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.helpText {
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
-  color: #6b7280;
-  line-height: 1.4;
-}
-
-.formActions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #e5e5e5;
-}
-
-.saveButton {
-  padding: 0.75rem 2rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.02s;
-  background: #0070f3;
-  color: white;
-}
-
-.saveButton:hover:not(:disabled) {
-  background: #0051cc;
-}
-
-.saveButton:disabled {
-  background: #93c5fd;
-  cursor: not-allowed;
-}
-
-.cancelButton {
-  padding: 0.75rem 2rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.02s;
-  background: #f5f5f5;
-  color: #1a1a1a;
-}
-
-.cancelButton:hover {
-  background: #e5e5e5;
-}
-
-@media (max-width: 920px) {
-  .formRow {
-    grid-template-columns: 1fr;
-  }
+.kvWide {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 720px) {
@@ -712,12 +390,8 @@
     gap: 0.75rem;
   }
 
-  .addCouponDesktop {
-    display: none !important;
-  }
-
-  .addCouponIconLink {
-    display: inline-flex;
+  .subtitle {
+    margin-top: 0;
   }
 
   .toolbar {
@@ -871,22 +545,22 @@
     width: 100%;
     height: 3rem;
     min-height: 3rem;
-    padding: 0 0.35rem;
-    font-size: 0.58rem;
-    gap: 0.2rem;
+    padding: 0 0.5rem;
+    font-size: 0.68rem;
+    gap: 0.25rem;
     box-sizing: border-box;
   }
 
   .filterSlot .selectChevron {
     flex: 0 0 auto;
-    width: 12px;
-    height: 12px;
-    padding-left: 0.05rem;
+    width: 14px;
+    height: 14px;
+    padding-left: 0.1rem;
   }
 
   .filterSlot .selectChevron svg {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
   }
 
   .panel {
@@ -895,28 +569,5 @@
 
   .cards {
     display: grid;
-  }
-
-  .subtitle {
-    margin-top: 0;
-  }
-
-  .formPanel {
-    padding: 1.25rem;
-  }
-
-  .formHeader {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .formActions {
-    flex-direction: column;
-  }
-
-  .saveButton,
-  .cancelButton {
-    width: 100%;
   }
 }

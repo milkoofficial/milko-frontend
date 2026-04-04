@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getAllCategories, createCategory, updateCategory, deleteCategory, Category } from '@/lib/api/categories';
 import { useToast } from '@/contexts/ToastContext';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import adminStyles from '../admin-styles.module.css';
 import styles from './page.module.css';
+
+type SortKey = 'nameAsc' | 'nameDesc' | 'createdDesc';
 
 /**
  * Admin Categories Management Page
@@ -22,12 +25,25 @@ export default function AdminCategoriesPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<'nameAsc' | 'nameDesc' | 'createdDesc'>('nameAsc');
+  const [sort, setSort] = useState<SortKey>('nameAsc');
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchExpandRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    if (!searchExpanded) return;
+    const onDown = (e: MouseEvent) => {
+      const el = searchExpandRef.current;
+      if (el && e.target instanceof Node && el.contains(e.target)) return;
+      setSearchExpanded(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [searchExpanded]);
 
   const fetchCategories = async () => {
     try {
@@ -44,7 +60,6 @@ export default function AdminCategoriesPage() {
   const filtered = useMemo(() => {
     let result = [...categories];
 
-    // Search filter
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       result = result.filter(
@@ -54,11 +69,9 @@ export default function AdminCategoriesPage() {
       );
     }
 
-    // Sort
     result.sort((a, b) => {
       if (sort === 'nameAsc') return a.name.localeCompare(b.name);
       if (sort === 'nameDesc') return b.name.localeCompare(a.name);
-      // createdDesc
       const aTime = new Date(a.createdAt || 0).getTime();
       const bTime = new Date(b.createdAt || 0).getTime();
       return bTime - aTime;
@@ -69,7 +82,7 @@ export default function AdminCategoriesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
       showToast('Category name is required', 'error');
       return;
@@ -77,7 +90,7 @@ export default function AdminCategoriesPage() {
 
     try {
       setSubmitting(true);
-      
+
       if (editingCategory) {
         await updateCategory(editingCategory.id, formData);
         showToast('Category updated successfully', 'success');
@@ -85,7 +98,7 @@ export default function AdminCategoriesPage() {
         await createCategory(formData);
         showToast('Category created successfully', 'success');
       }
-      
+
       await fetchCategories();
       handleCancel();
     } catch (error) {
@@ -106,7 +119,11 @@ export default function AdminCategoriesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category? Products using this category will have their category unassigned.')) {
+    if (
+      !confirm(
+        'Are you sure you want to delete this category? Products using this category will have their category unassigned.'
+      )
+    ) {
       return;
     }
 
@@ -129,84 +146,17 @@ export default function AdminCategoriesPage() {
     });
   };
 
-  // Custom Select Component
-  function CustomSelect<T extends string>({
-    value,
-    onChange,
-    options,
-  }: {
-    value: T;
-    onChange: (value: T) => void;
-    options: { value: T; label: string }[];
-  }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement | null>(null);
-
-    const selected = options.find((o) => o.value === value) || options[0];
-
-    useEffect(() => {
-      const onDocClick = (e: MouseEvent) => {
-        if (ref.current && !ref.current.contains(e.target as Node)) {
-          setOpen(false);
-        }
-      };
-      document.addEventListener('mousedown', onDocClick);
-      return () => document.removeEventListener('mousedown', onDocClick);
-    }, []);
-
-    return (
-      <div className={styles.selectWrap} ref={ref}>
-        <button
-          type="button"
-          className={styles.selectButton}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        >
-          <span className={styles.selectValue}>{selected?.label}</span>
-          <span className={styles.selectChevron} aria-hidden="true">
-            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M5.5 7.5L10 12l4.5-4.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-        </button>
-
-        {open && (
-          <div className={styles.dropdown} role="listbox" aria-label="Select option">
-            {options.map((opt) => {
-              const isActive = opt.value === value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="option"
-                  aria-selected={isActive}
-                  className={`${styles.dropdownItem} ${isActive ? styles.dropdownItemActive : ''}`}
-                  onClick={() => {
-                    onChange(opt.value);
-                    setOpen(false);
-                  }}
-                >
-                  <span>{opt.label}</span>
-                  {isActive ? <span style={{ fontWeight: 700, color: '#004e85', fontSize: '.85rem', background: '#cfe4ff', borderRadius: '5px', padding: '3px 6px' }}>Selected</span> : null}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        minHeight: '50vh',
-        padding: '2rem'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '50vh',
+          padding: '2rem',
+        }}
+      >
         <LoadingSpinner />
       </div>
     );
@@ -217,29 +167,42 @@ export default function AdminCategoriesPage() {
       <div className={styles.headerRow}>
         <div>
           <h1 className={adminStyles.adminPageTitle}>Product Categories</h1>
-          <p className={styles.subtitle}>Organize products into categories for better management</p>
+          <p className={styles.subtitle}>
+            {isFormOpen
+              ? 'Organize products into categories for better management'
+              : `${filtered.length} categor${filtered.length !== 1 ? 'ies' : 'y'} shown${
+                  categories.length !== filtered.length ? ` (of ${categories.length})` : ''
+                }`}
+          </p>
         </div>
         {!isFormOpen && (
-          <button 
-            onClick={() => setIsFormOpen(true)} 
-            className={adminStyles.adminButton}
-          >
-            Add Category
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => setIsFormOpen(true)}
+              className={`${adminStyles.adminButton} ${styles.addCategoryDesktop}`}
+            >
+              Add Category
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFormOpen(true)}
+              className={styles.addCategoryIconLink}
+              aria-label="Add new category"
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+              </svg>
+            </button>
+          </>
         )}
       </div>
 
-      {/* Form Panel */}
       {isFormOpen && (
         <div className={styles.formPanel}>
           <div className={styles.formHeader}>
-            <h2 className={styles.formTitle}>
-              {editingCategory ? 'Edit Category' : 'Create New Category'}
-            </h2>
-            <button 
-              onClick={handleCancel} 
-              className={styles.backLink}
-            >
+            <h2 className={styles.formTitle}>{editingCategory ? 'Edit Category' : 'Create New Category'}</h2>
+            <button type="button" onClick={handleCancel} className={styles.backLink}>
               ← Back
             </button>
           </div>
@@ -271,19 +234,10 @@ export default function AdminCategoriesPage() {
             </div>
 
             <div className={styles.formActions}>
-              <button
-                type="submit"
-                className={styles.saveButton}
-                disabled={submitting}
-              >
-                {submitting ? 'Saving...' : (editingCategory ? 'Update Category' : 'Create Category')}
+              <button type="submit" className={styles.saveButton} disabled={submitting}>
+                {submitting ? 'Saving...' : editingCategory ? 'Update Category' : 'Create Category'}
               </button>
-              <button
-                type="button"
-                onClick={handleCancel}
-                className={styles.cancelButton}
-                disabled={submitting}
-              >
+              <button type="button" onClick={handleCancel} className={styles.cancelButton} disabled={submitting}>
                 Cancel
               </button>
             </div>
@@ -291,41 +245,49 @@ export default function AdminCategoriesPage() {
         </div>
       )}
 
-      {/* Toolbar */}
       {!isFormOpen && (
-        <div className={styles.toolbar}>
-          <div className={styles.searchWrap}>
-            <svg className={styles.searchIcon} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16ZM18 18l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search categories..."
-              className={styles.searchInput}
-            />
+        <div className={`${styles.toolbar} ${searchExpanded ? styles.toolbarSearchExpanded : ''}`}>
+          <div className={styles.searchSlot} ref={searchExpandRef}>
+            <div className={styles.searchWrap}>
+              <span className={styles.searchIcon} aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M20 20l-3.5-3.5" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setSearchExpanded(true)}
+                placeholder="Search categories…"
+                className={styles.searchInput}
+                aria-label="Search categories"
+              />
+            </div>
           </div>
 
-          <CustomSelect<'nameAsc' | 'nameDesc' | 'createdDesc'>
-            value={sort}
-            onChange={setSort}
-            options={[
-              { value: 'nameAsc', label: 'Name (A-Z)' },
-              { value: 'nameDesc', label: 'Name (Z-A)' },
-              { value: 'createdDesc', label: 'Newest First' },
-            ]}
-          />
+          <div className={styles.filterSlot}>
+            <CustomSelect<SortKey>
+              value={sort}
+              onChange={setSort}
+              modalTitle="Sort"
+              options={[
+                { value: 'nameAsc', label: 'Name (A-Z)' },
+                { value: 'nameDesc', label: 'Name (Z-A)' },
+                { value: 'createdDesc', label: 'Newest first' },
+              ]}
+            />
+          </div>
         </div>
       )}
 
-      {/* Categories Table */}
       {!isFormOpen && (
         <div className={styles.panel}>
           {filtered.length === 0 ? (
             <div className={styles.emptyState}>
               <p>No categories found</p>
-              {query && <p className={styles.emptyStateSubtext}>Try adjusting your search</p>}
+              {query ? <p className={styles.emptyStateSubtext}>Try adjusting your search</p> : null}
             </div>
           ) : (
             <div className={styles.table}>
@@ -360,24 +322,33 @@ export default function AdminCategoriesPage() {
                       </td>
                       <td>
                         <div className={styles.actions}>
-                          <button
-                            onClick={() => handleEdit(category)}
-                            className={styles.linkButton}
-                            title="Edit Category"
-                          >
+                          <button type="button" onClick={() => handleEdit(category)} className={styles.linkButton} title="Edit Category">
                             Edit
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleDelete(category.id)}
                             className={`${styles.linkButton} ${styles.deleteButton}`}
                             title="Delete Category"
                           >
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
-                              <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                              <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                              <path d="M4 7H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                              <path d="M6 7H18V18C18 19.6569 16.6569 21 15 21H9C7.34315 21 6 19.6569 6 18V7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                              <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M4 7H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              <path
+                                d="M6 7H18V18C18 19.6569 16.6569 21 15 21H9C7.34315 21 6 19.6569 6 18V7Z"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <path
+                                d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
                             </svg>
                           </button>
                         </div>
@@ -390,6 +361,210 @@ export default function AdminCategoriesPage() {
           )}
         </div>
       )}
+
+      {!isFormOpen && (
+        <div className={styles.cards}>
+          {filtered.length === 0 ? (
+            <div className={styles.card}>
+              <div className={styles.emptyState} style={{ padding: '1rem' }}>
+                <p>No categories found</p>
+                {query ? <p className={styles.emptyStateSubtext}>Try adjusting your search</p> : null}
+              </div>
+            </div>
+          ) : (
+            filtered.map((category) => (
+              <div className={styles.card} key={category.id}>
+                <div className={styles.cardTop}>
+                  <div className={styles.cardTitleBlock}>
+                    <div className={styles.categoryName}>{category.name}</div>
+                    <div className={styles.cardDescription}>
+                      {category.description || <span className={styles.noDescription}>No description</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.cardMeta}>
+                  {new Date(category.createdAt || '').toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </div>
+                <div className={styles.cardActions}>
+                  <button type="button" onClick={() => handleEdit(category)} className={styles.linkButton}>
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(category.id)}
+                    className={`${styles.linkButton} ${styles.deleteButton}`}
+                    aria-label="Delete category"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+                      <path d="M10 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M14 11V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M4 7H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path
+                        d="M6 7H18V18C18 19.6569 16.6569 21 15 21H9C7.34315 21 6 19.6569 6 18V7Z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CustomSelect<T extends string>({
+  value,
+  onChange,
+  options,
+  modalTitle,
+}: {
+  value: T;
+  onChange: (next: T) => void;
+  options: Array<{ value: T; label: string }>;
+  modalTitle: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const modalTitleId = useId();
+
+  const selected = options.find((o) => o.value === value) || options[0];
+  const useModal = isNarrow;
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 720px)');
+    const apply = () => setIsNarrow(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || useModal) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (e.target instanceof Node && !ref.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open, useModal]);
+
+  useEffect(() => {
+    if (open && useModal) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [open, useModal]);
+
+  const optionList = options.map((opt) => {
+    const isActive = opt.value === value;
+    return (
+      <button
+        key={opt.value}
+        type="button"
+        role="option"
+        aria-selected={isActive}
+        className={`${styles.dropdownItem} ${isActive ? styles.dropdownItemActive : ''}`}
+        onClick={() => {
+          onChange(opt.value);
+          setOpen(false);
+        }}
+      >
+        <span>{opt.label}</span>
+        {isActive ? <span className={styles.dropdownHint}>Selected</span> : null}
+      </button>
+    );
+  });
+
+  return (
+    <div className={styles.selectWrap} ref={ref}>
+      <button
+        type="button"
+        className={styles.selectButton}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className={styles.selectValue}>{selected?.label}</span>
+        <span className={styles.selectChevron} aria-hidden="true">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M5.5 7.5L10 12l4.5-4.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </button>
+
+      {open && !useModal && (
+        <div className={styles.dropdown} role="listbox" aria-label={modalTitle}>
+          {optionList}
+        </div>
+      )}
+
+      {mounted && open && useModal
+        ? createPortal(
+            <div
+              className={styles.selectModalBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setOpen(false);
+              }}
+            >
+              <div
+                className={styles.selectModalPanel}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={modalTitleId}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className={styles.selectModalHeader}>
+                  <h2 id={modalTitleId} className={styles.selectModalTitle}>
+                    {modalTitle}
+                  </h2>
+                  <button type="button" className={styles.selectModalClose} aria-label="Close" onClick={() => setOpen(false)}>
+                    ×
+                  </button>
+                </div>
+                <div className={styles.selectModalBody} role="listbox" aria-label={modalTitle}>
+                  {optionList}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
