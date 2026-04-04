@@ -13,6 +13,7 @@ import styles from './ProductDetailsModal.module.css';
 import howWasItStyles from './HowWasItModal.module.css';
 import RatingBadge from '@/components/ui/RatingBadge';
 import { toSafeHtml } from '@/lib/utils/sanitizeHtml';
+import { getOrderedProductImageUrls } from '@/lib/utils/productImages';
 
 interface ProductDetailsModalProps {
   product: Product;
@@ -215,8 +216,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
         try {
           const details = await productsApi.getById(product.id, true);
           setProductDetails(details);
-          // Set first image as selected if available
-          if (details.images && details.images.length > 0) {
+          if (getOrderedProductImageUrls(details).length > 0) {
             setSelectedImageIndex(0);
           }
         } catch (error) {
@@ -266,10 +266,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     fetchRelated();
   }, [isOpen, product.id, effectiveCategoryId]);
   
-  // Get images from product details or fallback to single imageUrl
-  const productImages = displayProduct.images && displayProduct.images.length > 0
-    ? displayProduct.images.map(img => img.imageUrl)
-    : (product.imageUrl ? [product.imageUrl] : []);
+  const productImages = getOrderedProductImageUrls(displayProduct);
 
   const collageItems = productImages;
 

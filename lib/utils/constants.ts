@@ -90,6 +90,7 @@ export const API_ENDPOINTS = {
       UPDATE: (id: string) => `/api/admin/products/${id}`,
       DELETE: (id: string) => `/api/admin/products/${id}`,
       ADD_IMAGE: (id: string) => `/api/admin/products/${id}/images`,
+      REORDER_IMAGES: (id: string) => `/api/admin/products/${id}/images/reorder`,
       DELETE_IMAGE: (id: string, imageId: string) => `/api/admin/products/${id}/images/${imageId}`,
       ADD_VARIATION: (id: string) => `/api/admin/products/${id}/variations`,
       UPDATE_VARIATION: (id: string, variationId: string) => `/api/admin/products/${id}/variations/${variationId}`,
