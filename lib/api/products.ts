@@ -92,6 +92,15 @@ export const adminProductsApi = {
     return apiClient.delete<void>(API_ENDPOINTS.ADMIN.PRODUCTS.DELETE_IMAGE(productId, imageId));
   },
 
+  reorderImages: async (productId: string, orderedUrls: string[]): Promise<Product> => {
+    const instance = apiClient.getInstance();
+    const response = await instance.put<{ success: boolean; data: Product }>(
+      API_ENDPOINTS.ADMIN.PRODUCTS.REORDER_IMAGES(productId),
+      { orderedUrls }
+    );
+    return response.data.data;
+  },
+
   // Product Variations
   addVariation: async (productId: string, variation: {
     size: string;

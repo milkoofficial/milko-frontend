@@ -15,6 +15,32 @@ import { sanitizeHtml } from '@/lib/utils/sanitizeHtml';
 
 type AdminProductImage = ProductImage & { isMain?: boolean };
 
+function buildAdminImagesFromProduct(data: Product): AdminProductImage[] {
+  const sorted = [...(data.images || [])].sort(
+    (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+  );
+  const main = data.imageUrl || '';
+  const urlsInRows = new Set(sorted.map((i) => i.imageUrl));
+  if (main && !urlsInRows.has(main)) {
+    return [
+      {
+        id: 'main',
+        productId: data.id,
+        imageUrl: main,
+        displayOrder: -1,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        isMain: true,
+      },
+      ...sorted,
+    ];
+  }
+  return sorted.map((img, idx) => ({
+    ...img,
+    isMain: idx === 0,
+  }));
+}
+
 /**
  * Admin Product Edit Page
  * Edit product details, images, variations, and reviews
@@ -80,24 +106,7 @@ export default function AdminProductEditPage() {
         setIsActive(data.isActive);
         setIsMembershipEligible(data.isMembershipEligible || false);
 
-        // On create, the first image is stored on the product row (data.imageUrl).
-        // Additional images are stored in product_images (data.images).
-        // Show both on the edit page.
-        const dbImages: AdminProductImage[] = (data.images || []) as AdminProductImage[];
-        const mainImageUrl = data.imageUrl;
-        const combinedImages = [...dbImages];
-        if (mainImageUrl && !combinedImages.some(img => img.imageUrl === mainImageUrl)) {
-          combinedImages.unshift({
-            id: 'main',
-            productId: data.id,
-            imageUrl: mainImageUrl,
-            displayOrder: -1,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-            isMain: true,
-          });
-        }
-        setImages(combinedImages);
+        setImages(buildAdminImagesFromProduct(data));
 
         setVariations(data.variations || []);
       } catch (error) {
@@ -130,7 +139,14 @@ export default function AdminProductEditPage() {
   const handleSaveProduct = async () => {
     setSaving(true);
     try {
-      if (sellingPrice && compareAtPrice) {
+      if (variations.length === 0) {
+        if (!sellingPrice.trim() || !compareAtPrice.trim()) {
+          showToast(
+            'Set both Selling Price and Compare At Price, or add variations on the Variations tab.',
+            'error'
+          );
+          return;
+        }
         const selling = parseFloat(sellingPrice);
         const compare = parseFloat(compareAtPrice);
         if (Number.isFinite(selling) && Number.isFinite(compare) && selling > compare) {
@@ -142,8 +158,6 @@ export default function AdminProductEditPage() {
       const updates: Partial<Product> = {
         name,
         description: sanitizeHtml(description),
-        sellingPrice: sellingPrice ? parseFloat(sellingPrice) : null,
-        compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
         taxPercent: taxPercent ? parseFloat(taxPercent) : 0,
         quantity: quantity ? parseInt(quantity) : 0,
         lowStockThreshold: lowStockThreshold ? parseInt(lowStockThreshold) : 10,
@@ -153,13 +167,26 @@ export default function AdminProductEditPage() {
         isMembershipEligible,
       };
 
-      // Since "Price per Litre" is no longer an admin-editable field, keep it unchanged unless
-      // a Selling Price is provided (in which case we sync pricePerLitre for legacy uses).
-      if (sellingPrice) {
+      if (variations.length === 0) {
+        updates.sellingPrice = parseFloat(sellingPrice);
+        updates.compareAtPrice = parseFloat(compareAtPrice);
         updates.pricePerLitre = parseFloat(sellingPrice);
       }
 
       await adminProductsApi.update(productId, updates);
+      const refreshed = await adminProductsApi.getById(productId);
+      setProduct(refreshed);
+      setVariations(refreshed.variations || []);
+      setSellingPrice(
+        refreshed.sellingPrice !== null && refreshed.sellingPrice !== undefined
+          ? String(refreshed.sellingPrice)
+          : ''
+      );
+      setCompareAtPrice(
+        refreshed.compareAtPrice !== null && refreshed.compareAtPrice !== undefined
+          ? String(refreshed.compareAtPrice)
+          : ''
+      );
       showToast('Product updated successfully', 'success');
     } catch (error) {
       console.error('Failed to update product:', error);
@@ -173,25 +200,66 @@ export default function AdminProductEditPage() {
     if (!newImageFile) return;
 
     try {
-      const image = await adminProductsApi.addImage(productId, newImageFile, images.length);
-      setImages([...images, image as AdminProductImage]);
+      await adminProductsApi.addImage(productId, newImageFile);
+      const data = await adminProductsApi.getById(productId);
+      setProduct(data);
+      setImages(buildAdminImagesFromProduct(data));
       setNewImageFile(null);
-      // Reset file input
       const fileInput = document.getElementById('imageInput') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
+      showToast('Image added', 'success');
     } catch (error) {
       console.error('Failed to add image:', error);
       showToast(getErrorMessage(error), 'error');
     }
   };
 
-  const handleDeleteImage = async (imageId: string) => {
-    if (imageId === 'main') return; // main image isn't stored in product_images
+  const applyProductFromResponse = (data: Product) => {
+    setProduct(data);
+    setImages(buildAdminImagesFromProduct(data));
+  };
+
+  const persistImageOrder = async (orderedUrls: string[]) => {
+    const data = await adminProductsApi.reorderImages(productId, orderedUrls);
+    applyProductFromResponse(data);
+    showToast('Image order updated', 'success');
+  };
+
+  const handleMoveImage = async (index: number, delta: number) => {
+    const j = index + delta;
+    if (j < 0 || j >= images.length) return;
+    const next = [...images];
+    [next[index], next[j]] = [next[j], next[index]];
+    try {
+      await persistImageOrder(next.map((i) => i.imageUrl));
+    } catch (error) {
+      console.error('Failed to reorder images:', error);
+      showToast(getErrorMessage(error), 'error');
+    }
+  };
+
+  const handleDeleteImage = async (image: AdminProductImage) => {
     if (!confirm('Are you sure you want to delete this image?')) return;
 
     try {
-      await adminProductsApi.deleteImage(productId, imageId);
-      setImages(images.filter(img => img.id !== imageId));
+      if (image.id === 'main') {
+        await adminProductsApi.update(productId, { imageUrl: null });
+        const rest = images.filter((i) => i.id !== 'main');
+        if (rest.length > 0) {
+          const data = await adminProductsApi.reorderImages(productId, rest.map((i) => i.imageUrl));
+          applyProductFromResponse(data);
+          showToast('Cover image removed. The next image is now the cover.', 'success');
+        } else {
+          const data = await adminProductsApi.getById(productId);
+          applyProductFromResponse(data);
+          showToast('Cover image removed', 'success');
+        }
+        return;
+      }
+
+      await adminProductsApi.deleteImage(productId, image.id);
+      const data = await adminProductsApi.getById(productId);
+      applyProductFromResponse(data);
       showToast('Image deleted', 'success');
     } catch (error) {
       console.error('Failed to delete image:', error);
@@ -210,13 +278,21 @@ export default function AdminProductEditPage() {
     }
 
     try {
-      const variation = await adminProductsApi.addVariation(productId, {
+      await adminProductsApi.addVariation(productId, {
         size: newVariation.size,
         price: parseFloat(newVariation.price),
         isAvailable: newVariation.isAvailable,
         displayOrder: variations.length,
       });
-      setVariations([...variations, variation]);
+      const data = await adminProductsApi.getById(productId);
+      setProduct(data);
+      setVariations(data.variations || []);
+      setSellingPrice(
+        data.sellingPrice !== null && data.sellingPrice !== undefined ? String(data.sellingPrice) : ''
+      );
+      setCompareAtPrice(
+        data.compareAtPrice !== null && data.compareAtPrice !== undefined ? String(data.compareAtPrice) : ''
+      );
       setNewVariation({ size: '', price: '', isAvailable: true });
       showToast('Variation added', 'success');
     } catch (error) {
@@ -230,7 +306,15 @@ export default function AdminProductEditPage() {
 
     try {
       await adminProductsApi.deleteVariation(productId, variationId);
-      setVariations(variations.filter(v => v.id !== variationId));
+      const data = await adminProductsApi.getById(productId);
+      setProduct(data);
+      setVariations(data.variations || []);
+      setSellingPrice(
+        data.sellingPrice !== null && data.sellingPrice !== undefined ? String(data.sellingPrice) : ''
+      );
+      setCompareAtPrice(
+        data.compareAtPrice !== null && data.compareAtPrice !== undefined ? String(data.compareAtPrice) : ''
+      );
       showToast('Variation deleted', 'success');
     } catch (error) {
       console.error('Failed to delete variation:', error);
@@ -321,34 +405,54 @@ export default function AdminProductEditPage() {
                 placeholder="Describe your product..."
               />
             </div>
-            <div className={styles.formRow}>
-              <div style={{ flex: 1 }}>
-                <div className={styles.formGroup}>
-                  <label>Selling Price (₹)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={sellingPrice}
-                    onChange={(e) => setSellingPrice(e.target.value)}
-                    className={styles.input}
-                    placeholder="Optional"
-              />
-            </div>
-              </div>
-              <div style={{ flex: 1 }}>
-            <div className={styles.formGroup}>
-                  <label>Compare At Price (₹)</label>
-              <input
-                type="number"
-                step="0.01"
-                    value={compareAtPrice}
-                    onChange={(e) => setCompareAtPrice(e.target.value)}
-                    className={styles.input}
-                    placeholder="Optional"
-                  />
+            {variations.length > 0 ? (
+              <div className={styles.formGroup}>
+                <div
+                  style={{
+                    padding: '0.75rem 1rem',
+                    background: '#eff6ff',
+                    borderRadius: '8px',
+                    border: '1px solid #bfdbfe',
+                    color: '#1e40af',
+                    fontSize: '0.9rem',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <strong>Pricing:</strong> This product uses size variations. Fixed selling and compare-at prices
+                  are cleared while variations exist. To use a single fixed price, remove all variations first, then
+                  set both prices here and save.
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className={styles.formRow}>
+                <div style={{ flex: 1 }}>
+                  <div className={styles.formGroup}>
+                    <label>Selling Price (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={sellingPrice}
+                      onChange={(e) => setSellingPrice(e.target.value)}
+                      className={styles.input}
+                      placeholder="Required"
+                    />
+                  </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div className={styles.formGroup}>
+                    <label>Compare At Price (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={compareAtPrice}
+                      onChange={(e) => setCompareAtPrice(e.target.value)}
+                      className={styles.input}
+                      placeholder="Required"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             <div className={styles.formRow}>
               <div style={{ flex: 1 }}>
                 <div className={styles.formGroup}>
@@ -454,13 +558,15 @@ export default function AdminProductEditPage() {
         {activeTab === 'images' && (
           <div className={styles.section}>
             <h2>Product Images</h2>
+            <p className={styles.imagesHint}>
+              The first image is the cover (product cards and first slide in the customer gallery). Use Up / Down to change order.
+              New uploads are added without removing existing images.
+            </p>
             <div className={styles.imageGrid}>
-              {images.map((image) => (
-                <div key={image.id} className={styles.imageCard}>
-                  {image.isMain && (
-                    <div className={`${styles.imageBadge} ${styles.imageBadgeMain}`}>
-                      Main
-                    </div>
+              {images.map((image, index) => (
+                <div key={`${image.id}-${index}`} className={styles.imageCard}>
+                  {index === 0 && (
+                    <div className={`${styles.imageBadge} ${styles.imageBadgeMain}`}>Cover</div>
                   )}
                   <Image
                     src={image.imageUrl}
@@ -469,14 +575,29 @@ export default function AdminProductEditPage() {
                     height={200}
                     style={{ objectFit: 'cover', borderRadius: '8px' }}
                   />
-                  {!image.isMain && (
-                  <button
-                    onClick={() => handleDeleteImage(image.id)}
-                    className={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
-                  )}
+                  <div className={styles.imageCardActions}>
+                    <button
+                      type="button"
+                      className={styles.reorderButton}
+                      disabled={index === 0}
+                      onClick={() => handleMoveImage(index, -1)}
+                      aria-label="Move image up"
+                    >
+                      ↑ Up
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.reorderButton}
+                      disabled={index === images.length - 1}
+                      onClick={() => handleMoveImage(index, 1)}
+                      aria-label="Move image down"
+                    >
+                      ↓ Down
+                    </button>
+                    <button type="button" onClick={() => handleDeleteImage(image)} className={styles.deleteButton}>
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -63,6 +63,8 @@ export default function AdminCreateProductPage() {
     }
     setVariations([...variations, newVariation]);
     setNewVariation({ size: '', price: '' });
+    setSellingPrice('');
+    setCompareAtPrice('');
     setError('');
   };
 
@@ -137,14 +139,14 @@ export default function AdminCreateProductPage() {
       return;
     }
 
-    // If no variations, selling price is required
-    if (variations.length === 0 && !sellingPrice) {
-      setError('Selling Price is required when no variations are added');
-      setLoading(false);
-      return;
+    if (variations.length === 0) {
+      if (!sellingPrice.trim() || !compareAtPrice.trim()) {
+        setError('Set both Selling Price and Compare At Price, or add at least one variation with its own price.');
+        setLoading(false);
+        return;
+      }
     }
 
-    // Validate discount pricing
     if (sellingPrice && compareAtPrice) {
       const selling = parseFloat(sellingPrice);
       const compare = parseFloat(compareAtPrice);
@@ -168,20 +170,12 @@ export default function AdminCreateProductPage() {
       formData.append('description', sanitizeHtml(description));
       // Use selling price as the main price field
       if (variations.length === 0) {
-        // When no variations, use selling price for both pricePerLitre (backend requirement) and sellingPrice
         const mainPrice = sellingPrice || '0';
         formData.append('pricePerLitre', mainPrice);
         formData.append('sellingPrice', mainPrice);
-      } else {
-        // Use first variation price as base price (required by backend)
-        formData.append('pricePerLitre', variations[0].price);
-        // Still allow selling price to be set separately if provided
-        if (sellingPrice) {
-          formData.append('sellingPrice', sellingPrice);
-        }
-      }
-      if (compareAtPrice) {
         formData.append('compareAtPrice', compareAtPrice);
+      } else {
+        formData.append('pricePerLitre', variations[0].price);
       }
       if (taxPercent.trim() !== '') {
         formData.append('taxPercent', taxPercent);
@@ -307,13 +301,14 @@ export default function AdminCreateProductPage() {
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>
-                  Compare At Price (₹)
+                  Compare At Price (₹)<span className={styles.formLabelRequired}>*</span>
                 </label>
                 <input
                   type="number"
                   step="0.01"
                   value={compareAtPrice}
                   onChange={(e) => setCompareAtPrice(e.target.value)}
+                  required={variations.length === 0}
                   min="0"
                   className={styles.formInput}
                   placeholder="0.00"
@@ -354,7 +349,8 @@ export default function AdminCreateProductPage() {
                 placeholder="e.g., Litres, /kg, /litre"
               />
               <p className={styles.formHelpText}>
-                Displayed as: ₹{sellingPrice || '0'}/{suffixAfterPrice}
+                Displayed as: ₹
+                {variations.length > 0 ? variations[0]?.price || '0' : sellingPrice || '0'}/{suffixAfterPrice}
               </p>
             </div>
             <div className={styles.formGroup}>

@@ -93,10 +93,41 @@ const updateImageOrder = async (imageId, displayOrder) => {
   } : null;
 };
 
+/**
+ * Next display_order for appending a gallery image (avoids overwriting slot 0).
+ */
+const getMaxDisplayOrder = async (productId) => {
+  const result = await query(
+    `SELECT COALESCE(MAX(display_order), -1) AS m FROM product_images WHERE product_id = $1`,
+    [productId]
+  );
+  return parseInt(result.rows[0].m, 10);
+};
+
+/**
+ * Set display_order 0..n-1 for each URL; insert row if URL exists only on products.image_url.
+ */
+const applyDisplayOrderByUrls = async (productId, orderedUrls) => {
+  let rows = await getProductImages(productId);
+  for (let i = 0; i < orderedUrls.length; i++) {
+    const url = orderedUrls[i];
+    const row = rows.find((r) => r.imageUrl === url);
+    if (row) {
+      await updateImageOrder(row.id, i);
+      row.displayOrder = i;
+    } else {
+      const created = await createProductImage(productId, url, i);
+      rows.push(created);
+    }
+  }
+};
+
 module.exports = {
   createProductImage,
   getProductImages,
   deleteProductImage,
   updateImageOrder,
+  getMaxDisplayOrder,
+  applyDisplayOrderByUrls,
 };
 

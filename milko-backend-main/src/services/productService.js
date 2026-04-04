@@ -6,6 +6,46 @@ const { uploadImage, deleteImage } = require('../config/cloudinary');
 const { ValidationError, NotFoundError } = require('../utils/errors');
 const { query } = require('../config/database');
 
+const isSetFinitePrice = (v) => {
+  if (v === undefined || v === null) return false;
+  if (typeof v === 'string' && v.trim() === '') return false;
+  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+  return Number.isFinite(n);
+};
+
+/**
+ * When a product has variations, clear fixed selling/compare and sync legacy price_per_litre
+ * from variation unit prices (explicit price, else base × multiplier).
+ */
+const applyVariationModePricing = async (productId) => {
+  const product = await productModel.getProductById(productId);
+  if (!product) return null;
+
+  const variations = await productVariationModel.getProductVariations(productId);
+  if (variations.length === 0) return product;
+
+  const base =
+    product.sellingPrice != null && product.sellingPrice !== ''
+      ? parseFloat(product.sellingPrice)
+      : parseFloat(product.pricePerLitre);
+  const safeBase = Number.isFinite(base) ? base : 0;
+
+  const unitPrices = variations.map((v) => {
+    if (v.price != null && Number.isFinite(parseFloat(v.price))) {
+      return parseFloat(v.price);
+    }
+    return safeBase * parseFloat(v.priceMultiplier || 1);
+  });
+  const finiteUnits = unitPrices.filter((n) => Number.isFinite(n));
+  const minP = finiteUnits.length ? Math.min(...finiteUnits) : safeBase;
+
+  return await productModel.updateProduct(productId, {
+    sellingPrice: null,
+    compareAtPrice: null,
+    pricePerLitre: Number.isFinite(minP) ? minP : product.pricePerLitre,
+  });
+};
+
 /**
  * Product Service
  * Handles product business logic
@@ -155,8 +195,35 @@ const createProduct = async (productData, imageFile = null) => {
   } = productData;
 
   // Validate required fields
-  if (!name || !pricePerLitre) {
+  if (!name || pricePerLitre === undefined || pricePerLitre === null || String(pricePerLitre).trim() === '') {
     throw new ValidationError('Name and price are required');
+  }
+
+  const hasSelling = isSetFinitePrice(sellingPrice);
+  const hasCompare = isSetFinitePrice(compareAtPrice);
+
+  if (hasSelling !== hasCompare) {
+    throw new ValidationError(
+      'Set both Selling Price and Compare At Price together, or leave both empty for variation-only products.'
+    );
+  }
+
+  let parsedSelling = null;
+  let parsedCompare = null;
+
+  if (hasSelling && hasCompare) {
+    parsedSelling = parseFloat(sellingPrice);
+    parsedCompare = parseFloat(compareAtPrice);
+    if (parsedSelling > parsedCompare) {
+      throw new ValidationError('Selling Price cannot be greater than Compare At Price');
+    }
+  } else {
+    const ppl = parseFloat(pricePerLitre);
+    if (!Number.isFinite(ppl) || ppl <= 0) {
+      throw new ValidationError(
+        'Either set both Selling Price and Compare At Price, or use a positive base price (from your first variation).'
+      );
+    }
   }
 
   let imageUrl = null;
@@ -170,15 +237,9 @@ const createProduct = async (productData, imageFile = null) => {
     imageUrl = uploadResult.url;
   }
 
-  const parsedSelling = sellingPrice ? parseFloat(sellingPrice) : null;
-  const parsedCompare = compareAtPrice ? parseFloat(compareAtPrice) : null;
   const parsedTaxPercent = taxPercent !== undefined && taxPercent !== null && String(taxPercent).trim() !== ''
     ? Math.max(0, parseFloat(taxPercent))
     : 0;
-
-  if (parsedSelling !== null && parsedCompare !== null && parsedSelling > parsedCompare) {
-    throw new ValidationError('Selling Price cannot be greater than Compare At Price');
-  }
 
   return await productModel.createProduct({
     name,
@@ -212,19 +273,16 @@ const updateProduct = async (productId, updates, imageFile = null) => {
   // Handle image upload if new image provided
   if (imageFile) {
     // Delete old image if exists
-    if (product.image_url) {
+    if (product.imageUrl) {
       try {
-        // Extract public_id from Cloudinary URL
-        const urlParts = product.image_url.split('/');
+        const urlParts = product.imageUrl.split('/');
         const publicId = urlParts.slice(-2).join('/').split('.')[0];
         await deleteImage(`milko/products/${publicId}`);
       } catch (error) {
         console.error('Error deleting old image:', error);
-        // Continue even if deletion fails
       }
     }
 
-    // Upload new image
     const uploadResult = await uploadImage(imageFile.buffer, {
       resource_type: 'image',
       folder: 'milko/products',
@@ -232,16 +290,57 @@ const updateProduct = async (productId, updates, imageFile = null) => {
     updates.imageUrl = uploadResult.url;
   }
 
-  // Validate updated discount pricing (fallback to existing values when not provided)
-  const nextSelling = updates.sellingPrice !== undefined ? updates.sellingPrice : product.sellingPrice;
-  const nextCompare = updates.compareAtPrice !== undefined ? updates.compareAtPrice : product.compareAtPrice;
-  if (nextSelling !== null && nextSelling !== undefined && nextCompare !== null && nextCompare !== undefined) {
+  // Explicitly clear primary image (no replacement file upload)
+  if (
+    !imageFile &&
+    Object.prototype.hasOwnProperty.call(updates, 'imageUrl') &&
+    (updates.imageUrl === null || updates.imageUrl === '')
+  ) {
+    if (product.imageUrl) {
+      try {
+        const urlParts = product.imageUrl.split('/');
+        const publicId = urlParts.slice(-2).join('/').split('.')[0];
+        await deleteImage(`milko/products/${publicId}`);
+      } catch (error) {
+        console.error('Error deleting cleared primary image:', error);
+      }
+    }
+    updates.imageUrl = null;
+  }
+
+  const variations = await productVariationModel.getProductVariations(productId);
+
+  if (variations.length > 0) {
+    if (Object.prototype.hasOwnProperty.call(updates, 'sellingPrice') && isSetFinitePrice(updates.sellingPrice)) {
+      throw new ValidationError(
+        'This product uses size variations. Remove all variations before setting a fixed selling price.'
+      );
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'compareAtPrice') && isSetFinitePrice(updates.compareAtPrice)) {
+      throw new ValidationError(
+        'This product uses size variations. Remove all variations before setting a compare-at price.'
+      );
+    }
+  } else {
+    const nextSelling = updates.sellingPrice !== undefined ? updates.sellingPrice : product.sellingPrice;
+    const nextCompare = updates.compareAtPrice !== undefined ? updates.compareAtPrice : product.compareAtPrice;
+    if (!isSetFinitePrice(nextSelling) || !isSetFinitePrice(nextCompare)) {
+      throw new ValidationError(
+        'Add at least one size variation, or set both Selling Price and Compare At Price.'
+      );
+    }
     if (Number(nextSelling) > Number(nextCompare)) {
       throw new ValidationError('Selling Price cannot be greater than Compare At Price');
     }
   }
 
-  return await productModel.updateProduct(productId, updates);
+  await productModel.updateProduct(productId, updates);
+
+  if (variations.length > 0) {
+    return await applyVariationModePricing(productId);
+  }
+
+  return await productModel.getProductById(productId);
 };
 
 /**
@@ -266,5 +365,6 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  applyVariationModePricing,
 };
 

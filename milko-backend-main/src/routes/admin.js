@@ -39,6 +39,7 @@ router.delete('/products/:id', adminController.deleteProduct);
 
 // Product Images
 router.post('/products/:id/images', upload.single('image'), adminController.addProductImage);
+router.put('/products/:id/images/reorder', adminController.reorderProductImages);
 router.delete('/products/:id/images/:imageId', adminController.deleteProductImage);
 
 // Product Variations

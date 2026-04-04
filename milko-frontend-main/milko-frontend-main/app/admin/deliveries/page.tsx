@@ -14,6 +14,7 @@ import {
   formatDateTimeIST,
   formatYyyyMmDdInputAsDDMMYYYY,
 } from '@/lib/utils/datetime';
+import { normalizeAdminListSearchQuery } from '@/lib/utils/searchQuery';
 
 type OrderDeliveryRow = {
   orderId: string;
@@ -121,15 +122,15 @@ export default function AdminDeliveriesPage() {
   const filtered = useMemo(() => {
     let result = [...deliveries];
 
-    // Search filter
-    if (query.trim()) {
-      const q = query.trim().toLowerCase();
+    // Search filter (#123 matches subscription id 123)
+    const qSub = normalizeAdminListSearchQuery(query);
+    if (qSub) {
       result = result.filter(
         (delivery) =>
-          delivery.subscriptionId.toString().includes(q) ||
-          (delivery.productName || '').toLowerCase().includes(q) ||
-          (delivery.userName || '').toLowerCase().includes(q) ||
-          (delivery.userEmail || '').toLowerCase().includes(q)
+          delivery.subscriptionId.toString().includes(qSub) ||
+          (delivery.productName || '').toLowerCase().includes(qSub) ||
+          (delivery.userName || '').toLowerCase().includes(qSub) ||
+          (delivery.userEmail || '').toLowerCase().includes(qSub)
       );
     }
 
@@ -162,14 +163,15 @@ export default function AdminDeliveriesPage() {
   const filteredOrders = useMemo(() => {
     let result = [...orderDeliveries];
 
-    if (query.trim()) {
-      const q = query.trim().toLowerCase();
+    const qOrd = normalizeAdminListSearchQuery(query);
+    if (qOrd) {
       result = result.filter(
         (o) =>
-          (o.orderNumber || '').toLowerCase().includes(q) ||
-          (o.customerName || '').toLowerCase().includes(q) ||
-          (o.customerEmail || '').toLowerCase().includes(q) ||
-          (o.status || '').toLowerCase().includes(q)
+          (o.orderNumber || '').toLowerCase().includes(qOrd) ||
+          (o.orderId || '').toLowerCase().includes(qOrd) ||
+          (o.customerName || '').toLowerCase().includes(qOrd) ||
+          (o.customerEmail || '').toLowerCase().includes(qOrd) ||
+          (o.status || '').toLowerCase().includes(qOrd)
       );
     }
 

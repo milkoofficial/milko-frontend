@@ -68,7 +68,7 @@ export interface Product {
   sellingPrice?: number | null;
   compareAtPrice?: number | null;
   taxPercent?: number;
-  imageUrl?: string;
+  imageUrl?: string | null;
   isActive: boolean;
   isMembershipEligible?: boolean;
   quantity?: number;

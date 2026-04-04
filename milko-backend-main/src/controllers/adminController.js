@@ -1,4 +1,5 @@
 const productService = require('../services/productService');
+const productModel = require('../models/product');
 const productImageModel = require('../models/productImage');
 const productVariationModel = require('../models/productVariation');
 const productReviewModel = require('../models/productReview');
@@ -122,7 +123,6 @@ const deleteProduct = async (req, res, next) => {
 const addProductImage = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { displayOrder = 0 } = req.body;
 
     if (!req.file) {
       return res.status(400).json({
@@ -136,6 +136,8 @@ const addProductImage = async (req, res, next) => {
       folder: 'milko/products',
     });
 
+    const maxOrder = await productImageModel.getMaxDisplayOrder(id);
+    const displayOrder = maxOrder + 1;
     const image = await productImageModel.createProductImage(id, uploadResult.url, displayOrder);
 
     res.status(201).json({
@@ -154,11 +156,10 @@ const addProductImage = async (req, res, next) => {
  */
 const deleteProductImage = async (req, res, next) => {
   try {
-    const { imageId } = req.params;
+    const { id: productId, imageId } = req.params;
     const image = await productImageModel.deleteProductImage(imageId);
 
     if (image) {
-      // Delete from Cloudinary
       try {
         const urlParts = image.imageUrl.split('/');
         const publicId = urlParts.slice(-2).join('/').split('.')[0];
@@ -166,11 +167,78 @@ const deleteProductImage = async (req, res, next) => {
       } catch (error) {
         console.error('Error deleting image from Cloudinary:', error);
       }
+
+      const product = await productModel.getProductById(productId);
+      if (product && product.imageUrl === image.imageUrl) {
+        const remaining = await productImageModel.getProductImages(productId);
+        const sorted = [...remaining].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+        const nextUrl = sorted[0]?.imageUrl ?? null;
+        await productModel.updateProduct(productId, { imageUrl: nextUrl });
+      }
     }
 
     res.json({
       success: true,
       message: 'Image deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Reorder product images (gallery + primary). First URL becomes products.image_url (cover).
+ * PUT /api/admin/products/:id/images/reorder
+ * Body: { orderedUrls: string[] }
+ */
+const reorderProductImages = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { orderedUrls } = req.body || {};
+
+    if (!Array.isArray(orderedUrls) || orderedUrls.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'orderedUrls must be a non-empty array of image URLs',
+      });
+    }
+
+    const product = await productService.getProductById(id, true);
+    const allowedSet = new Set();
+    if (product.imageUrl) allowedSet.add(product.imageUrl);
+    for (const r of product.images || []) {
+      allowedSet.add(r.imageUrl);
+    }
+
+    if (new Set(orderedUrls).size !== orderedUrls.length) {
+      return res.status(400).json({
+        success: false,
+        error: 'Duplicate URLs are not allowed in orderedUrls',
+      });
+    }
+    if (orderedUrls.length !== allowedSet.size) {
+      return res.status(400).json({
+        success: false,
+        error: 'orderedUrls must list every product image exactly once',
+      });
+    }
+    for (const u of orderedUrls) {
+      if (!allowedSet.has(u)) {
+        return res.status(400).json({
+          success: false,
+          error: 'orderedUrls contains an unknown image URL',
+        });
+      }
+    }
+
+    await productModel.updateProduct(id, { imageUrl: orderedUrls[0] });
+    await productImageModel.applyDisplayOrderByUrls(id, orderedUrls);
+
+    const updated = await productService.getProductById(id, true);
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Image order updated',
     });
   } catch (error) {
     next(error);
@@ -205,6 +273,8 @@ const addProductVariation = async (req, res, next) => {
       price ? parseFloat(price) : null
     );
 
+    await productService.applyVariationModePricing(id);
+
     res.status(201).json({
       success: true,
       data: variation,
@@ -221,8 +291,11 @@ const addProductVariation = async (req, res, next) => {
  */
 const updateProductVariation = async (req, res, next) => {
   try {
+    const { id } = req.params;
     const { variationId } = req.params;
     const variation = await productVariationModel.updateProductVariation(variationId, req.body);
+
+    await productService.applyVariationModePricing(id);
 
     res.json({
       success: true,
@@ -241,7 +314,14 @@ const updateProductVariation = async (req, res, next) => {
 const deleteProductVariation = async (req, res, next) => {
   try {
     const { variationId } = req.params;
-    await productVariationModel.deleteProductVariation(variationId);
+    const deleted = await productVariationModel.deleteProductVariation(variationId);
+
+    if (deleted?.productId) {
+      const remaining = await productVariationModel.getProductVariations(deleted.productId);
+      if (remaining.length > 0) {
+        await productService.applyVariationModePricing(deleted.productId);
+      }
+    }
 
     res.json({
       success: true,
@@ -1360,6 +1440,7 @@ module.exports = {
   // Product Images
   addProductImage,
   deleteProductImage,
+  reorderProductImages,
   // Product Variations
   addProductVariation,
   updateProductVariation,

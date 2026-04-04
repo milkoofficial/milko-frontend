@@ -4,6 +4,15 @@
 -- Date: 2024
 -- ============================================
 
+-- Safe if this migration runs before schema.sql applied the helper
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================
 -- PRODUCT IMAGES TABLE
 -- Stores multiple images per product
@@ -30,6 +39,7 @@ CREATE TABLE IF NOT EXISTS product_variations (
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     size VARCHAR(50) NOT NULL, -- e.g., "0.5L", "1L", "2L", "5L"
     price_multiplier DECIMAL(5, 2) NOT NULL DEFAULT 1.0, -- Multiplier for base price
+    price DECIMAL(10, 2), -- explicit rupee price (admin); NULL = use multiplier × product price
     is_available BOOLEAN NOT NULL DEFAULT true,
     display_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -62,13 +72,16 @@ CREATE INDEX IF NOT EXISTS idx_product_reviews_product_id ON product_reviews(pro
 CREATE INDEX IF NOT EXISTS idx_product_reviews_approved ON product_reviews(product_id, is_approved) WHERE is_approved = true;
 CREATE INDEX IF NOT EXISTS idx_product_reviews_user_id ON product_reviews(user_id) WHERE user_id IS NOT NULL;
 
--- Apply updated_at trigger to new tables
+-- Apply updated_at trigger to new tables (DROP first so re-runs succeed)
+DROP TRIGGER IF EXISTS update_product_images_updated_at ON product_images;
 CREATE TRIGGER update_product_images_updated_at BEFORE UPDATE ON product_images
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_product_variations_updated_at ON product_variations;
 CREATE TRIGGER update_product_variations_updated_at BEFORE UPDATE ON product_variations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_product_reviews_updated_at ON product_reviews;
 CREATE TRIGGER update_product_reviews_updated_at BEFORE UPDATE ON product_reviews
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
