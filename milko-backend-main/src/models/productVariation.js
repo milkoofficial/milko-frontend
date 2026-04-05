@@ -8,12 +8,26 @@ const { query } = require('../config/database');
 /**
  * Create a new product variation
  */
-const createProductVariation = async (productId, size, priceMultiplier = 1.0, isAvailable = true, displayOrder = 0, price = null) => {
+const createProductVariation = async (
+  productId,
+  size,
+  priceMultiplier = 1.0,
+  isAvailable = true,
+  displayOrder = 0,
+  price = null,
+  compareAtPrice = null
+) => {
+  const cmp =
+    compareAtPrice !== null && compareAtPrice !== undefined && compareAtPrice !== ''
+      ? parseFloat(compareAtPrice)
+      : null;
+  const compareFinal = Number.isFinite(cmp) ? cmp : null;
+
   const result = await query(
-    `INSERT INTO product_variations (product_id, size, price_multiplier, price, is_available, display_order, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+    `INSERT INTO product_variations (product_id, size, price_multiplier, price, compare_at_price, is_available, display_order, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
      RETURNING *`,
-    [productId, size, priceMultiplier, price, isAvailable, displayOrder]
+    [productId, size, priceMultiplier, price, compareFinal, isAvailable, displayOrder]
   );
 
   return {
@@ -22,6 +36,7 @@ const createProductVariation = async (productId, size, priceMultiplier = 1.0, is
     size: result.rows[0].size,
     priceMultiplier: parseFloat(result.rows[0].price_multiplier),
     price: result.rows[0].price ? parseFloat(result.rows[0].price) : null,
+    compareAtPrice: result.rows[0].compare_at_price != null ? parseFloat(result.rows[0].compare_at_price) : null,
     isAvailable: result.rows[0].is_available,
     displayOrder: result.rows[0].display_order,
     createdAt: result.rows[0].created_at.toISOString(),
@@ -47,6 +62,7 @@ const getProductVariations = async (productId) => {
       size: row.size,
       priceMultiplier: parseFloat(row.price_multiplier),
       price: row.price ? parseFloat(row.price) : null,
+      compareAtPrice: row.compare_at_price != null ? parseFloat(row.compare_at_price) : null,
       isAvailable: row.is_available,
       displayOrder: row.display_order,
       createdAt: row.created_at.toISOString(),
@@ -61,6 +77,19 @@ const getProductVariations = async (productId) => {
   }
 };
 
+/** JSON / req.body keys → real PostgreSQL column names (never use camelCase in SQL). */
+const VARIATION_COLUMN_BY_KEY = {
+  size: 'size',
+  price: 'price',
+  priceMultiplier: 'price_multiplier',
+  compareAtPrice: 'compare_at_price',
+  compare_at_price: 'compare_at_price',
+  isAvailable: 'is_available',
+  is_available: 'is_available',
+  displayOrder: 'display_order',
+  display_order: 'display_order',
+};
+
 /**
  * Update a product variation
  */
@@ -69,15 +98,50 @@ const updateProductVariation = async (variationId, updates) => {
   const values = [];
   let paramCount = 1;
 
-  Object.keys(updates).forEach((key) => {
-    const dbKey = key === 'priceMultiplier' ? 'price_multiplier' :
-                  key === 'isAvailable' ? 'is_available' :
-                  key === 'displayOrder' ? 'display_order' : key;
-    
-    fields.push(`${dbKey} = $${paramCount}`);
-    values.push(updates[key]);
+  Object.keys(updates || {}).forEach((key) => {
+    const sqlColumn = VARIATION_COLUMN_BY_KEY[key];
+    if (!sqlColumn) return;
+
+    let val = updates[key];
+    const isCompare =
+      key === 'compareAtPrice' || key === 'compare_at_price';
+    const isPrice = key === 'price';
+
+    if (isCompare) {
+      if (val === '' || val === undefined) val = null;
+      else if (val !== null) {
+        const n = parseFloat(val);
+        val = Number.isFinite(n) ? n : null;
+      }
+    }
+    if (isPrice && (val === '' || val === undefined)) val = null;
+    else if (isPrice && val !== null) {
+      const n = parseFloat(val);
+      val = Number.isFinite(n) ? n : null;
+    }
+
+    fields.push(`${sqlColumn} = $${paramCount}`);
+    values.push(val);
     paramCount++;
   });
+
+  if (fields.length === 0) {
+    const existing = await query('SELECT * FROM product_variations WHERE id = $1', [variationId]);
+    if (!existing.rows[0]) return null;
+    const row = existing.rows[0];
+    return {
+      id: row.id.toString(),
+      productId: row.product_id.toString(),
+      size: row.size,
+      priceMultiplier: parseFloat(row.price_multiplier),
+      price: row.price ? parseFloat(row.price) : null,
+      compareAtPrice: row.compare_at_price != null ? parseFloat(row.compare_at_price) : null,
+      isAvailable: row.is_available,
+      displayOrder: row.display_order,
+      createdAt: row.created_at.toISOString(),
+      updatedAt: row.updated_at.toISOString(),
+    };
+  }
 
   fields.push(`updated_at = NOW()`);
   values.push(variationId);
@@ -99,6 +163,7 @@ const updateProductVariation = async (variationId, updates) => {
     size: row.size,
     priceMultiplier: parseFloat(row.price_multiplier),
     price: row.price ? parseFloat(row.price) : null,
+    compareAtPrice: row.compare_at_price != null ? parseFloat(row.compare_at_price) : null,
     isAvailable: row.is_available,
     displayOrder: row.display_order,
     createdAt: row.created_at.toISOString(),

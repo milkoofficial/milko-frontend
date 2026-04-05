@@ -241,8 +241,18 @@ export default function OrderDetailsPage() {
   }
 
   const timelineSteps = getTimelineSteps(order);
-  // Payment badge: Cancelled/Refunded from admin (order.status); Paid when money received; else Pending
-  const paymentLabel = order.status === 'cancelled' ? 'Cancelled' : order.status === 'refunded' ? 'Refunded' : order.paymentStatus === 'paid' ? 'Paid' : 'Pending';
+  // Payment badge: Cancelled/Refunded from admin (order.status); Paid when money received; COD unpaid → Pending Payment
+  const payMethod = (order.paymentMethod || '').toLowerCase();
+  const paymentLabel =
+    order.status === 'cancelled'
+      ? 'Cancelled'
+      : order.status === 'refunded'
+        ? 'Refunded'
+        : order.paymentStatus === 'paid'
+          ? 'Paid'
+          : payMethod === 'cod'
+            ? 'Pending Payment'
+            : 'Pending';
   const paymentVariant = order.status === 'cancelled' ? 'cancelled' : order.status === 'refunded' ? 'refunded' : order.paymentStatus === 'paid' ? 'paid' : 'pending';
   const totalQty = order.items.reduce((s, i) => s + i.quantity, 0);
 

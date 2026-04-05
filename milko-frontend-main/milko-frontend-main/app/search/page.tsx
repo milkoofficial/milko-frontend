@@ -9,6 +9,7 @@ import { Product } from '@/types';
 import styles from '@/components/ProductsSection.module.css';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
 import RatingBadge from '@/components/ui/RatingBadge';
+import { getCardDiscountOff, getCardDisplayPrice } from '@/lib/utils/productCardPricing';
 
 /**
  * Search Results Page
@@ -47,7 +48,16 @@ function SearchContent() {
           const descMatch = product.description?.toLowerCase().includes(searchTerm);
           return nameMatch || descMatch;
         });
-        setProducts(filtered);
+        const withReviews = await Promise.all(
+          filtered.map(async (p) => {
+            try {
+              return await productsApi.getById(p.id, true);
+            } catch {
+              return p;
+            }
+          })
+        );
+        setProducts(withReviews);
       } catch (error) {
         console.error('Failed to search products:', error);
         setProducts([]);
@@ -65,18 +75,8 @@ function SearchContent() {
     return reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   };
 
-  const getDisplayPrice = (p: Product) => {
-    return (p.sellingPrice !== null && p.sellingPrice !== undefined) ? p.sellingPrice : p.pricePerLitre;
-  };
-
-  const getDiscountOff = (p: Product) => {
-    const selling = getDisplayPrice(p);
-    const compare = p.compareAtPrice;
-    if (compare === null || compare === undefined) return null;
-    if (typeof selling !== 'number' || typeof compare !== 'number') return null;
-    const off = compare - selling;
-    return off > 0 ? off : null;
-  };
+  const getDisplayPrice = (p: Product) => getCardDisplayPrice(p);
+  const getDiscountOff = (p: Product) => getCardDiscountOff(p);
 
   if (loading) {
     return (

@@ -13,6 +13,7 @@ import { sanitizeHtml } from '@/lib/utils/sanitizeHtml';
 interface ProductVariation {
   size: string;
   price: string;
+  compareAtPrice?: string;
 }
 
 /**
@@ -41,7 +42,7 @@ export default function AdminCreateProductPage() {
   const [isActive, setIsActive] = useState(true);
   const [isMembershipEligible, setIsMembershipEligible] = useState(false);
   const [variations, setVariations] = useState<ProductVariation[]>([]);
-  const [newVariation, setNewVariation] = useState<ProductVariation>({ size: '', price: '' });
+  const [newVariation, setNewVariation] = useState<ProductVariation>({ size: '', price: '', compareAtPrice: '' });
 
   useEffect(() => {
     fetchCategories();
@@ -61,8 +62,16 @@ export default function AdminCreateProductPage() {
       setError('Variation size and price are required');
       return;
     }
-    setVariations([...variations, newVariation]);
-    setNewVariation({ size: '', price: '' });
+    if (newVariation.compareAtPrice?.trim()) {
+      const p = parseFloat(newVariation.price);
+      const c = parseFloat(newVariation.compareAtPrice);
+      if (Number.isFinite(p) && Number.isFinite(c) && c < p) {
+        setError('Compare at price must be greater than or equal to the variation price');
+        return;
+      }
+    }
+    setVariations([...variations, { ...newVariation, compareAtPrice: newVariation.compareAtPrice || '' }]);
+    setNewVariation({ size: '', price: '', compareAtPrice: '' });
     setSellingPrice('');
     setCompareAtPrice('');
     setError('');
@@ -164,6 +173,17 @@ export default function AdminCreateProductPage() {
       return;
     }
 
+    for (const v of variations) {
+      if (!v.compareAtPrice?.trim()) continue;
+      const p = parseFloat(v.price);
+      const c = parseFloat(v.compareAtPrice);
+      if (Number.isFinite(p) && Number.isFinite(c) && c < p) {
+        setError(`Compare at price must be ≥ selling price for size "${v.size}"`);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const formData = new FormData();
       formData.append('name', name);
@@ -211,9 +231,15 @@ export default function AdminCreateProductPage() {
       if (variations.length > 0) {
         for (const variation of variations) {
           try {
+            let compareNum: number | null = null;
+            if (variation.compareAtPrice?.trim()) {
+              const x = parseFloat(variation.compareAtPrice);
+              if (Number.isFinite(x)) compareNum = x;
+            }
             await adminProductsApi.addVariation(product.id, {
               size: variation.size,
               price: parseFloat(variation.price),
+              compareAtPrice: compareNum,
               isAvailable: true,
               displayOrder: variations.indexOf(variation),
             });
@@ -604,7 +630,12 @@ export default function AdminCreateProductPage() {
                   <div key={index} className={styles.variationItem}>
                     <div className={styles.variationInfo}>
                       <span className={styles.variationSize}>{variation.size}</span>
-                      <span className={styles.variationPrice}>₹{variation.price}</span>
+                      <span className={styles.variationPrice}>
+                        ₹{variation.price}
+                        {variation.compareAtPrice?.trim()
+                          ? ` (compare ₹${variation.compareAtPrice})`
+                          : ''}
+                      </span>
                     </div>
                     <button
                       type="button"
@@ -637,6 +668,18 @@ export default function AdminCreateProductPage() {
                   value={newVariation.price}
                   onChange={(e) => setNewVariation({ ...newVariation, price: e.target.value })}
                   placeholder="e.g., 50, 95"
+                  min="0"
+                  className={styles.variationInput}
+                />
+              </div>
+              <div className={styles.variationInputGroup}>
+                <label className={styles.variationInputLabel}>Compare at (₹)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newVariation.compareAtPrice || ''}
+                  onChange={(e) => setNewVariation({ ...newVariation, compareAtPrice: e.target.value })}
+                  placeholder="Optional"
                   min="0"
                   className={styles.variationInput}
                 />

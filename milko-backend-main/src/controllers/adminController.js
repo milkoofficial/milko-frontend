@@ -254,7 +254,14 @@ const reorderProductImages = async (req, res, next) => {
 const addProductVariation = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { size, priceMultiplier = 1.0, price = null, isAvailable = true, displayOrder = 0 } = req.body;
+    const {
+      size,
+      priceMultiplier = 1.0,
+      price = null,
+      compareAtPrice = null,
+      isAvailable = true,
+      displayOrder = 0,
+    } = req.body;
 
     if (!size) {
       return res.status(400).json({
@@ -263,14 +270,20 @@ const addProductVariation = async (req, res, next) => {
       });
     }
 
-    // If price is provided, use it. Otherwise, use priceMultiplier for backward compatibility
+    let compareParsed = null;
+    if (compareAtPrice !== null && compareAtPrice !== undefined && String(compareAtPrice).trim() !== '') {
+      const c = parseFloat(compareAtPrice);
+      if (Number.isFinite(c)) compareParsed = c;
+    }
+
     const variation = await productVariationModel.createProductVariation(
       id,
       size,
       priceMultiplier,
       isAvailable,
       displayOrder,
-      price ? parseFloat(price) : null
+      price ? parseFloat(price) : null,
+      compareParsed
     );
 
     await productService.applyVariationModePricing(id);
@@ -293,7 +306,21 @@ const updateProductVariation = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { variationId } = req.params;
-    const variation = await productVariationModel.updateProductVariation(variationId, req.body);
+    const b = req.body || {};
+    const updates = {};
+    if (Object.prototype.hasOwnProperty.call(b, 'size')) updates.size = b.size;
+    if (Object.prototype.hasOwnProperty.call(b, 'price')) updates.price = b.price;
+    if (Object.prototype.hasOwnProperty.call(b, 'priceMultiplier')) updates.priceMultiplier = b.priceMultiplier;
+    if (Object.prototype.hasOwnProperty.call(b, 'compareAtPrice')) updates.compareAtPrice = b.compareAtPrice;
+    else if (Object.prototype.hasOwnProperty.call(b, 'compare_at_price')) {
+      updates.compareAtPrice = b.compare_at_price;
+    }
+    if (Object.prototype.hasOwnProperty.call(b, 'isAvailable')) updates.isAvailable = b.isAvailable;
+    else if (Object.prototype.hasOwnProperty.call(b, 'is_available')) updates.isAvailable = b.is_available;
+    if (Object.prototype.hasOwnProperty.call(b, 'displayOrder')) updates.displayOrder = b.displayOrder;
+    else if (Object.prototype.hasOwnProperty.call(b, 'display_order')) updates.displayOrder = b.display_order;
+
+    const variation = await productVariationModel.updateProductVariation(variationId, updates);
 
     await productService.applyVariationModePricing(id);
 

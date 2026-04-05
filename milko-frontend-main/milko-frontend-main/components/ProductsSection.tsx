@@ -12,6 +12,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { animateToCart } from '@/lib/utils/cartAnimation';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import { contentApi } from '@/lib/api';
+import { getCardDiscountOff, getCardDisplayPrice } from '@/lib/utils/productCardPricing';
 import styles from './ProductsSection.module.css';
 
 /**
@@ -151,18 +152,8 @@ export default function ProductsSection() {
     return reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   };
 
-  const getDisplayPrice = (p: Product) => {
-    return (p.sellingPrice !== null && p.sellingPrice !== undefined) ? p.sellingPrice : p.pricePerLitre;
-  };
-
-  const getDiscountOff = (p: Product) => {
-    const selling = getDisplayPrice(p);
-    const compare = p.compareAtPrice;
-    if (compare === null || compare === undefined) return null;
-    if (typeof selling !== 'number' || typeof compare !== 'number') return null;
-    const off = compare - selling;
-    return off > 0 ? off : null;
-  };
+  const getDisplayPrice = (p: Product) => getCardDisplayPrice(p);
+  const getDiscountOff = (p: Product) => getCardDiscountOff(p);
 
   // Render shimmer skeletons while loading
   if (loading) {
@@ -227,7 +218,8 @@ export default function ProductsSection() {
                     src={product.imageUrl}
                     alt={product.name}
                     fill
-                    style={{ objectFit: 'cover' }}
+                    sizes="(max-width: 640px) 50vw, (max-width: 968px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                    style={{ objectFit: 'contain' }}
                   />
                 ) : (
                   <div className={styles.placeholderImage}>

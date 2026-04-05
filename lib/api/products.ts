@@ -106,6 +106,7 @@ export const adminProductsApi = {
     size: string;
     priceMultiplier?: number;
     price?: number;
+    compareAtPrice?: number | null;
     isAvailable?: boolean;
     displayOrder?: number;
   }): Promise<ProductVariation> => {

@@ -22,6 +22,7 @@ const OTHER_OPTIONS = [
   { type: 'coupons', label: 'Coupons', path: '/admin/coupons', description: 'Manage discounts' },
   { type: 'delivery_slots', label: 'Delivery Time Slots', path: '/admin/content/pincodes', description: 'Set subscription delivery-time dropdown options' },
   { type: 'help_support', label: 'Help support number', path: '/admin/content/help_support', description: 'Number or link for Need help (WhatsApp, Telegram)' },
+  { type: 'app_download', label: 'Download our App', path: '/admin/content/app_download', description: 'Store or custom URL for the Account page app download row (mobile)' },
   { type: 'homepage_products', label: 'Homepage Products Rows', path: '/admin/content/homepage_products', description: 'Adjust how many product rows appear on homepage "Our Products"' },
 ];
 
@@ -105,6 +106,14 @@ function Icon({ name }: { name: string }) {
       return (
         <svg viewBox="0 0 24 24" {...common}>
           <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+        </svg>
+      );
+    case 'app_download':
+      return (
+        <svg viewBox="0 0 24 24" {...common}>
+          <rect x="6" y="2" width="12" height="20" rx="2" />
+          <path d="M9 18h6" />
+          <path d="M12 14v-4M10 12l2-2 2 2" />
         </svg>
       );
     case 'coming_soon':

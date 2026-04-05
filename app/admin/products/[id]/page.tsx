@@ -85,9 +85,30 @@ export default function AdminProductEditPage() {
 
   // Variations
   const [variations, setVariations] = useState<ProductVariation[]>([]);
-  const [newVariation, setNewVariation] = useState({ size: '', price: '', isAvailable: true });
+  const [newVariation, setNewVariation] = useState({ size: '', price: '', compareAtPrice: '', isAvailable: true });
+  const [variationDrafts, setVariationDrafts] = useState<
+    Record<string, { price: string; compareAtPrice: string; isAvailable: boolean }>
+  >({});
+  const [savingVariationId, setSavingVariationId] = useState<string | null>(null);
 
   // Reviews are managed by customers only (not editable in admin product editor)
+
+  useEffect(() => {
+    if (!product) return;
+    const next: Record<string, { price: string; compareAtPrice: string; isAvailable: boolean }> = {};
+    for (const v of variations) {
+      const unit = v.price ?? product.pricePerLitre * v.priceMultiplier;
+      next[v.id] = {
+        price: String(v.price != null && Number.isFinite(v.price) ? v.price : unit),
+        compareAtPrice:
+          v.compareAtPrice !== null && v.compareAtPrice !== undefined
+            ? String(v.compareAtPrice)
+            : '',
+        isAvailable: v.isAvailable,
+      };
+    }
+    setVariationDrafts(next);
+  }, [product, variations]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -278,9 +299,25 @@ export default function AdminProductEditPage() {
     }
 
     try {
+      const priceNum = parseFloat(newVariation.price);
+      let compareNum: number | null = null;
+      if (newVariation.compareAtPrice.trim()) {
+        const c = parseFloat(newVariation.compareAtPrice);
+        if (!Number.isFinite(c) || c < 0) {
+          showToast('Compare at price must be a valid positive number or empty', 'error');
+          return;
+        }
+        compareNum = c;
+      }
+      if (compareNum !== null && compareNum < priceNum) {
+        showToast('Compare at price must be greater than or equal to the variation price', 'error');
+        return;
+      }
+
       await adminProductsApi.addVariation(productId, {
         size: newVariation.size,
-        price: parseFloat(newVariation.price),
+        price: priceNum,
+        compareAtPrice: compareNum,
         isAvailable: newVariation.isAvailable,
         displayOrder: variations.length,
       });
@@ -293,7 +330,7 @@ export default function AdminProductEditPage() {
       setCompareAtPrice(
         data.compareAtPrice !== null && data.compareAtPrice !== undefined ? String(data.compareAtPrice) : ''
       );
-      setNewVariation({ size: '', price: '', isAvailable: true });
+      setNewVariation({ size: '', price: '', compareAtPrice: '', isAvailable: true });
       showToast('Variation added', 'success');
     } catch (error) {
       console.error('Failed to add variation:', error);
@@ -319,6 +356,53 @@ export default function AdminProductEditPage() {
     } catch (error) {
       console.error('Failed to delete variation:', error);
       showToast(getErrorMessage(error), 'error');
+    }
+  };
+
+  const handleSaveVariation = async (variationId: string) => {
+    const d = variationDrafts[variationId];
+    if (!d) return;
+    const price = parseFloat(d.price);
+    if (!Number.isFinite(price) || price < 0) {
+      showToast('Enter a valid selling price for this variation', 'error');
+      return;
+    }
+    let comparePayload: number | null = null;
+    if (d.compareAtPrice.trim() !== '') {
+      const c = parseFloat(d.compareAtPrice);
+      if (!Number.isFinite(c) || c < 0) {
+        showToast('Compare at price must be a valid number or empty', 'error');
+        return;
+      }
+      comparePayload = c;
+    }
+    if (comparePayload !== null && comparePayload < price) {
+      showToast('Compare at price must be greater than or equal to the variation price', 'error');
+      return;
+    }
+
+    setSavingVariationId(variationId);
+    try {
+      await adminProductsApi.updateVariation(productId, variationId, {
+        price,
+        compareAtPrice: comparePayload,
+        isAvailable: d.isAvailable,
+      });
+      const data = await adminProductsApi.getById(productId);
+      setProduct(data);
+      setVariations(data.variations || []);
+      setSellingPrice(
+        data.sellingPrice !== null && data.sellingPrice !== undefined ? String(data.sellingPrice) : ''
+      );
+      setCompareAtPrice(
+        data.compareAtPrice !== null && data.compareAtPrice !== undefined ? String(data.compareAtPrice) : ''
+      );
+      showToast('Variation saved', 'success');
+    } catch (error) {
+      console.error('Failed to update variation:', error);
+      showToast(getErrorMessage(error), 'error');
+    } finally {
+      setSavingVariationId(null);
     }
   };
 
@@ -418,9 +502,10 @@ export default function AdminProductEditPage() {
                     lineHeight: 1.5,
                   }}
                 >
-                  <strong>Pricing:</strong> This product uses size variations. Fixed selling and compare-at prices
-                  are cleared while variations exist. To use a single fixed price, remove all variations first, then
-                  set both prices here and save.
+                  <strong>Pricing:</strong> This product uses size variations. Set selling and compare-at per size on
+                  the Variations tab. Product-level selling/compare-at here are cleared while variations exist. To use
+                  one fixed price for the whole product, remove all variations first, then set both prices here and
+                  save.
                 </div>
               </div>
             ) : (
@@ -626,26 +711,92 @@ export default function AdminProductEditPage() {
           <div className={styles.section}>
             <h2>Product Variations (Sizes)</h2>
             <div className={styles.variationsList}>
-              {variations.map((variation) => (
-                <div key={variation.id} className={styles.variationCard}>
-                  <div>
-                    <strong>{variation.size}</strong>
-                    <div style={{ color: '#666', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-                      Price: ₹{(variation.price ?? (product.pricePerLitre * variation.priceMultiplier)).toFixed(2)}
-                      {variation.price === undefined && variation.priceMultiplier !== 1 && ` (${variation.priceMultiplier}x)`}
+              {variations.map((variation) => {
+                const draft = variationDrafts[variation.id];
+                return (
+                  <div key={variation.id} className={styles.variationCard}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong>{variation.size}</strong>
+                      {draft ? (
+                        <div
+                          className={styles.formRow}
+                          style={{ marginTop: '0.75rem', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'flex-end' }}
+                        >
+                          <div className={styles.formGroup} style={{ marginBottom: 0, minWidth: '120px' }}>
+                            <label style={{ fontSize: '0.8rem' }}>Price (₹)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={draft.price}
+                              onChange={(e) =>
+                                setVariationDrafts((prev) => ({
+                                  ...prev,
+                                  [variation.id]: { ...prev[variation.id], price: e.target.value },
+                                }))
+                              }
+                              className={styles.input}
+                            />
+                          </div>
+                          <div className={styles.formGroup} style={{ marginBottom: 0, minWidth: '140px' }}>
+                            <label style={{ fontSize: '0.8rem' }}>Compare at (₹)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={draft.compareAtPrice}
+                              onChange={(e) =>
+                                setVariationDrafts((prev) => ({
+                                  ...prev,
+                                  [variation.id]: { ...prev[variation.id], compareAtPrice: e.target.value },
+                                }))
+                              }
+                              className={styles.input}
+                              placeholder="Optional"
+                            />
+                          </div>
+                          <label
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              fontSize: '0.85rem',
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={draft.isAvailable}
+                              onChange={(e) =>
+                                setVariationDrafts((prev) => ({
+                                  ...prev,
+                                  [variation.id]: { ...prev[variation.id], isAvailable: e.target.checked },
+                                }))
+                              }
+                            />
+                            Available
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveVariation(variation.id)}
+                            className={styles.addButton}
+                            disabled={savingVariationId === variation.id}
+                          >
+                            {savingVariationId === variation.id ? 'Saving…' : 'Save'}
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
-                    <div style={{ color: variation.isAvailable ? '#28a745' : '#dc3545', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                      {variation.isAvailable ? 'Available' : 'Not Available'}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteVariation(variation.id)}
+                      className={styles.deleteButton}
+                    >
+                      Delete
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleDeleteVariation(variation.id)}
-                    className={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className={styles.addSection}>
               <h3>Add New Variation</h3>
@@ -665,7 +816,17 @@ export default function AdminProductEditPage() {
                   value={newVariation.price}
                   onChange={(e) => setNewVariation({ ...newVariation, price: e.target.value })}
                   className={styles.input}
-                  style={{ width: '150px' }}
+                  style={{ width: '130px' }}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Compare at (₹)"
+                  value={newVariation.compareAtPrice}
+                  onChange={(e) => setNewVariation({ ...newVariation, compareAtPrice: e.target.value })}
+                  className={styles.input}
+                  style={{ width: '140px' }}
+                  title="Optional strikethrough price for discounts"
                 />
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input

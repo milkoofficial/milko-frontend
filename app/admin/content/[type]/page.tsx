@@ -16,6 +16,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   reviews: 'Reviews Settings',
   pincodes: 'Pincodes',
   help_support: 'Help support number',
+  app_download: 'Download our App',
   homepage_products: 'Homepage Products Rows',
 };
 
@@ -124,6 +125,13 @@ export default function AdminContentEditPage() {
         setContentText('Support contact for Need help button.');
         setMetadata({ helpSupportNumber: '' });
         setIsActive(true);
+      } else if (contentType === 'app_download') {
+        setError('');
+        setContent(null);
+        setTitle('Download our App');
+        setContentText('Mobile app store link for Account page.');
+        setMetadata({ downloadAppUrl: '' });
+        setIsActive(true);
       } else if (contentType === 'homepage_products') {
         setError('');
         setContent(null);
@@ -194,6 +202,29 @@ export default function AdminContentEditPage() {
         finalMetadata = { helpSupportNumber: (metadata.helpSupportNumber || '').toString().trim() };
       }
 
+      // Handle app_download (Account page store / custom URL)
+      if (contentType === 'app_download') {
+        const raw = (metadata.downloadAppUrl || '').toString().trim();
+        let downloadAppUrl = '';
+        if (raw) {
+          const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+          try {
+            const u = new URL(withScheme);
+            if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+              setError('Please enter a valid URL (http or https).');
+              setSaving(false);
+              return;
+            }
+            downloadAppUrl = u.toString();
+          } catch {
+            setError('Please enter a valid URL.');
+            setSaving(false);
+            return;
+          }
+        }
+        finalMetadata = { downloadAppUrl };
+      }
+
       // Handle homepage_products
       if (contentType === 'homepage_products') {
         const raw = Number(metadata.rows);
@@ -202,8 +233,22 @@ export default function AdminContentEditPage() {
       }
 
       await adminContentApi.update(contentType, {
-        title: contentType === 'pincodes' ? 'Pincode Settings' : contentType === 'help_support' ? 'Help support number' : title,
-        content: contentType === 'pincodes' ? 'Delivery pincode settings' : contentType === 'help_support' ? 'Support contact for Need help button.' : contentText,
+        title:
+          contentType === 'pincodes'
+            ? 'Pincode Settings'
+            : contentType === 'help_support'
+              ? 'Help support number'
+              : contentType === 'app_download'
+                ? 'Download our App'
+                : title,
+        content:
+          contentType === 'pincodes'
+            ? 'Delivery pincode settings'
+            : contentType === 'help_support'
+              ? 'Support contact for Need help button.'
+              : contentType === 'app_download'
+                ? 'Mobile app store link for Account page.'
+                : contentText,
         metadata: finalMetadata,
       });
 
@@ -258,7 +303,7 @@ export default function AdminContentEditPage() {
       )}
 
       <form onSubmit={handleSubmit} className={styles.form}>
-        {contentType !== 'pincodes' && contentType !== 'help_support' && (
+        {contentType !== 'pincodes' && contentType !== 'help_support' && contentType !== 'app_download' && (
           <div className={styles.formGroup}>
             <label className={styles.label}>
               Title *
@@ -350,6 +395,23 @@ export default function AdminContentEditPage() {
             />
             <div className={styles.helpText} style={{ marginTop: '0.5rem' }}>
               Phone with country code (e.g. 919876543210) for WhatsApp, or a full URL (e.g. https://t.me/username) for Telegram or custom app.
+            </div>
+          </div>
+        )}
+
+        {contentType === 'app_download' && (
+          <div className={styles.formGroup}>
+            <label className={styles.label}>App / store URL</label>
+            <input
+              type="text"
+              value={metadata.downloadAppUrl || ''}
+              onChange={(e) => setMetadata({ ...metadata, downloadAppUrl: e.target.value })}
+              className={styles.input}
+              placeholder="https://play.google.com/store/apps/details?id=..."
+            />
+            <div className={styles.helpText} style={{ marginTop: '0.5rem' }}>
+              Shown on the mobile Account page &quot;Download our App&quot; row. Leave empty to use{' '}
+              <code style={{ fontSize: '0.9em' }}>NEXT_PUBLIC_PLAY_STORE_URL</code> or the default Play Store link.
             </div>
           </div>
         )}
@@ -536,7 +598,7 @@ export default function AdminContentEditPage() {
               </div>
             </div>
           </div>
-        ) : contentType === 'help_support' ? null : (
+        ) : contentType === 'help_support' || contentType === 'app_download' ? null : (
           <div className={styles.formGroup}>
             <label className={styles.label}>
               Content {contentType === 'contact' ? '(Optional)' : '*'}

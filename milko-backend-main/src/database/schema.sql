@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS product_variations (
     size VARCHAR(50) NOT NULL,
     price_multiplier DECIMAL(5, 2) NOT NULL DEFAULT 1.0,
     price DECIMAL(10, 2),
+    compare_at_price DECIMAL(10, 2),
     is_available BOOLEAN NOT NULL DEFAULT true,
     display_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

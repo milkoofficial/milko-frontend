@@ -14,6 +14,7 @@
     "db:migrate-selling-price": "node src/database/run_selling_price_migration.js",
     "db:migrate-product-details": "node src/database/run_product_details_migration.js",
     "db:migrate-variation-price": "node src/database/run_variation_price_migration.js",
+    "db:migrate-variation-compare-at": "node src/database/run_variation_compare_at_migration.js",
     "db:migrate-coming-soon": "node src/database/run_coming_soon_migration.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",

@@ -69,6 +69,12 @@ If adding a product **variation** fails with `column "price" of relation "produc
 npm run db:migrate-variation-price
 ```
 
+If variation **compare-at** (per-size strikethrough price) fails with `column "compare_at_price" of relation "product_variations" does not exist`, run:
+
+```bash
+npm run db:migrate-variation-compare-at
+```
+
 If you cannot connect from your machine to Supabase Postgres directly, run the SQL in Supabase SQL Editor instead:
 
 ```sql

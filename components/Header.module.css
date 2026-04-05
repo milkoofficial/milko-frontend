@@ -690,6 +690,11 @@
   animation: searchOverlayClose 0.28s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+/* Below ProductDetailsModal (2000) while modal is open; overlay stays mounted so results return when modal closes */
+.searchOverlayBehindModal {
+  z-index: 1990;
+}
+
 @keyframes searchOverlayOpen {
   from { opacity: 0; }
   to { opacity: 1; }

@@ -158,6 +158,21 @@
   background: #fef2f2;
 }
 
+/* Mobile only: Play Store link — same look as other rows */
+.optionRowAppDownload {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .optionRowAppDownload {
+    display: flex;
+  }
+}
+
+.optionIconAppStore {
+  display: block;
+}
+
 .loading {
   text-align: center;
   padding: 3rem 1rem;

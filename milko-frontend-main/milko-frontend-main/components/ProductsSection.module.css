@@ -98,7 +98,7 @@
 .productImageShimmer {
   position: relative;
   width: 100%;
-  height: 220px;
+  aspect-ratio: 1;
   background: #f0f0f0;
   overflow: hidden;
   flex-shrink: 0;
@@ -204,10 +204,6 @@
 }
 
 @media (max-width: 640px) {
-  .productImageShimmer {
-    height: 140px;
-  }
-
   .assuredBadgeShimmer {
     top: 5px;
     right: 5px;
@@ -301,7 +297,7 @@
 .productImage {
   position: relative;
   width: 100%;
-  height: 220px;
+  aspect-ratio: 1;
   background: #f0f0f0;
   overflow: hidden;
 }
@@ -646,10 +642,6 @@
   .productsGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.55rem;
-  }
-
-  .productImage {
-    height: 140px;
   }
 
   .productInfo {

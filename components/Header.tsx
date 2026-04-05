@@ -837,7 +837,15 @@ export default function Header() {
     e.preventDefault();
     if (searchQuery.trim()) {
       setIsSearching(true);
-      if (!isMobile) {
+      if (isMobile) {
+        searchOverlayInputRef.current?.blur();
+        if (searchOverlayCloseTimeoutRef.current) {
+          clearTimeout(searchOverlayCloseTimeoutRef.current);
+          searchOverlayCloseTimeoutRef.current = null;
+        }
+        setIsSearchOverlayClosing(false);
+        setIsSearchOverlayOpen(false);
+      } else {
         setIsSearchDropdownOpen(false);
         const input = searchWrapRef.current?.querySelector('input') as HTMLInputElement | null;
         input?.blur();
@@ -1424,7 +1432,9 @@ export default function Header() {
 
       {/* Mobile: full-page white search overlay when search is focused */}
       {isMobile && isSearchOverlayOpen && (
-        <div className={`${styles.searchOverlay} ${isSearchOverlayClosing ? styles.searchOverlayClosing : ''}`}>
+        <div
+          className={`${styles.searchOverlay} ${isSearchOverlayClosing ? styles.searchOverlayClosing : ''} ${selectedProduct ? styles.searchOverlayBehindModal : ''}`}
+        >
           <div className={styles.searchOverlayBar}>
             <form onSubmit={handleSearch} className={`${styles.searchForm} ${styles.searchOverlayForm}`}>
               <div className={styles.searchIcon}>
@@ -1463,8 +1473,13 @@ export default function Header() {
                       role="button"
                       tabIndex={0}
                       className={styles.searchOverlayRow}
-                      onClick={() => { closeSearchOverlay(); setSelectedProduct(p); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeSearchOverlay(); setSelectedProduct(p); } }}
+                      onClick={() => setSelectedProduct(p)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedProduct(p);
+                        }
+                      }}
                     >
                       {p.imageUrl ? <img src={p.imageUrl} alt="" className={styles.searchOverlayRowImg} /> : <div className={styles.searchOverlayRowImg} />}
                       <div className={styles.searchOverlayRowText}>

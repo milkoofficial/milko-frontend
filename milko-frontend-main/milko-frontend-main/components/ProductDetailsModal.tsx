@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, type CSSProperties } from 'react';
 import { Product, ProductVariation, ProductReview } from '@/types';
 import { productsApi, contentApi } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
@@ -289,12 +289,13 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const collageItems = productImages;
   collageLenRef.current = collageItems.length;
 
-  const minSwipeDistance = 50;
+  const minSwipeDistance = 40;
 
   const isFromMainImageNavButton = (target: EventTarget | null) =>
     target instanceof Element && Boolean(target.closest('button'));
 
-  useEffect(() => {
+  /* Capture phase + layout timing so touches on the inner <img> still hit our logic; touch-action:none on CSS stops the browser taking horizontal pans. */
+  useLayoutEffect(() => {
     const el = mainImageRef.current;
     if (!el || !isOpen || loadingDetails) return;
 
@@ -319,7 +320,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
       endX = t.clientX;
       const dx = Math.abs(t.clientX - startX);
       const dy = Math.abs(t.clientY - startY);
-      if (dx > dy && dx > 14) {
+      if (dx > dy && dx > 10) {
         didSwipeRef.current = true;
         ev.preventDefault();
       }
@@ -345,17 +346,18 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
       tracking = false;
     };
 
-    el.addEventListener('touchstart', onStart, { passive: true });
-    el.addEventListener('touchmove', onMove, { passive: false });
-    el.addEventListener('touchend', onEnd, { passive: true });
-    el.addEventListener('touchcancel', onCancel, { passive: true });
+    const cap = { capture: true } as const;
+    el.addEventListener('touchstart', onStart, { ...cap, passive: true });
+    el.addEventListener('touchmove', onMove, { ...cap, passive: false });
+    el.addEventListener('touchend', onEnd, { ...cap, passive: true });
+    el.addEventListener('touchcancel', onCancel, { ...cap, passive: true });
     return () => {
-      el.removeEventListener('touchstart', onStart);
-      el.removeEventListener('touchmove', onMove);
-      el.removeEventListener('touchend', onEnd);
-      el.removeEventListener('touchcancel', onCancel);
+      el.removeEventListener('touchstart', onStart, cap);
+      el.removeEventListener('touchmove', onMove, cap);
+      el.removeEventListener('touchend', onEnd, cap);
+      el.removeEventListener('touchcancel', onCancel, cap);
     };
-  }, [isOpen, loadingDetails]);
+  }, [isOpen, loadingDetails, collageItems.length]);
 
   const openImageZoom = useCallback(() => {
     const vw = typeof window !== 'undefined' ? window.innerWidth : 400;
@@ -585,7 +587,19 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     : null;
 
   const unitPrice = selectedVariation?.price ?? (baseSelling * unitMultiplier);
-  const originalUnitPrice = baseCompare !== null ? (baseCompare * unitMultiplier) : null;
+  const variationCompare =
+    selectedVariation &&
+    selectedVariation.compareAtPrice !== null &&
+    selectedVariation.compareAtPrice !== undefined &&
+    Number.isFinite(Number(selectedVariation.compareAtPrice))
+      ? Number(selectedVariation.compareAtPrice)
+      : null;
+  const originalUnitPrice =
+    variationCompare !== null
+      ? variationCompare
+      : baseCompare !== null
+        ? baseCompare * unitMultiplier
+        : null;
   const unitOff = originalUnitPrice !== null ? (originalUnitPrice - unitPrice) : 0;
   
   // Base discount (without multiplier) to match product card display

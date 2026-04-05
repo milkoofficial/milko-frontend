@@ -8,6 +8,7 @@ import ProductDetailsModal from '@/components/ProductDetailsModal';
 import RatingBadge from '@/components/ui/RatingBadge';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
+import { getCardDiscountOff, getCardDisplayPrice } from '@/lib/utils/productCardPricing';
 import styles from './products.module.css';
 import cardStyles from '@/components/ProductsSection.module.css';
 
@@ -29,24 +30,24 @@ export default function ProductsClient() {
     return reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   };
 
-  const getDisplayPrice = (p: Product) => {
-    return p.sellingPrice !== null && p.sellingPrice !== undefined ? p.sellingPrice : p.pricePerLitre;
-  };
-
-  const getDiscountOff = (p: Product) => {
-    const selling = getDisplayPrice(p);
-    const compare = p.compareAtPrice;
-    if (compare === null || compare === undefined) return null;
-    if (typeof selling !== 'number' || typeof compare !== 'number') return null;
-    const off = compare - selling;
-    return off > 0 ? off : null;
-  };
+  const getDisplayPrice = (p: Product) => getCardDisplayPrice(p);
+  const getDiscountOff = (p: Product) => getCardDiscountOff(p);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const data = await productsApi.getAll();
-        setProducts(data);
+        // LIST omits reviews; match homepage cards by loading details for rating badges
+        const withDetails = await Promise.all(
+          data.map(async (p) => {
+            try {
+              return await productsApi.getById(p.id, true);
+            } catch {
+              return p;
+            }
+          })
+        );
+        setProducts(withDetails);
       } catch (error) {
         console.error('Failed to fetch products:', error);
       } finally {

@@ -28,6 +28,8 @@ export interface ProductVariation {
   size: string; // e.g., "0.5L", "1L", "2L", "5L"
   priceMultiplier: number;
   price?: number; // Actual price for this variation (overrides priceMultiplier if set)
+  /** Strikethrough / "was" price for this size (optional) */
+  compareAtPrice?: number | null;
   isAvailable: boolean;
   displayOrder: number;
   createdAt: string;

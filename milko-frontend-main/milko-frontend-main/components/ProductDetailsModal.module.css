@@ -64,24 +64,24 @@
 
 .closeButton {
   position: sticky;
-    top: 1rem;
-    padding-right: 1.5rem;
-    background: rgb(255 255 255 / 0%);
-    border: none;
-    border-radius: 50%;
-    width: 100%;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    cursor: pointer;
-    z-index: 99;
-    transition: all 0.2s ease;
+  top: 1rem;
+  padding-right: 1rem;
+  background: rgb(255 255 255 / 0%);
+  border: none;
+  border-radius: 50%;
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  z-index: 99;
+  transition: all 0.2s ease;
 }
 
 .closeButton:hover {
-  background: transparent;
-  
+  background: white;
+  background: #f1f1f1
   
   
 }
@@ -98,11 +98,6 @@
   .modalBody {
     display: flex;
     flex-direction: column;
-  }
-
-  .closeButton {
-
-    padding-right: 1rem;
   }
 
   /* Complete reset for mobile - no inheritance from desktop */
@@ -144,7 +139,8 @@
   border-radius: 12px;
   overflow: hidden;
   background: #f0f0f0;
-  touch-action: pan-x;
+  /* none: browser must not claim pans; we handle horizontal swipe in JS (inner img defaults to auto otherwise). */
+  touch-action: none;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -157,6 +153,8 @@
   object-fit: contain;
   position: relative;
   z-index: 0;
+  touch-action: none;
+  -webkit-user-drag: none;
 }
 
 .placeholderImage {
@@ -167,6 +165,7 @@
   justify-content: center;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   font-size: 6rem;
+  touch-action: none;
 }
 
 .emojiMain {
@@ -177,12 +176,14 @@
   justify-content: center;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   font-size: 6rem;
+  touch-action: none;
 }
 
 /* Main image navigation */
 .imageNavButton {
   position: absolute;
   top: 50%;
+  z-index: 2;
   transform: translateY(-50%);
   width: 44px;
   height: 44px;
@@ -238,7 +239,7 @@
 .imageDotActive {
   background: #0070f3;
   width: 10px;
-    transition: ease 0.2s all;
+  transition: ease 0.2s all;
 }
 
 .thumbnail {
@@ -1341,11 +1342,11 @@ margin-left: -11px;
 /* Membership Section */
 .membershipSection {
   margin-top: -24px;
-  padding: 1.5rem;
-  background: #ffffff;
+  padding: 1.5rem; 
+  background: #e6fff6;
   border-radius: 12px;
-  border: 1px solid #0b9c6b;
-  box-shadow: 0 1px 1px 0 rgb(31 255 141 / 20%);
+  border: 0px solid #0b9c6b;
+  
 }
 .membershipHeader {
   display: flex;
@@ -1356,7 +1357,7 @@ margin-left: -11px;
 
 .membershipTitleRow {
   display: flex;
-  align-items: center;
+  align-items:flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
@@ -1401,7 +1402,7 @@ margin-left: -11px;
   transition: background .02s;
   flex-shrink: 0;
   border: 1px solid #0b9c6b;
-  box-shadow: 0 1px 1px 0 rgb(0 119 59 / 53%);
+  
 }
 
 .membershipMoreButton:hover {
@@ -1765,8 +1766,7 @@ margin-left: -11px;
     border-radius: 12px;
     overflow: hidden;
     background: #f0f0f0;
-    /* Horizontal swipe for gallery; vertical scroll uses the modal body, not the image strip */
-    touch-action: pan-x !important;
+    touch-action: none !important;
   }
 
   .productTitle {
