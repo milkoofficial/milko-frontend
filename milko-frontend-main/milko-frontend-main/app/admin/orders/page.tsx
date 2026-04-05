@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { apiClient } from '@/lib/api';
 import { LoadingSpinnerWithText } from '@/components/ui/LoadingSpinner';
@@ -108,6 +108,58 @@ function orderedAtMs(o: AdminOrder) {
   return Number.isNaN(t) ? 0 : t;
 }
 
+function CopyOrderNumberButton({
+  orderNumber,
+  showToast,
+}: {
+  orderNumber: string;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+}) {
+  const text = `#${orderNumber}`;
+  const onCopy = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Order number copied', 'success');
+    } catch {
+      showToast('Could not copy', 'error');
+    }
+  };
+  return (
+    <button
+      type="button"
+      className={styles.copyOrderBtn}
+      aria-label={`Copy order number ${text}`}
+      title="Copy order number"
+      onClick={onCopy}
+    >
+      <svg
+        className={styles.copyOrderIcon}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden
+      >
+        <path
+          d="M8 4v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7.242a2 2 0 0 0-.602-1.43L16.083 2.598A2 2 0 0 0 14.685 2H10a2 2 0 0 0-2 2z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M16 18v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
 function PaymentCell({ o }: { o: AdminOrder }) {
   const isCod = String(o.paymentMethod || '').toLowerCase() === 'cod';
   const paid =
@@ -144,8 +196,10 @@ export default function AdminOrdersPage() {
   const [query, setQuery] = useState('');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryFilter>('all');
   const [sort, setSort] = useState<SortKey>('orderedDesc');
-  const [searchExpanded, setSearchExpanded] = useState(false);
-  const searchExpandRef = useRef<HTMLDivElement>(null);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [filterSheetView, setFilterSheetView] = useState<'menu' | 'delivery' | 'sort'>('menu');
+  const [filterSheetMounted, setFilterSheetMounted] = useState(false);
+  const filterSheetMenuTitleId = useId();
   const { showToast } = useToast();
 
   const fetchOrders = async () => {
@@ -166,20 +220,22 @@ export default function AdminOrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showToast]);
 
+  useEffect(() => setFilterSheetMounted(true), []);
+
   useEffect(() => {
-    if (!searchExpanded) return;
-    const onDown = (e: MouseEvent) => {
-      const el = searchExpandRef.current;
-      if (el && e.target instanceof Node && el.contains(e.target)) return;
-      setSearchExpanded(false);
+    if (!filterSheetOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (filterSheetView !== 'menu') setFilterSheetView('menu');
+      else setFilterSheetOpen(false);
     };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [searchExpanded]);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [filterSheetOpen, filterSheetView]);
 
   // Block Android Chrome pull-to-refresh while modals are open, without body position:fixed (avoids overlay glitches).
   useEffect(() => {
-    if (!showModal && !showConfirmation) return;
+    if (!showModal && !showConfirmation && !filterSheetOpen) return;
 
     const html = document.documentElement;
     const body = document.body;
@@ -200,7 +256,7 @@ export default function AdminOrdersPage() {
       html.style.overscrollBehaviorY = prevHtmlOverscrollY;
       body.style.overscrollBehaviorY = prevBodyOverscrollY;
     };
-  }, [showModal, showConfirmation]);
+  }, [showModal, showConfirmation, filterSheetOpen]);
 
   const filtered = useMemo(() => {
     const q = normalizeAdminListSearchQuery(query);
@@ -250,6 +306,14 @@ export default function AdminOrdersPage() {
     setSelectedOrder(null);
   };
 
+  const closeFilterSheet = () => {
+    setFilterSheetOpen(false);
+    setFilterSheetView('menu');
+  };
+
+  const deliveryFilterLabel = DELIVERY_OPTIONS.find((o) => o.value === deliveryFilter)?.label ?? '';
+  const sortFilterLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label ?? '';
+
   const handleMarkAsPackagePrepared = async () => {
     if (!selectedOrder) return;
     try {
@@ -288,11 +352,11 @@ export default function AdminOrdersPage() {
         </p>
       </div>
 
-      <div className={`${styles.toolbar} ${searchExpanded ? styles.toolbarSearchExpanded : ''}`}>
-        <div className={styles.searchSlot} ref={searchExpandRef}>
+      <div className={styles.toolbar}>
+        <div className={styles.searchSlot}>
           <div className={styles.searchWrap}>
             <span className={styles.searchIcon} aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="7" />
                 <path d="M20 20l-3.5-3.5" />
               </svg>
@@ -301,14 +365,13 @@ export default function AdminOrdersPage() {
               className={styles.searchInput}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setSearchExpanded(true)}
               placeholder="Search order #, customer…"
               aria-label="Search orders"
             />
           </div>
         </div>
 
-        <div className={styles.filterSlot}>
+        <div className={styles.toolbarDesktopFilters}>
           <CustomSelect<DeliveryFilter>
             value={deliveryFilter}
             onChange={setDeliveryFilter}
@@ -317,7 +380,168 @@ export default function AdminOrdersPage() {
           />
           <CustomSelect<SortKey> value={sort} onChange={setSort} modalTitle="Sort" options={SORT_OPTIONS} />
         </div>
+
+        <button
+          type="button"
+          className={styles.toolbarMobileFilterBtn}
+          aria-label="Filters"
+          aria-haspopup="dialog"
+          aria-expanded={filterSheetOpen}
+          onClick={() => {
+            setFilterSheetView('menu');
+            setFilterSheetOpen(true);
+          }}
+        >
+          <svg className={styles.toolbarMobileFilterIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M4 6h16M8 12h8M10 18h4"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <circle cx="18" cy="6" r="1.75" fill="currentColor" />
+            <circle cx="6" cy="12" r="1.75" fill="currentColor" />
+            <circle cx="16" cy="18" r="1.75" fill="currentColor" />
+          </svg>
+        </button>
       </div>
+
+      {filterSheetMounted && filterSheetOpen
+        ? createPortal(
+            <div
+              className={styles.filterSheetBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) closeFilterSheet();
+              }}
+            >
+              <div
+                className={styles.filterSheetPanel}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={filterSheetMenuTitleId}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className={styles.filterSheetGrab} aria-hidden />
+                {filterSheetView === 'menu' ? (
+                  <>
+                    <div className={styles.filterSheetHeader}>
+                      <h2 id={filterSheetMenuTitleId} className={styles.filterSheetTitle}>
+                        Filters
+                      </h2>
+                      <button type="button" className={styles.filterSheetClose} aria-label="Close filters" onClick={closeFilterSheet}>
+                        ×
+                      </button>
+                    </div>
+                    <div className={styles.filterSheetMenu}>
+                      <button
+                        type="button"
+                        className={styles.filterSheetMenuRow}
+                        onClick={() => setFilterSheetView('delivery')}
+                      >
+                        <span className={styles.filterSheetMenuLabel}>Delivery status</span>
+                        <span className={styles.filterSheetMenuValue}>{deliveryFilterLabel}</span>
+                        <span className={styles.filterSheetMenuChevron} aria-hidden>
+                          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M7.5 5L12.5 10L7.5 15" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+                      <button type="button" className={styles.filterSheetMenuRow} onClick={() => setFilterSheetView('sort')}>
+                        <span className={styles.filterSheetMenuLabel}>Sort</span>
+                        <span className={styles.filterSheetMenuValue}>{sortFilterLabel}</span>
+                        <span className={styles.filterSheetMenuChevron} aria-hidden>
+                          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M7.5 5L12.5 10L7.5 15" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+
+                {filterSheetView === 'delivery' ? (
+                  <div className={styles.filterSheetSub}>
+                    <div className={styles.filterSheetSubHeader}>
+                      <button
+                        type="button"
+                        className={styles.filterSheetBack}
+                        aria-label="Back"
+                        onClick={() => setFilterSheetView('menu')}
+                      >
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      <h2 className={styles.filterSheetSubTitle}>Delivery status</h2>
+                    </div>
+                    <div className={styles.filterSheetOptions} role="listbox" aria-label="Delivery status">
+                      {DELIVERY_OPTIONS.map((opt) => {
+                        const active = opt.value === deliveryFilter;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            role="option"
+                            aria-selected={active}
+                            className={`${styles.filterSheetOption} ${active ? styles.filterSheetOptionActive : ''}`}
+                            onClick={() => {
+                              setDeliveryFilter(opt.value);
+                              setFilterSheetView('menu');
+                            }}
+                          >
+                            <span>{opt.label}</span>
+                            {active ? <span className={styles.filterSheetOptionBadge}>Selected</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {filterSheetView === 'sort' ? (
+                  <div className={styles.filterSheetSub}>
+                    <div className={styles.filterSheetSubHeader}>
+                      <button
+                        type="button"
+                        className={styles.filterSheetBack}
+                        aria-label="Back"
+                        onClick={() => setFilterSheetView('menu')}
+                      >
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      <h2 className={styles.filterSheetSubTitle}>Sort</h2>
+                    </div>
+                    <div className={styles.filterSheetOptions} role="listbox" aria-label="Sort">
+                      {SORT_OPTIONS.map((opt) => {
+                        const active = opt.value === sort;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            role="option"
+                            aria-selected={active}
+                            className={`${styles.filterSheetOption} ${active ? styles.filterSheetOptionActive : ''}`}
+                            onClick={() => {
+                              setSort(opt.value);
+                              setFilterSheetView('menu');
+                            }}
+                          >
+                            <span>{opt.label}</span>
+                            {active ? <span className={styles.filterSheetOptionBadge}>Selected</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       <div className={styles.panel}>
         <table className={styles.table}>
@@ -350,7 +574,10 @@ export default function AdminOrdersPage() {
                   }}
                 >
                   <td className={styles.td}>
-                    <span className={styles.orderNum}>#{o.orderNumber}</span>
+                    <span className={styles.orderNumRow}>
+                      <span className={styles.orderNum}>#{o.orderNumber}</span>
+                      <CopyOrderNumberButton orderNumber={o.orderNumber} showToast={showToast} />
+                    </span>
                   </td>
                   <td className={styles.td}>{formatDateTimeIST(o.orderedAt)}</td>
                   <td className={styles.td}>
@@ -393,15 +620,26 @@ export default function AdminOrdersPage() {
           filtered.map((o) => {
             const isFulfilled = o.deliveryStatus === 'delivered' && o.fulfilledAt;
             return (
-              <button
+              <div
                 key={o.orderId}
-                type="button"
+                role="button"
+                tabIndex={0}
                 className={`${styles.card} ${isFulfilled ? styles.cardFulfilled : ''}`}
                 onClick={() => handleOrderClick(o.orderId)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleOrderClick(o.orderId);
+                  }
+                }}
+                aria-label={`Open order ${o.orderNumber}`}
               >
                 <div className={styles.cardTop}>
                   <div>
-                    <div className={styles.cardTitle}>#{o.orderNumber}</div>
+                    <div className={styles.cardTitleRow}>
+                      <span className={styles.cardTitle}>#{o.orderNumber}</span>
+                      <CopyOrderNumberButton orderNumber={o.orderNumber} showToast={showToast} />
+                    </div>
                     <div className={styles.cardDate}>{formatDateTimeIST(o.orderedAt)}</div>
                   </div>
                   <div className={styles.cardBadges}>
@@ -427,7 +665,7 @@ export default function AdminOrdersPage() {
                     <div className={styles.kvValue}>{formatDeliveryLabel(String(o.deliveryStatus || 'pending'))}</div>
                   </div>
                 </div>
-              </button>
+              </div>
             );
           })
         )}
@@ -455,7 +693,10 @@ export default function AdminOrdersPage() {
               </div>
             ) : selectedOrder ? (
               <div className={styles.modalBody}>
-                <h2 className={styles.modalTitle}>Order #{selectedOrder.orderNumber}</h2>
+                <h2 className={styles.modalTitle}>
+                  <span className={styles.modalTitleText}>Order #{selectedOrder.orderNumber}</span>
+                  <CopyOrderNumberButton orderNumber={selectedOrder.orderNumber} showToast={showToast} />
+                </h2>
                 <p className={styles.modalMeta}>{formatDateTimeIST(selectedOrder.createdAt)}</p>
 
                 <section className={styles.section}>

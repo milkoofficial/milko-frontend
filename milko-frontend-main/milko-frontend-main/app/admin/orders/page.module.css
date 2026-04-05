@@ -27,8 +27,12 @@
   min-width: 0;
 }
 
-.filterSlot {
+.toolbarDesktopFilters {
   display: contents;
+}
+
+.toolbarMobileFilterBtn {
+  display: none;
 }
 
 .searchWrap {
@@ -41,8 +45,8 @@
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
+  width: 30px;
+  height: 30px;
   color: #64748b;
   pointer-events: none;
   display: inline-flex;
@@ -50,13 +54,20 @@
   justify-content: center;
 }
 
+.searchIcon svg {
+  width: 30px;
+  height: 30px;
+  display: block;
+}
+
 .searchInput {
   width: 100%;
-  padding: 0.85rem 1rem 0.85rem 2.45rem;
-  border: 1px solid #ddd;
-  border-radius: 12px;
+  padding: 0.85rem 1rem 0.85rem calc(12px + 30px + 10px);
+  border: 2px solid #ffffff;
+  border-radius: 100px;
   background: #fff;
   font-size: 0.95rem;
+  box-shadow: 0 0 0 1px #e2e8f0, 0 2px 10px rgba(15, 23, 42, 0.05);
   transition:
     box-shadow 0.15s ease,
     border-color 0.15s ease;
@@ -64,8 +75,8 @@
 
 .searchInput:focus {
   outline: none;
-  border-color: #0070f3;
-  box-shadow: 0 0 0 4px rgba(0, 112, 243, 0.12);
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #0070f3, 0 0 0 4px rgba(0, 112, 243, 0.12);
 }
 
 .selectWrap {
@@ -79,29 +90,30 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid #ddd;
-  border-radius: 12px;
+  padding: 0.85rem 1.15rem;
+  border: 2px solid #ffffff;
+  border-radius: 100px;
   background: #fff;
   font-size: 0.95rem;
   font-weight: 700;
   color: #0f172a;
   cursor: pointer;
+  box-shadow: 0 0 0 1px #e2e8f0, 0 2px 10px rgba(15, 23, 42, 0.05);
   transition:
-    box-shadow 0.015s ease,
-    border-color 0.015s ease,
-    background 0.015s ease;
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .selectButton:hover {
-  background: #ededed2a;
-  border-color: #b5b5b5;
+  background: #f8fafc;
+  box-shadow: 0 0 0 1px #cbd5e1, 0 2px 10px rgba(15, 23, 42, 0.06);
 }
 
 .selectButton:focus {
   outline: none;
-  border-color: #0070f3;
-  box-shadow: 0 0 0 4px rgba(0, 112, 243, 0.12);
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #0070f3, 0 0 0 4px rgba(0, 112, 243, 0.12);
 }
 
 .selectValue {
@@ -309,8 +321,51 @@
   vertical-align: top;
 }
 
+.orderNumRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+}
+
 .orderNum {
   font-weight: 700;
+  min-width: 0;
+}
+
+.copyOrderBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  margin: 0;
+  padding: 0.35rem;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 100px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.copyOrderBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.copyOrderBtn:focus-visible {
+  outline: 2px solid #0070f3;
+  outline-offset: 2px;
+}
+
+.copyOrderIcon {
+  width: 1.125rem;
+  height: 1.125rem;
+  display: block;
 }
 
 .customerName {
@@ -416,6 +471,13 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
 }
 
 .cardTitle {
@@ -526,10 +588,19 @@
 }
 
 .modalTitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
   font-size: 1.5rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.5rem 0;
   padding-right: 2.5rem;
+}
+
+.modalTitleText {
+  min-width: 0;
+  line-height: 1.25;
 }
 
 .modalMeta {
@@ -723,6 +794,240 @@
   background: #e5e7eb;
 }
 
+.filterSheetBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overscroll-behavior: none;
+  touch-action: none;
+  animation: filterSheetFadeIn 0.2s ease;
+}
+
+@keyframes filterSheetFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.filterSheetPanel {
+  width: 100%;
+  max-height: min(78vh, 560px);
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.2);
+  padding: 0 0 calc(1rem + env(safe-area-inset-bottom, 0));
+  animation: filterSheetSlideUp 0.32s ease;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+@keyframes filterSheetSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.filterSheetGrab {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  margin: 0.65rem auto 0.5rem;
+}
+
+.filterSheetHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 1rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.filterSheetTitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.filterSheetClose {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 100px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.filterSheetClose:hover {
+  background: #e2e8f0;
+}
+
+.filterSheetMenu {
+  padding: 0.35rem 0 0.5rem;
+}
+
+.filterSheetMenuRow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  padding: 1rem 1.15rem;
+  border: none;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  font: inherit;
+}
+
+.filterSheetMenuRow:hover {
+  background: #f8fafc;
+}
+
+.filterSheetMenuRow:last-child {
+  border-bottom: none;
+}
+
+.filterSheetMenuLabel {
+  font-weight: 800;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.filterSheetMenuValue {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  max-width: 42vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.filterSheetMenuChevron {
+  display: inline-flex;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.filterSheetSub {
+  animation: filterSheetSubIn 0.22s ease;
+}
+
+@keyframes filterSheetSubIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.filterSheetSubHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.5rem 0.75rem 0.35rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.filterSheetBack {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 100px;
+  background: #f1f5f9;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.filterSheetBack:hover {
+  background: #e2e8f0;
+}
+
+.filterSheetSubTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.filterSheetOptions {
+  max-height: min(52vh, 380px);
+  overflow-y: auto;
+  padding: 0.35rem 0 0.5rem;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.filterSheetOption {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.95rem 1.15rem;
+  border: none;
+  background: #fff;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #0f172a;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.filterSheetOption:hover {
+  background: #f8fafc;
+}
+
+.filterSheetOption:last-child {
+  border-bottom: none;
+}
+
+.filterSheetOptionActive {
+  background: #eff6ff;
+}
+
+.filterSheetOptionBadge {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #004e85;
+  background: #cfe4ff;
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+}
+
 @media (max-width: 720px) {
   .container {
     padding: 1rem;
@@ -732,169 +1037,69 @@
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
-    align-items: stretch;
+    align-items: center;
     gap: 0.5rem;
   }
 
   .searchSlot {
-    display: flex;
-    align-items: stretch;
-    flex: 0 0 3rem;
-    max-width: 3rem;
+    flex: 1 1 auto;
     min-width: 0;
-    transition:
-      flex-grow 0.35s ease,
-      flex-basis 0.35s ease,
-      max-width 0.35s ease,
-      opacity 0.28s ease;
+    max-width: none;
   }
 
-  .toolbarSearchExpanded .searchSlot {
-    flex: 1 1 100%;
-    max-width: 100%;
+  .searchWrap {
+    width: 100%;
+    min-height: 3.25rem;
   }
 
-  .filterSlot {
-    display: flex;
-    flex-direction: row;
-    flex: 1 1 0;
-    min-width: 0;
-    gap: 0.5rem;
-    overflow: hidden;
-    transition:
-      flex-grow 0.35s ease,
-      flex-basis 0.35s ease,
-      opacity 0.28s ease,
-      gap 0.35s ease;
+  .searchIcon {
+    left: 14px;
   }
 
-  .toolbarSearchExpanded .filterSlot {
-    flex: 0 1 0;
-    min-width: 0;
-    opacity: 0;
-    pointer-events: none;
-    gap: 0;
+  .searchInput {
+    min-height: 3.25rem;
+    height: 3.25rem;
+    padding-left: calc(14px + 24px + 10px);
+    padding-right: 1rem;
   }
 
-  .toolbar:not(.toolbarSearchExpanded) .searchWrap {
-    flex: 0 0 3rem;
-    width: 3rem;
-    max-width: 3rem;
-    position: relative;
-    display: flex;
+  .toolbarDesktopFilters {
+    display: none;
+  }
+
+  .toolbarMobileFilterBtn {
+    display: inline-flex;
+    flex: 0 0 3.25rem;
+    width: 3.25rem;
+    height: 3.25rem;
     align-items: center;
     justify-content: center;
-    min-height: 3rem;
-    height: 3rem;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    background: #fff;
-    overflow: hidden;
-  }
-
-  .toolbar:not(.toolbarSearchExpanded) .searchIcon {
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-  }
-
-  .toolbar:not(.toolbarSearchExpanded) .searchInput {
-    position: absolute;
-    inset: 0;
-    width: 100% !important;
-    height: 100%;
-    min-height: 0;
-    margin: 0;
-    opacity: 0;
-    cursor: pointer;
     padding: 0;
-    border: none;
-    border-radius: 12px;
-    background: transparent;
-    box-shadow: none;
-    z-index: 2;
-  }
-
-  .toolbar:not(.toolbarSearchExpanded) .searchInput:focus {
-    outline: none;
-    box-shadow: none;
-    border: none;
-  }
-
-  .toolbarSearchExpanded .searchWrap {
-    flex: 1;
-    width: 100%;
-    max-width: none;
-    min-height: 3rem;
-    position: relative;
-    display: flex;
-    align-items: stretch;
-    border: none;
-    background: transparent;
-    border-radius: 0;
-    overflow: visible;
-    height: auto;
-  }
-
-  .toolbarSearchExpanded .searchIcon {
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-  }
-
-  .toolbarSearchExpanded .searchInput {
-    position: relative;
-    flex: 1;
-    width: 100%;
-    height: 3rem;
-    min-height: 3rem;
-    opacity: 1;
-    cursor: text;
-    padding: 0 0.75rem 0 2.35rem;
-    line-height: 1.25;
-    border: 1px solid #ddd;
-    border-radius: 12px;
+    border: 2px solid #ffffff;
+    border-radius: 100px;
     background: #fff;
-    box-shadow: none;
-    z-index: auto;
+    box-shadow: 0 0 0 1px #e2e8f0, 0 2px 10px rgba(15, 23, 42, 0.05);
+    color: #475569;
+    cursor: pointer;
+    transition:
+      box-shadow 0.15s ease,
+      color 0.15s ease;
   }
 
-  .toolbarSearchExpanded .searchInput:focus {
-    border-color: #0070f3;
-    box-shadow: 0 0 0 4px rgba(0, 112, 243, 0.12);
+  .toolbarMobileFilterBtn:hover {
+    color: #0f172a;
+    box-shadow: 0 0 0 1px #cbd5e1, 0 2px 10px rgba(15, 23, 42, 0.08);
   }
 
-  .filterSlot .selectWrap {
-    display: flex;
-    align-items: stretch;
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 3rem;
+  .toolbarMobileFilterBtn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 1px #0070f3, 0 0 0 4px rgba(0, 112, 243, 0.15);
   }
 
-  .filterSlot .selectButton {
-    min-width: 0;
-    width: 100%;
-    height: 3rem;
-    min-height: 3rem;
-    padding: -rem;
-    font-size: 0.58rem;
-    gap: 0.2rem;
-    box-sizing: border-box;
-  }
-
-  .filterSlot .selectChevron {
-    flex: 0 0 auto;
-    width: 12px;
-    height: 12px;
-    padding-left: 0.05rem;
-  }
-
-  .filterSlot .selectChevron svg {
-    width: 12px;
-    height: 12px;
+  .toolbarMobileFilterIcon {
+    width: 1.35rem;
+    height: 1.35rem;
+    display: block;
   }
 
   .panel {
