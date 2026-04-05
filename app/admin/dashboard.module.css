@@ -428,7 +428,7 @@
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
-    padding-bottom: 1.5rem;
+    padding-bottom: 0rem;
     -webkit-overflow-scrolling: touch;
     min-width: 0; /* allow flex child to shrink */
     max-width: 100%;
@@ -474,7 +474,7 @@
 }
 
 .barWrapperSelected {
-  background: rgba(0, 112, 243, 0.06);
+  background: linear-gradient(0deg, #ffffff, #e0f5ff);
 }
 
 .barStack {
@@ -498,9 +498,9 @@
   line-height: 1.25;
   padding: 0.4rem 0.7rem;
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #d3d3d3;
   border-radius: 8px;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+  box-shadow: none;
   pointer-events: none;
   white-space: nowrap;
 }
@@ -509,12 +509,12 @@
   width: 100%;
   max-width: 60px;
   margin-top: auto;
-  background: linear-gradient(180deg, #fbbf24 0%, #c37b00 100%);
+  background: linear-gradient(180deg, #91d6ff 0%, #ffffff 100%);
   border-radius: 4px 4px 0 0;
   transition: opacity 0.1s ease;
   cursor: pointer;
   min-height: 4px;
-  box-shadow: 0 0 0px 1px #c37b00;
+  box-shadow: none;
 }
 
 .barWrapper:hover .bar {
@@ -541,7 +541,7 @@
 
 .insightCard {
   background: white;
-  border-radius: 6px;
+  border-radius: 12px;
   padding: 1.5rem;
   box-shadow: none;
 }
