@@ -108,6 +108,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 13px;
+
 }
 
 .selectChevron {
@@ -289,6 +291,7 @@
 .customerName {
   font-weight: 800;
   color: #0f172a;
+  margin-bottom: 0.1rem;
 }
 
 .customerEmail {
@@ -518,7 +521,7 @@
     min-height: 3rem;
     opacity: 1;
     cursor: text;
-    padding: 0 0.75rem 0 2.35rem;
+    padding: 0 0.75rem 0 1.35rem;
     line-height: 1.25;
     border: 1px solid #ddd;
     border-radius: 12px;
