@@ -811,7 +811,7 @@
 .cardClickable {
   cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
-  border: 0px
+  border: 0px solid #e5e7eb;
 }
 
 .cardClickable:hover {
@@ -849,7 +849,7 @@
   font-weight: 800;
   font-size: 1rem;
   color: #0f172a;
-  font-family: 'Courier New', monospace;
+  font-family: inter;
 }
 
 .cardProduct {
@@ -892,7 +892,7 @@
 .cardRowMeta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 0.75rem;
 }
