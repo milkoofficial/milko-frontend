@@ -211,6 +211,24 @@
   color: #000;
 }
 
+.subscriptionTransferNote {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.subscriptionTransferLink {
+  color: #0070f3;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.subscriptionTransferLink:hover {
+  text-decoration: underline;
+}
+
 .itemInfo {
   display: flex;
   gap: 0.75rem;
@@ -255,7 +273,7 @@
   width: 36px;
   height: 36px;
   border: none;
-  background: #f5f5f5;
+  background: white;
   cursor: pointer;
   display: flex;
   align-items: center;

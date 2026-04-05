@@ -188,10 +188,34 @@ export default function OrderDetailsPage() {
   }, [orderId, fetchOrder]);
 
   useEffect(() => {
+    if (!orderId) return;
+    const refresh = () => {
+      if (document.visibilityState === 'visible') fetchOrder(true);
+    };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [orderId, fetchOrder]);
+
+  useEffect(() => {
     if (order?.feedbackSubmitted && order.feedbackRating) {
       setSelectedRating(order.feedbackRating);
     }
   }, [order?.feedbackSubmitted, order?.feedbackRating]);
+
+  useEffect(() => {
+    if (loading || !order) return;
+    const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
+    if (!hash.startsWith('order-item-')) return;
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(hash);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+    return () => window.clearTimeout(t);
+  }, [order, loading]);
 
   useEffect(() => {
     contentApi.getByType('help_support').then((c) => {
@@ -221,10 +245,6 @@ export default function OrderDetailsPage() {
   const paymentLabel = order.status === 'cancelled' ? 'Cancelled' : order.status === 'refunded' ? 'Refunded' : order.paymentStatus === 'paid' ? 'Paid' : 'Pending';
   const paymentVariant = order.status === 'cancelled' ? 'cancelled' : order.status === 'refunded' ? 'refunded' : order.paymentStatus === 'paid' ? 'paid' : 'pending';
   const totalQty = order.items.reduce((s, i) => s + i.quantity, 0);
-
-  const hasSubscriptionItem = order.items.some(isSubscriptionOrderItem);
-  const nonSubscriptionItemCount = order.items.filter((i) => !isSubscriptionOrderItem(i)).length;
-  const showSubscriptionTransferNote = hasSubscriptionItem && nonSubscriptionItemCount === 1;
 
   const variationStr = (() => {
     const v = [...new Set(order.items.map((i) => i.variationSize).filter(Boolean))] as string[];
@@ -420,20 +440,12 @@ export default function OrderDetailsPage() {
         {/* ORDER ITEMS WITH RATINGS */}
         <section className={styles.section}>
           <h2 className={styles.orderItemsTitle}>Order Items ({order.items.length})</h2>
-          {showSubscriptionTransferNote && (
-            <p className={styles.subscriptionTransferNote}>
-              Subscriptions are transferred in My Account &gt;{' '}
-              <Link href="/subscriptions" className={styles.subscriptionTransferLink}>
-                Subscriptions
-              </Link>
-            </p>
-          )}
           <div className={styles.orderItemsList}>
             {order.items.map((item, idx) => {
               const df = item.detailedFeedback;
               const hasReview = df != null && df.qualityStars >= 1;
               return (
-              <div key={idx} className={styles.productCard}>
+              <div key={idx} id={`order-item-${idx}`} className={styles.productCard}>
                 <div
                   className={`${styles.productCardTop} ${item.productId ? styles.productCardTopClickable : ''}`}
                   role={item.productId ? 'button' : undefined}
@@ -458,11 +470,19 @@ export default function OrderDetailsPage() {
                   </div>
                   <div className={styles.productCardInfo}>
                     <h3 className={styles.productCardName}>{item.productName}</h3>
+                    {isSubscriptionOrderItem(item) && (
+                      <p className={styles.subscriptionTransferNotePerItem}>
+                        Subscriptions are transferred in My Account &gt;{' '}
+                        <Link href="/subscriptions" className={styles.subscriptionTransferLink}>
+                          Subscriptions
+                        </Link>
+                      </p>
+                    )}
                     <p className={styles.productCardPrice}>₹{item.lineTotal.toFixed(2)}</p>
                     <p className={styles.productCardQuantity}>Qty: {item.quantity}</p>
                   </div>
                 </div>
-                {order.status === 'delivered' && (
+                {order.status === 'delivered' && !isSubscriptionOrderItem(item) && (
                   <div className={styles.orderRatingBlock}>
                     {hasReview && df ? (
                       <div className={styles.detailedFeedbackReadOnly}>
@@ -523,7 +543,7 @@ export default function OrderDetailsPage() {
                 className={styles.deliveredActionBtn}
                 onClick={() => {
                   order.items.forEach((it) => {
-                    if (it.productId != null) {
+                    if (it.productId != null && !isSubscriptionOrderItem(it)) {
                       addItem({
                         productId: String(it.productId),
                         quantity: it.quantity,

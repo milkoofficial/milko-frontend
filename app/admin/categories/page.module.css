@@ -23,7 +23,7 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 120px;
   background: #0070f3;
   color: #fff;
   border: 1px solid #3693ff;
@@ -37,7 +37,7 @@
 }
 
 .subtitle {
-  margin-top: 0.35rem;
+  margin-top: 0rem;
   color: #6b7280;
   font-size: 0.95rem;
   line-height: 1.4;
@@ -377,18 +377,18 @@
 }
 
 .deleteButton {
-  background: #dc3545;
-  color: white;
-  border-color: #dc3545;
-  padding: 0.55rem 0.85rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  background: #ffdfe2;
+    color: #a70000;
+    border-color: #ffb1b1;
+    padding: 0.55rem 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
-
 .deleteButton:hover {
-  background: #c82333;
+  background: #ffeaec;
   border-color: #c82333;
+  color: red;
 }
 
 .emptyState {
@@ -415,7 +415,7 @@
 }
 
 .card {
-  border: 1px solid #e5e7eb;
+  border: 0px solid #e5e7eb;
   border-radius: 16px;
   background: #fff;
   padding: 1rem;
@@ -743,7 +743,7 @@
     width: 100%;
     height: 3rem;
     min-height: 3rem;
-    padding: 0 0.5rem;
+    padding: -5rem;
     font-size: 0.68rem;
     gap: 0.25rem;
     box-sizing: border-box;

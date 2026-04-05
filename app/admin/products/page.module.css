@@ -23,7 +23,7 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 120px;
   background: #0070f3;
   color: #fff;
   border: 1px solid #3693ff;
@@ -128,8 +128,7 @@
 
 .selectButton:focus {
   outline: none;
-  border-color: #0070f3;
-  box-shadow: 0 0 0 4px rgba(0, 112, 243, 0.12);
+  
 }
 
 .selectValue {
@@ -256,12 +255,13 @@
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 10px;
-  background: #f1f5f9;
+  border-radius: 100px;
+  background: #e9e9e9;
   color: #0f172a;
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
+  
   font-weight: 500;
 }
 
@@ -448,7 +448,7 @@
 }
 
 .card {
-  border: 1px solid #e5e7eb;
+  border: 0px solid #e5e7eb;
   border-radius: 16px;
   background: #fff;
   padding: 1rem;
@@ -459,6 +459,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+align-items: flex-start;
 }
 
 .cardTitleRow {
@@ -640,9 +641,9 @@
     min-height: 3rem;
     opacity: 1;
     cursor: text;
-    padding: 0 0.75rem 0 2.35rem;
+    padding: 0 0.75rem 0 1.15rem;
     line-height: 1.25;
-    border: 1px solid #ddd;
+    border: px solid #ddd;
     border-radius: 12px;
     background: #fff;
     box-shadow: none;
@@ -667,7 +668,7 @@
     width: 100%;
     height: 3rem;
     min-height: 3rem;
-    padding: 0 0.4rem;
+    padding: -rem;
     font-size: 0.62rem;
     gap: 0.25rem;
     box-sizing: border-box;

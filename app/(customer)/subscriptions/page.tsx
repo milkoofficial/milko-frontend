@@ -81,6 +81,8 @@ function removeRedundantPendingSubscriptions(subscriptions: Subscription[]): Sub
 
   return subscriptions.filter((s) => {
     if (s.status !== 'pending') return true;
+    // Cart/checkout COD (or any checkout-linked pending) must stay visible even if same product is active elsewhere
+    if (s.checkoutOrderId) return true;
     if (!s.productId) return true;
     return !activeProductIds.has(s.productId);
   });
@@ -192,6 +194,7 @@ export default function SubscriptionsPage() {
                 year: 'numeric',
               }) ?? '—';
             const msPerDay = 24 * 60 * 60 * 1000;
+            // Calendar fallback: endDate inclusive through today.
             const daysLeftCalendarRaw =
               endDateOnly != null
                 ? Math.floor((endDateOnly.getTime() - today.getTime()) / msPerDay) + 1
@@ -201,6 +204,7 @@ export default function SubscriptionsPage() {
               s.durationDays != null && s.durationDays >= 1 ? s.durationDays : null;
             const deliveredSlotCount =
               s.deliverySchedules?.filter((d) => d.status === 'delivered').length ?? 0;
+            // Count down by completed deliveries only — scheduled/pending days still count as “left”.
             const daysLeft =
               planDayCount != null &&
               (s.status === 'active' || s.status === 'paused' || s.status === 'pending')

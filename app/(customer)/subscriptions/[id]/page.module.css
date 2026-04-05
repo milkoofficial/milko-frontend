@@ -68,6 +68,18 @@
   text-decoration: underline;
 }
 
+/* COD checkout: pending until delivery / payment collected */
+.codPendingNotice {
+  margin: 0 0 1rem;
+    padding: 15px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: #5c4a00;
+    background: #fffcf0;
+    border: 0px solid #f5e6a3;
+    border-radius: 12px;
+}
+
 /* Header */
 .header {
   display: flex;
@@ -111,8 +123,8 @@
 }
 
 .statusBadgeExpired {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: #ffdfdf;
+    color: #a70000;
 }
 
 .statusBadgeEndingSoon {
@@ -424,10 +436,12 @@
 
 .autopayFailureNote {
   margin: 0 0 0.75rem;
-  color: #b45309;
+  color: #cf4e00;
   font-size: 0.88rem;
   line-height: 1.45;
+  font-weight: 800;
 }
+
 
 .nextAutopayDateLine {
   margin: 0.65rem 0 0.35rem;
@@ -498,6 +512,23 @@
 
 .autoPayButton:hover {
   background: #00582f;
+}
+
+.autoPayButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #94a3a8;
+}
+
+.autoPayButton:disabled:hover {
+  background: #94a3a8;
+}
+
+.autopayPendingHint {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.45;
 }
 
 .helpButton {

@@ -42,7 +42,7 @@
   letter-spacing: -1.1px;
 }
 
-/* One row per order item */
+/* One compact row per order (preview product); full order on details page */
 .ordersList {
   display: flex;
   flex-direction: column;
@@ -130,7 +130,7 @@
   box-shadow: none;
 }
 
-/* Left: product image + total below */
+/* Left: product image + order total below */
 .orderRowImageWrap {
   display: flex;
   flex-direction: column;
@@ -183,18 +183,18 @@
 
 .productCountBadge {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  background: #000;
-  color: #fff;
+  bottom: 2px;
+  left: 2px;
+  background: #ffffff;
+  color: #000000;
   font-size: 0.75rem;
   font-weight: 700;
   padding: 0.25rem 0.5rem;
-  border-radius: 12px;
+  border-radius: 6px;
   min-width: 28px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   z-index: 2;
+  backdrop-filter: blur(5px);
 }
 
 /* Right: details (padding-right so name doesn't run under order# badge) */

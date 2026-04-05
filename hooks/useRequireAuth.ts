@@ -57,7 +57,7 @@ export const useRequireAdmin = () => {
       // SECURITY: Double-check role from user object (don't trust isAdmin alone)
       const userRole = user?.role?.toLowerCase();
       const isActuallyAdmin = userRole === 'admin';
-
+      
       if (!isActuallyAdmin || !isAdmin) {
         // Log security attempt for monitoring
         console.warn('[SECURITY] Non-admin user attempted to access admin panel:', {
@@ -66,9 +66,9 @@ export const useRequireAdmin = () => {
           role: user?.role,
           isAdmin: isAdmin,
           isActuallyAdmin: isActuallyAdmin,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date().toISOString()
         });
-
+        
         // If not admin, redirect to customer domain
         // BUT: In localhost, just redirect to home
         if (isAdminDomain() && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
@@ -82,3 +82,4 @@ export const useRequireAdmin = () => {
 
   return { isAdmin, isAuthenticated, loading };
 };
+
