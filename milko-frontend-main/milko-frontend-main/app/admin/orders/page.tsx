@@ -177,6 +177,31 @@ export default function AdminOrdersPage() {
     return () => document.removeEventListener('mousedown', onDown);
   }, [searchExpanded]);
 
+  // Block Android Chrome pull-to-refresh while modals are open, without body position:fixed (avoids overlay glitches).
+  useEffect(() => {
+    if (!showModal && !showConfirmation) return;
+
+    const html = document.documentElement;
+    const body = document.body;
+
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevHtmlOverscrollY = html.style.overscrollBehaviorY;
+    const prevBodyOverscrollY = body.style.overscrollBehaviorY;
+
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    html.style.overscrollBehaviorY = 'none';
+    body.style.overscrollBehaviorY = 'none';
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      html.style.overscrollBehaviorY = prevHtmlOverscrollY;
+      body.style.overscrollBehaviorY = prevBodyOverscrollY;
+    };
+  }, [showModal, showConfirmation]);
+
   const filtered = useMemo(() => {
     const q = normalizeAdminListSearchQuery(query);
     let list = orders.filter((o) => {
@@ -611,13 +636,23 @@ function CustomSelect<T extends string>({
   }, [open, useModal]);
 
   useEffect(() => {
-    if (open && useModal) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
+    if (!open || !useModal) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevHtmlOverscrollY = html.style.overscrollBehaviorY;
+    const prevBodyOverscrollY = body.style.overscrollBehaviorY;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    html.style.overscrollBehaviorY = 'none';
+    body.style.overscrollBehaviorY = 'none';
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      html.style.overscrollBehaviorY = prevHtmlOverscrollY;
+      body.style.overscrollBehaviorY = prevBodyOverscrollY;
+    };
   }, [open, useModal]);
 
   const optionList = options.map((opt) => {

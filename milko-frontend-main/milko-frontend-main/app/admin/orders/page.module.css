@@ -179,6 +179,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .selectModalPanel {
@@ -189,6 +191,7 @@
   box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.2);
   overflow: hidden;
   animation: selectModalSlideUp 0.32s ease;
+  touch-action: pan-y pinch-zoom;
 }
 
 @keyframes selectModalSlideUp {
@@ -244,6 +247,8 @@
   padding: 0.35rem 0 1rem;
   max-height: min(55vh, 400px);
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .selectModalBody .dropdownItem {
@@ -477,6 +482,8 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .modalPanel {
@@ -489,7 +496,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   position: relative;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   touch-action: pan-y pinch-zoom;
   -webkit-overflow-scrolling: touch;
 }
@@ -665,6 +672,8 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .confirmPanel {
@@ -677,7 +686,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   touch-action: pan-y pinch-zoom;
   -webkit-overflow-scrolling: touch;
 }
