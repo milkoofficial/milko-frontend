@@ -518,7 +518,7 @@
 }
 
 .card {
-  border: 1px solid #e5e7eb;
+  border: 0px solid #e5e7eb;
   border-radius: 16px;
   background: #fff;
   padding: 1rem;
@@ -570,17 +570,17 @@
   font-weight: 800;
   font-size: 1rem;
   color: #0f172a;
-  font-family: 'Courier New', monospace;
+  font-family: inter;
 }
 
 .cardProduct {
   margin-top: 0.35rem;
-  font-weight: 600;
-  color: #111827;
-  font-size: 0.95rem;
-  line-height: 1.35;
+    font-weight: 700;
+    color: #111827;
+    font-size: 1.5rem;
+    line-height: 1.35;
+    letter-spacing: -0.6px;
 }
-
 .cardBody {
   margin-top: 0.85rem;
   display: flex;
@@ -748,14 +748,14 @@
 
 .actionButton {
   padding: 0.5rem 1rem;
-  background: #ffc107;
-  color: #000;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+    background: #fff6da;
+    color: #7c6800;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
 .actionButton:hover {
