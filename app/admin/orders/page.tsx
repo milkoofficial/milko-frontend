@@ -866,7 +866,7 @@ function CustomSelect<T extends string>({
 
   useEffect(() => {
     if (!open || useModal) return;
-    const onDocClick = (e: MouseEvent) => {
+    const onDocClick = (e: Event) => {
       if (!ref.current) return;
       if (e.target instanceof Node && !ref.current.contains(e.target)) {
         setOpen(false);
