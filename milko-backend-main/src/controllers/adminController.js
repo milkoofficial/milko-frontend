@@ -746,6 +746,26 @@ const getAllSubscriptions = async (req, res, next) => {
 };
 
 /**
+ * Get one subscription with delivery schedules (admin)
+ * GET /api/admin/subscriptions/:id
+ */
+const getSubscriptionById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const subscription = await subscriptionModel.getSubscriptionById(id);
+    if (!subscription) {
+      return res.status(404).json({ success: false, error: 'Subscription not found' });
+    }
+    res.json({
+      success: true,
+      data: subscription,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Pause subscription (admin)
  * POST /api/admin/subscriptions/:id/pause
  */
@@ -802,6 +822,7 @@ const getDeliveries = async (req, res, next) => {
        LEFT JOIN products p ON s.product_id = p.id
        LEFT JOIN users u ON s.user_id = u.id
        WHERE ds.delivery_date = $1
+         AND (s.id IS NULL OR s.status = 'active')
        ORDER BY ds.delivery_time`,
       [deliveryDate]
     );
@@ -1466,6 +1487,7 @@ module.exports = {
   getFeedback,
   // Subscriptions
   getAllSubscriptions,
+  getSubscriptionById,
   pauseSubscription,
   resumeSubscription,
   // Deliveries

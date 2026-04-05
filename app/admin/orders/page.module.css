@@ -55,11 +55,11 @@
 }
 
 .searchIcon svg {
-  width: 22px;
-    height: 30px;
-    display: block;
-    margin-top: 1px;
-    margin-left: -4px;
+  width: 22px !Important;
+  height: 30px;
+  display: block;
+  margin-top: 1px;
+  margin-left: -4px;
 }
 
 .searchInput {
@@ -1034,7 +1034,7 @@
   padding: 0.2rem 0.5rem;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1024px) {
   .container {
     padding: 1rem;
   }
@@ -1065,7 +1065,7 @@
   .searchInput {
     min-height: 3.25rem;
     height: 3.25rem;
-    padding-left: calc(14px + 24px + 10px);
+    padding-left: calc(14px + 30px + 10px);
     padding-right: 1rem;
   }
 

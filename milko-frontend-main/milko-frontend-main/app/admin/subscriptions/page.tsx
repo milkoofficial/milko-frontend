@@ -1,12 +1,66 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { adminSubscriptionsApi } from '@/lib/api';
 import { Subscription } from '@/types';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import adminStyles from '../admin-styles.module.css';
 import styles from './page.module.css';
 import { useToast } from '@/contexts/ToastContext';
+import { formatDateDDMMYYYYIST, formatDateTimeIST, IST_TIMEZONE } from '@/lib/utils/datetime';
+import { normalizeAdminListSearchQuery } from '@/lib/utils/searchQuery';
+
+const STATUS_OPTIONS = [
+  { value: 'all' as const, label: 'All Status' },
+  { value: 'active' as const, label: 'Active' },
+  { value: 'paused' as const, label: 'Paused' },
+  { value: 'cancelled' as const, label: 'Cancelled' },
+  { value: 'expired' as const, label: 'Expired' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'createdDesc' as const, label: 'Newest First' },
+  { value: 'productAsc' as const, label: 'Product (A-Z)' },
+  { value: 'customerAsc' as const, label: 'Customer (A-Z)' },
+];
+
+function todayYmdIST(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: IST_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function nextPendingDeliveryYmd(
+  schedules: Array<{ deliveryDate: string; status: string }> | undefined,
+): string | null {
+  if (!schedules?.length) return null;
+  const today = todayYmdIST();
+  const pending = schedules
+    .filter((s) => s.status === 'pending' && s.deliveryDate >= today)
+    .map((s) => s.deliveryDate)
+    .sort();
+  return pending[0] ?? null;
+}
+
+function daysLeftUntilEndYmd(endYmd: string | null | undefined): number | null {
+  if (!endYmd || !/^\d{4}-\d{2}-\d{2}$/.test(endYmd)) return null;
+  const today = todayYmdIST();
+  const start = new Date(today + 'T12:00:00');
+  const end = new Date(endYmd + 'T12:00:00');
+  return Math.round((end.getTime() - start.getTime()) / 86400000);
+}
+
+function durationLabel(sub: Subscription): string {
+  if (sub.durationDays != null && sub.durationDays > 0) {
+    return `${sub.durationDays} day${sub.durationDays !== 1 ? 's' : ''}`;
+  }
+  const m = sub.durationMonths;
+  return `${m} month${m !== 1 ? 's' : ''}`;
+}
 
 /**
  * Admin Subscriptions Page
@@ -18,11 +72,61 @@ export default function AdminSubscriptionsPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused' | 'cancelled' | 'expired'>('all');
   const [sort, setSort] = useState<'createdDesc' | 'productAsc' | 'customerAsc'>('createdDesc');
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailSub, setDetailSub] = useState<Subscription | null>(null);
+  const [confirmAction, setConfirmAction] = useState<null | { kind: 'pause' | 'resume'; id: string }>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [filterSheetView, setFilterSheetView] = useState<'menu' | 'status' | 'sort'>('menu');
+  const [filterSheetMounted, setFilterSheetMounted] = useState(false);
+  const filterSheetMenuTitleId = useId();
   const { showToast } = useToast();
 
   useEffect(() => {
     fetchSubscriptions();
   }, []);
+
+  useEffect(() => setFilterSheetMounted(true), []);
+
+  useEffect(() => {
+    if (!filterSheetOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (filterSheetView !== 'menu') setFilterSheetView('menu');
+      else setFilterSheetOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [filterSheetOpen, filterSheetView]);
+
+  useEffect(() => {
+    if (!detailOpen && !confirmAction && !filterSheetOpen) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    const prevHtmlOy = html.style.overscrollBehaviorY;
+    const prevBodyOy = body.style.overscrollBehaviorY;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    html.style.overscrollBehaviorY = 'none';
+    body.style.overscrollBehaviorY = 'none';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+      html.style.overscrollBehaviorY = prevHtmlOy;
+      body.style.overscrollBehaviorY = prevBodyOy;
+    };
+  }, [detailOpen, confirmAction, filterSheetOpen]);
+
+  const closeFilterSheet = () => {
+    setFilterSheetOpen(false);
+    setFilterSheetView('menu');
+  };
+
+  const statusFilterLabel = STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label ?? '';
+  const sortFilterLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label ?? '';
 
   const removeRedundantPendingSubscriptions = (items: Subscription[]): Subscription[] => {
     const activeKeys = new Set(
@@ -48,27 +152,82 @@ export default function AdminSubscriptionsPage() {
     }
   };
 
+  const openDetailModal = async (id: string) => {
+    const fromList = subscriptions.find((s) => String(s.id) === String(id)) ?? null;
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailSub(null);
+    try {
+      const s = await adminSubscriptionsApi.getById(id);
+      setDetailSub(s);
+    } catch (error) {
+      console.error('Failed to load subscription:', error);
+      if (fromList) {
+        setDetailSub(fromList);
+      } else {
+        showToast('Failed to load subscription details', 'error');
+        setDetailOpen(false);
+      }
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetailModal = () => {
+    setDetailOpen(false);
+    setDetailSub(null);
+  };
+
+  const executePauseResume = async () => {
+    if (!confirmAction) return;
+    const { kind, id } = confirmAction;
+    setConfirmBusy(true);
+    try {
+      if (kind === 'pause') {
+        await adminSubscriptionsApi.pause(id);
+        showToast('Subscription paused successfully', 'success');
+      } else {
+        await adminSubscriptionsApi.resume(id);
+        showToast('Subscription resumed successfully', 'success');
+      }
+      setConfirmAction(null);
+      await fetchSubscriptions();
+      if (detailSub?.id === id) {
+        try {
+          const s = await adminSubscriptionsApi.getById(id);
+          setDetailSub(s);
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update subscription:', error);
+      showToast(kind === 'pause' ? 'Failed to pause subscription' : 'Failed to resume subscription', 'error');
+    } finally {
+      setConfirmBusy(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     let result = [...subscriptions];
 
-    // Search filter
     if (query.trim()) {
-      const q = query.trim().toLowerCase();
+      const qNorm = normalizeAdminListSearchQuery(query);
+      const qLower = query.trim().toLowerCase();
       result = result.filter(
         (sub) =>
-          (sub.product?.name || '').toLowerCase().includes(q) ||
-          sub.userId.toString().includes(q) ||
-          (sub.userName || '').toLowerCase().includes(q) ||
-          (sub.userEmail || '').toLowerCase().includes(q)
+          (sub.product?.name || '').toLowerCase().includes(qLower) ||
+          sub.userId.toString().includes(qNorm) ||
+          String(sub.id).includes(qNorm) ||
+          (sub.userName || '').toLowerCase().includes(qLower) ||
+          (sub.userEmail || '').toLowerCase().includes(qLower),
       );
     }
 
-    // Status filter
     if (statusFilter !== 'all') {
       result = result.filter((sub) => sub.status === statusFilter);
     }
 
-    // Sort
     result.sort((a, b) => {
       if (sort === 'productAsc') {
         const aName = (a.product?.name || '').toLowerCase();
@@ -80,7 +239,6 @@ export default function AdminSubscriptionsPage() {
         const bName = (b.userName || b.userEmail || '').toLowerCase();
         return aName.localeCompare(bName);
       }
-      // createdDesc
       const aTime = new Date(a.createdAt || 0).getTime();
       const bTime = new Date(b.createdAt || 0).getTime();
       return bTime - aTime;
@@ -88,28 +246,6 @@ export default function AdminSubscriptionsPage() {
 
     return result;
   }, [subscriptions, query, statusFilter, sort]);
-
-  const handlePause = async (id: string) => {
-    try {
-      await adminSubscriptionsApi.pause(id);
-      showToast('Subscription paused successfully', 'success');
-      await fetchSubscriptions();
-    } catch (error) {
-      console.error('Failed to pause subscription:', error);
-      showToast('Failed to pause subscription', 'error');
-    }
-  };
-
-  const handleResume = async (id: string) => {
-    try {
-      await adminSubscriptionsApi.resume(id);
-      showToast('Subscription resumed successfully', 'success');
-      await fetchSubscriptions();
-    } catch (error) {
-      console.error('Failed to resume subscription:', error);
-      showToast('Failed to resume subscription', 'error');
-    }
-  };
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -126,84 +262,20 @@ export default function AdminSubscriptionsPage() {
     }
   };
 
-  // Custom Select Component
-  function CustomSelect<T extends string>({
-    value,
-    onChange,
-    options,
-  }: {
-    value: T;
-    onChange: (value: T) => void;
-    options: { value: T; label: string }[];
-  }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement | null>(null);
-
-    const selected = options.find((o) => o.value === value) || options[0];
-
-    useEffect(() => {
-      const onDocClick = (e: MouseEvent) => {
-        if (ref.current && !ref.current.contains(e.target as Node)) {
-          setOpen(false);
-        }
-      };
-      document.addEventListener('mousedown', onDocClick);
-      return () => document.removeEventListener('mousedown', onDocClick);
-    }, []);
-
-    return (
-      <div className={styles.selectWrap} ref={ref}>
-        <button
-          type="button"
-          className={styles.selectButton}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        >
-          <span className={styles.selectValue}>{selected?.label}</span>
-          <span className={styles.selectChevron} aria-hidden="true">
-            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M5.5 7.5L10 12l4.5-4.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-        </button>
-
-        {open && (
-          <div className={styles.dropdown} role="listbox" aria-label="Select option">
-            {options.map((opt) => {
-              const isActive = opt.value === value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="option"
-                  aria-selected={isActive}
-                  className={`${styles.dropdownItem} ${isActive ? styles.dropdownItemActive : ''}`}
-                  onClick={() => {
-                    onChange(opt.value);
-                    setOpen(false);
-                  }}
-                >
-                  <span>{opt.label}</span>
-                  {isActive ? <span style={{ fontWeight: 700, color: '#004e85', fontSize: '.85rem', background: '#cfe4ff', borderRadius: '5px', padding: '3px 6px' }}>Selected</span> : null}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
+  const detailNextYmd = detailSub ? nextPendingDeliveryYmd(detailSub.deliverySchedules) : null;
+  const detailDaysLeft = detailSub ? daysLeftUntilEndYmd(detailSub.endDate) : null;
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        minHeight: '50vh',
-        padding: '2rem'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '50vh',
+          padding: '2rem',
+        }}
+      >
         <LoadingSpinner />
       </div>
     );
@@ -219,123 +291,606 @@ export default function AdminSubscriptionsPage() {
       </div>
 
       <div className={styles.toolbar}>
-        <div className={styles.searchWrap}>
-          <svg className={styles.searchIcon} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16ZM18 18l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by product, customer, or ID..."
-            className={styles.searchInput}
-          />
+        <div className={styles.searchSlot}>
+          <div className={styles.searchWrap}>
+            <span className={styles.searchIcon} aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3.5-3.5" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search product, customer, or subscription ID…"
+              aria-label="Search subscriptions"
+              className={styles.searchInput}
+            />
+          </div>
         </div>
 
-        <CustomSelect<'all' | 'active' | 'paused' | 'cancelled' | 'expired'>
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={[
-            { value: 'all', label: 'All Status' },
-            { value: 'active', label: 'Active' },
-            { value: 'paused', label: 'Paused' },
-            { value: 'cancelled', label: 'Cancelled' },
-            { value: 'expired', label: 'Expired' },
-          ]}
-        />
+        <div className={styles.toolbarDesktopFilters}>
+          <CustomSelect
+            value={statusFilter}
+            onChange={setStatusFilter}
+            modalTitle="Status"
+            options={STATUS_OPTIONS}
+          />
+          <CustomSelect value={sort} onChange={setSort} modalTitle="Sort" options={SORT_OPTIONS} />
+        </div>
 
-        <CustomSelect<'createdDesc' | 'productAsc' | 'customerAsc'>
-          value={sort}
-          onChange={setSort}
-          options={[
-            { value: 'createdDesc', label: 'Newest First' },
-            { value: 'productAsc', label: 'Product (A-Z)' },
-            { value: 'customerAsc', label: 'Customer (A-Z)' },
-          ]}
-        />
+        <button
+          type="button"
+          className={styles.toolbarMobileFilterBtn}
+          aria-label="Filters"
+          aria-haspopup="dialog"
+          aria-expanded={filterSheetOpen}
+          onClick={() => {
+            setFilterSheetView('menu');
+            setFilterSheetOpen(true);
+          }}
+        >
+          <svg className={styles.toolbarMobileFilterIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M4 6h16M8 12h8M10 18h4"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <circle cx="18" cy="6" r="1.75" fill="currentColor" />
+            <circle cx="6" cy="12" r="1.75" fill="currentColor" />
+            <circle cx="16" cy="18" r="1.75" fill="currentColor" />
+          </svg>
+        </button>
       </div>
 
-      <div className={styles.panel}>
-        {filtered.length === 0 ? (
+      {filterSheetMounted && filterSheetOpen
+        ? createPortal(
+            <div
+              className={styles.filterSheetBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) closeFilterSheet();
+              }}
+            >
+              <div
+                className={styles.filterSheetPanel}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={filterSheetMenuTitleId}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className={styles.filterSheetGrab} aria-hidden />
+                {filterSheetView === 'menu' ? (
+                  <>
+                    <div className={styles.filterSheetHeader}>
+                      <h2 id={filterSheetMenuTitleId} className={styles.filterSheetTitle}>
+                        Filters
+                      </h2>
+                      <button type="button" className={styles.filterSheetClose} aria-label="Close filters" onClick={closeFilterSheet}>
+                        ×
+                      </button>
+                    </div>
+                    <div className={styles.filterSheetMenu}>
+                      <button type="button" className={styles.filterSheetMenuRow} onClick={() => setFilterSheetView('status')}>
+                        <span className={styles.filterSheetMenuLabel}>Status</span>
+                        <span className={styles.filterSheetMenuValue}>{statusFilterLabel}</span>
+                        <span className={styles.filterSheetMenuChevron} aria-hidden>
+                          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M7.5 5L12.5 10L7.5 15" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+                      <button type="button" className={styles.filterSheetMenuRow} onClick={() => setFilterSheetView('sort')}>
+                        <span className={styles.filterSheetMenuLabel}>Sort</span>
+                        <span className={styles.filterSheetMenuValue}>{sortFilterLabel}</span>
+                        <span className={styles.filterSheetMenuChevron} aria-hidden>
+                          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M7.5 5L12.5 10L7.5 15" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+
+                {filterSheetView === 'status' ? (
+                  <div className={styles.filterSheetSub}>
+                    <div className={styles.filterSheetSubHeader}>
+                      <button
+                        type="button"
+                        className={styles.filterSheetBack}
+                        aria-label="Back"
+                        onClick={() => setFilterSheetView('menu')}
+                      >
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      <h2 className={styles.filterSheetSubTitle}>Status</h2>
+                    </div>
+                    <div className={styles.filterSheetOptions} role="listbox" aria-label="Status">
+                      {STATUS_OPTIONS.map((opt) => {
+                        const active = statusFilter === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            role="option"
+                            aria-selected={active}
+                            className={`${styles.filterSheetOption} ${active ? styles.filterSheetOptionActive : ''}`}
+                            onClick={() => {
+                              setStatusFilter(opt.value);
+                              setFilterSheetView('menu');
+                            }}
+                          >
+                            <span>{opt.label}</span>
+                            {active ? <span className={styles.filterSheetOptionBadge}>Selected</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {filterSheetView === 'sort' ? (
+                  <div className={styles.filterSheetSub}>
+                    <div className={styles.filterSheetSubHeader}>
+                      <button
+                        type="button"
+                        className={styles.filterSheetBack}
+                        aria-label="Back"
+                        onClick={() => setFilterSheetView('menu')}
+                      >
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      <h2 className={styles.filterSheetSubTitle}>Sort</h2>
+                    </div>
+                    <div className={styles.filterSheetOptions} role="listbox" aria-label="Sort">
+                      {SORT_OPTIONS.map((opt) => {
+                        const active = sort === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            role="option"
+                            aria-selected={active}
+                            className={`${styles.filterSheetOption} ${active ? styles.filterSheetOptionActive : ''}`}
+                            onClick={() => {
+                              setSort(opt.value);
+                              setFilterSheetView('menu');
+                            }}
+                          >
+                            <span>{opt.label}</span>
+                            {active ? <span className={styles.filterSheetOptionBadge}>Selected</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
+      {filtered.length === 0 ? (
+        <div className={styles.panel}>
           <div className={styles.emptyState}>
             <p>No subscriptions found</p>
             {query && <p className={styles.emptyStateSubtext}>Try adjusting your search</p>}
           </div>
-        ) : (
-          <div className={styles.table}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Customer</th>
-                  <th>Quantity</th>
-                  <th>Duration</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((subscription) => (
-                  <tr key={subscription.id}>
-                    <td>
-                      <div className={styles.productCell}>
-                        {subscription.product?.name || 'N/A'}
-                      </div>
-                    </td>
-                    <td>
-                      <div className={styles.customerCell}>
-                        <div className={styles.customerName}>
-                          {subscription.userName || subscription.userEmail || `User ID: ${subscription.userId}`}
-                        </div>
-                        {subscription.userEmail && subscription.userName && (
-                          <div className={styles.customerEmail}>{subscription.userEmail}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <div className={styles.quantityCell}>
-                        {subscription.litresPerDay}L/day
-                      </div>
-                    </td>
-                    <td>
-                      <div className={styles.durationCell}>
-                        {subscription.durationMonths} month{subscription.durationMonths !== 1 ? 's' : ''}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`${styles.badge} ${getStatusBadgeClass(subscription.status)}`}>
-                        {subscription.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className={styles.actions}>
-                        {subscription.status === 'active' && (
-                          <button
-                            onClick={() => handlePause(subscription.id)}
-                            className={styles.actionButton}
-                            title="Pause Subscription"
-                          >
-                            Pause
-                          </button>
-                        )}
-                        {subscription.status === 'paused' && (
-                          <button
-                            onClick={() => handleResume(subscription.id)}
-                            className={`${styles.actionButton} ${styles.resumeButton}`}
-                            title="Resume Subscription"
-                          >
-                            Resume
-                          </button>
-                        )}
-                      </div>
-                    </td>
+        </div>
+      ) : (
+        <>
+          <div className={`${styles.panel} ${styles.tableDesktop}`}>
+            <div className={styles.table}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Customer</th>
+                    <th>Quantity</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filtered.map((subscription) => (
+                    <tr
+                      key={subscription.id}
+                      className={styles.clickableRow}
+                      onClick={() => openDetailModal(subscription.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          openDetailModal(subscription.id);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`View subscription ${subscription.product?.name || subscription.id}`}
+                    >
+                      <td>
+                        <div className={styles.productCell}>{subscription.product?.name || 'N/A'}</div>
+                      </td>
+                      <td>
+                        <div className={styles.customerCell}>
+                          <div className={styles.customerName}>
+                            {subscription.userName || subscription.userEmail || `User ID: ${subscription.userId}`}
+                          </div>
+                          {subscription.userEmail && subscription.userName && (
+                            <div className={styles.customerEmail}>{subscription.userEmail}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.quantityCell}>{subscription.litresPerDay}L/day</div>
+                      </td>
+                      <td>
+                        <div className={styles.durationCell}>{durationLabel(subscription)}</div>
+                      </td>
+                      <td>
+                        <span className={`${styles.badge} ${getStatusBadgeClass(subscription.status)}`}>{subscription.status}</span>
+                      </td>
+                      <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.actions}>
+                          {subscription.status === 'active' && (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmAction({ kind: 'pause', id: subscription.id })}
+                              className={styles.actionButton}
+                              title="Pause Subscription"
+                            >
+                              Pause
+                            </button>
+                          )}
+                          {subscription.status === 'paused' && (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmAction({ kind: 'resume', id: subscription.id })}
+                              className={`${styles.actionButton} ${styles.resumeButton}`}
+                              title="Resume Subscription"
+                            >
+                              Resume
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className={styles.cards}>
+            {filtered.map((subscription) => (
+              <div
+                key={`m-${subscription.id}`}
+                role="button"
+                tabIndex={0}
+                className={`${styles.card} ${styles.cardClickable}`}
+                onClick={() => openDetailModal(subscription.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openDetailModal(subscription.id);
+                  }
+                }}
+                aria-label={`View subscription ${subscription.product?.name || subscription.id}`}
+              >
+                <div className={styles.cardTop}>
+                  <div>
+                    <div className={styles.cardTitleRow}>
+                      <span className={styles.cardTitle}>#{subscription.id}</span>
+                      <span className={`${styles.badge} ${getStatusBadgeClass(subscription.status)}`}>{subscription.status}</span>
+                    </div>
+                    <div className={styles.cardProduct}>{subscription.product?.name || 'N/A'}</div>
+                  </div>
+                </div>
+                <div className={styles.cardBody}>
+                  <div className={styles.customerCell}>
+                    <div className={styles.customerName}>
+                      {subscription.userName || subscription.userEmail || `User ID: ${subscription.userId}`}
+                    </div>
+                    {subscription.userEmail && subscription.userName ? (
+                      <div className={styles.customerEmail}>{subscription.userEmail}</div>
+                    ) : null}
+                  </div>
+                  <div className={styles.cardMeta}>
+                    <span className={styles.cardMetaLabel}>Qty</span>
+                    <span>{subscription.litresPerDay} L/day</span>
+                  </div>
+                  <div className={styles.cardMeta}>
+                    <span className={styles.cardMetaLabel}>Duration</span>
+                    <span>{durationLabel(subscription)}</span>
+                  </div>
+                  <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
+                    {subscription.status === 'active' && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmAction({ kind: 'pause', id: subscription.id })}
+                        className={styles.actionButton}
+                        title="Pause Subscription"
+                      >
+                        Pause
+                      </button>
+                    )}
+                    {subscription.status === 'paused' && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmAction({ kind: 'resume', id: subscription.id })}
+                        className={`${styles.actionButton} ${styles.resumeButton}`}
+                        title="Resume Subscription"
+                      >
+                        Resume
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {detailOpen && (
+        <div
+          className={styles.modalBackdrop}
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeDetailModal();
+          }}
+        >
+          <div className={styles.modalPanel} role="dialog" aria-modal="true" aria-labelledby="sub-detail-title" onMouseDown={(e) => e.stopPropagation()}>
+            <button type="button" className={styles.modalClose} onClick={closeDetailModal} aria-label="Close">
+              ×
+            </button>
+
+            {detailLoading ? (
+              <div className={styles.modalLoading}>
+                <LoadingSpinner />
+              </div>
+            ) : detailSub ? (
+              <div className={styles.modalBody}>
+                <h2 id="sub-detail-title" className={styles.modalTitle}>
+                  {detailSub.product?.name || 'Subscription'}
+                </h2>
+                <p className={styles.modalMeta}>
+                  {detailSub.userName || detailSub.userEmail || `User ${detailSub.userId}`}
+                  {detailSub.userEmail && detailSub.userName ? ` · ${detailSub.userEmail}` : ''}
+                </p>
+
+                <span className={`${styles.badge} ${getStatusBadgeClass(detailSub.status)}`}>{detailSub.status}</span>
+
+                <dl className={styles.detailGrid}>
+                  <dt>Purchased</dt>
+                  <dd>{formatDateTimeIST(detailSub.purchasedAt || detailSub.createdAt)}</dd>
+
+                  <dt>Delivery started</dt>
+                  <dd>{formatDateDDMMYYYYIST(detailSub.initialStartDate || detailSub.startDate)}</dd>
+
+                  <dt>Product</dt>
+                  <dd>{detailSub.product?.name || '—'}</dd>
+
+                  <dt>Quantity</dt>
+                  <dd>
+                    {detailSub.litresPerDay} L/day
+                    {detailSub.totalQty != null ? ` · Plan total: ${detailSub.totalQty}` : ''}
+                    {detailSub.deliveredQty != null ? ` · Delivered: ${detailSub.deliveredQty}` : ''}
+                    {detailSub.remainingQty != null ? ` · Remaining: ${detailSub.remainingQty}` : ''}
+                  </dd>
+
+                  <dt>Duration</dt>
+                  <dd>{durationLabel(detailSub)}</dd>
+
+                  <dt>Plan ends</dt>
+                  <dd>{formatDateDDMMYYYYIST(detailSub.endDate)}</dd>
+
+                  <dt>Days left (plan)</dt>
+                  <dd>
+                    {detailDaysLeft === null
+                      ? '—'
+                      : detailDaysLeft < 0
+                        ? `Ended ${Math.abs(detailDaysLeft)} day${Math.abs(detailDaysLeft) !== 1 ? 's' : ''} ago`
+                        : `${detailDaysLeft} day${detailDaysLeft !== 1 ? 's' : ''}`}
+                  </dd>
+
+                  <dt>Next delivery</dt>
+                  <dd>{detailNextYmd ? formatDateDDMMYYYYIST(detailNextYmd) : '—'}</dd>
+
+                  <dt>Delivery window</dt>
+                  <dd>{detailSub.deliveryTime || '—'}</dd>
+                </dl>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {confirmAction && (
+        <div
+          className={styles.confirmBackdrop}
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !confirmBusy) setConfirmAction(null);
+          }}
+        >
+          <div className={styles.confirmPanel} role="alertdialog" aria-labelledby="confirm-sub-title" onMouseDown={(e) => e.stopPropagation()}>
+            <h3 id="confirm-sub-title" className={styles.confirmTitle}>
+              {confirmAction.kind === 'pause' ? 'Pause subscription?' : 'Resume subscription?'}
+            </h3>
+            <p className={styles.confirmText}>
+              {confirmAction.kind === 'pause'
+                ? 'Pausing hides this subscription’s upcoming deliveries on Admin → Deliveries (subscription tab) until you resume. Existing history is unchanged.'
+                : 'Resuming sets the subscription back to active and shows its deliveries again on Admin → Deliveries for scheduled dates.'}
+            </p>
+            <div className={styles.confirmActions}>
+              <button type="button" className={styles.confirmBtnSecondary} disabled={confirmBusy} onClick={() => setConfirmAction(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={confirmAction.kind === 'pause' ? styles.confirmBtnWarning : styles.confirmBtnPrimary}
+                disabled={confirmBusy}
+                onClick={executePauseResume}
+              >
+                {confirmBusy ? 'Please wait…' : confirmAction.kind === 'pause' ? 'Pause' : 'Resume'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CustomSelect<T extends string>({
+  value,
+  onChange,
+  options,
+  modalTitle,
+}: {
+  value: T;
+  onChange: (next: T) => void;
+  options: Array<{ value: T; label: string }>;
+  modalTitle: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const modalTitleId = useId();
+
+  const selected = options.find((o) => o.value === value) || options[0];
+  const useModal = isNarrow;
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1024px)');
+    const apply = () => setIsNarrow(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || useModal) return;
+    const onDocClick = (e: Event) => {
+      if (!ref.current) return;
+      if (e.target instanceof Node && !ref.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open, useModal]);
+
+  useEffect(() => {
+    if (!open || !useModal) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevHtmlOverscrollY = html.style.overscrollBehaviorY;
+    const prevBodyOverscrollY = body.style.overscrollBehaviorY;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    html.style.overscrollBehaviorY = 'none';
+    body.style.overscrollBehaviorY = 'none';
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      html.style.overscrollBehaviorY = prevHtmlOverscrollY;
+      body.style.overscrollBehaviorY = prevBodyOverscrollY;
+    };
+  }, [open, useModal]);
+
+  const optionList = options.map((opt) => {
+    const isActive = opt.value === value;
+    return (
+      <button
+        key={opt.value}
+        type="button"
+        role="option"
+        aria-selected={isActive}
+        className={`${styles.dropdownItem} ${isActive ? styles.dropdownItemActive : ''}`}
+        onClick={() => {
+          onChange(opt.value);
+          setOpen(false);
+        }}
+      >
+        <span>{opt.label}</span>
+        {isActive ? <span className={styles.dropdownHint}>Selected</span> : null}
+      </button>
+    );
+  });
+
+  return (
+    <div className={styles.selectWrap} ref={ref}>
+      <button type="button" className={styles.selectButton} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <span className={styles.selectValue}>{selected?.label}</span>
+        <span className={styles.selectChevron} aria-hidden="true">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M5.5 7.5L10 12l4.5-4.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </button>
+
+      {open && !useModal && (
+        <div className={styles.dropdown} role="listbox" aria-label={modalTitle}>
+          {optionList}
+        </div>
+      )}
+
+      {mounted && open && useModal
+        ? createPortal(
+            <div
+              className={styles.selectModalBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setOpen(false);
+              }}
+            >
+              <div
+                className={styles.selectModalPanel}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={modalTitleId}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className={styles.selectModalHeader}>
+                  <h2 id={modalTitleId} className={styles.selectModalTitle}>
+                    {modalTitle}
+                  </h2>
+                  <button type="button" className={styles.selectModalClose} aria-label="Close" onClick={() => setOpen(false)}>
+                    ×
+                  </button>
+                </div>
+                <div className={styles.selectModalBody} role="listbox" aria-label={modalTitle}>
+                  {optionList}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

@@ -70,6 +70,7 @@ router.get('/feedback', adminController.getFeedback);
 
 // Subscriptions
 router.get('/subscriptions', adminController.getAllSubscriptions);
+router.get('/subscriptions/:id', adminController.getSubscriptionById);
 router.post('/subscriptions/:id/pause', adminController.pauseSubscription);
 router.post('/subscriptions/:id/resume', adminController.resumeSubscription);
 

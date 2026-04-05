@@ -848,7 +848,7 @@ function CustomSelect<T extends string>({
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 720px)');
+    const mq = window.matchMedia('(max-width: 1024px)');
     const apply = () => setIsNarrow(mq.matches);
     apply();
     mq.addEventListener('change', apply);
