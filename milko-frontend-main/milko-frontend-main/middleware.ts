@@ -36,13 +36,17 @@ export async function middleware(request: NextRequest) {
     const res = await fetch(`${API_BASE}/api/content/coming_soon`, {
       headers: { Accept: 'application/json' },
     });
-    if (res.ok) {
-      const json = await res.json();
-      comingSoonEnabled =
-        !!json?.data?.enabled || !!json?.data?.isActive;
-    }
+    if (!res.ok) return NextResponse.next();
+
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return NextResponse.next();
+
+    const json = (await res.json()) as {
+      data?: { enabled?: boolean; isActive?: boolean };
+    };
+    comingSoonEnabled = !!json?.data?.enabled || !!json?.data?.isActive;
   } catch {
-    // On fetch error, assume disabled – don't block the site
+    // Fetch failure or invalid JSON/HTML body — don't block the site
   }
 
   if (!comingSoonEnabled) {

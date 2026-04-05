@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react';
 import { Product, ProductVariation, ProductReview } from '@/types';
 import { productsApi, contentApi } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
@@ -43,14 +43,29 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const [isCheckingPincode, setIsCheckingPincode] = useState(false);
   const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime?: string }> | null>(null);
   
-  // Swipe/drag state
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  // Swipe/drag (desktop) + touch via native listeners on mainImageRef (avoids stale state / passive)
   const [mouseStart, setMouseStart] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const mainImageRef = useRef<HTMLDivElement>(null);
+  const collageLenRef = useRef(0);
+  const didSwipeRef = useRef(false);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
+  const zoomScaleRef = useRef(1);
+  zoomScaleRef.current = zoomScale;
+  const pinchRef = useRef<{ distance: number; scale: number } | null>(null);
+
+  type ZoomOrigin = {
+    tcx: number;
+    tcy: number;
+    s0: number;
+    finalW: number;
+    finalH: number;
+    vw: number;
+    vh: number;
+  };
+  const [zoomOrigin, setZoomOrigin] = useState<ZoomOrigin | null>(null);
+  const [zoomAnimToCenter, setZoomAnimToCenter] = useState(false);
   
   // Membership subscription state
   const [showMembershipDetails, setShowMembershipDetails] = useState(false);
@@ -210,6 +225,9 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
       setSelectedVariationId(null);
       setIsZoomOpen(false);
       setZoomScale(1);
+      setZoomOrigin(null);
+      setZoomAnimToCenter(false);
+      pinchRef.current = null;
       // Fetch product details with images, variations, and reviews
       const fetchDetails = async () => {
         setLoadingDetails(true);
@@ -269,38 +287,135 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const productImages = getOrderedProductImageUrls(displayProduct);
 
   const collageItems = productImages;
+  collageLenRef.current = collageItems.length;
 
-  // Swipe/drag handlers
   const minSwipeDistance = 50;
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+  const isFromMainImageNavButton = (target: EventTarget | null) =>
+    target instanceof Element && Boolean(target.closest('button'));
+
+  useEffect(() => {
+    const el = mainImageRef.current;
+    if (!el || !isOpen || loadingDetails) return;
+
+    let startX = 0;
+    let startY = 0;
+    let endX = 0;
+    let tracking = false;
+
+    const onStart = (ev: TouchEvent) => {
+      if (ev.touches.length !== 1) return;
+      if (isFromMainImageNavButton(ev.target)) return;
+      tracking = true;
+      startX = ev.touches[0].clientX;
+      startY = ev.touches[0].clientY;
+      endX = startX;
+      didSwipeRef.current = false;
+    };
+
+    const onMove = (ev: TouchEvent) => {
+      if (!tracking || ev.touches.length !== 1) return;
+      const t = ev.touches[0];
+      endX = t.clientX;
+      const dx = Math.abs(t.clientX - startX);
+      const dy = Math.abs(t.clientY - startY);
+      if (dx > dy && dx > 14) {
+        didSwipeRef.current = true;
+        ev.preventDefault();
+      }
+    };
+
+    const onEnd = (ev: TouchEvent) => {
+      if (!tracking) return;
+      const cx = ev.changedTouches[0]?.clientX;
+      if (cx !== undefined) endX = cx;
+      tracking = false;
+
+      const len = collageLenRef.current;
+      if (len <= 1) return;
+      const distance = startX - endX;
+      if (distance > minSwipeDistance) {
+        setSelectedImageIndex((i) => (i + 1) % len);
+      } else if (distance < -minSwipeDistance) {
+        setSelectedImageIndex((i) => (i - 1 + len) % len);
+      }
+    };
+
+    const onCancel = () => {
+      tracking = false;
+    };
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('touchcancel', onCancel, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onCancel);
+    };
+  }, [isOpen, loadingDetails]);
+
+  const openImageZoom = useCallback(() => {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 400;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 700;
+    const finalW = Math.min(980, vw - 32);
+    const finalH = Math.min(720, vh - 32);
+    const el = mainImageRef.current;
+    if (el) {
+      const thumb = el.getBoundingClientRect();
+      const tcx = thumb.left + thumb.width / 2;
+      const tcy = thumb.top + thumb.height / 2;
+      let s0 = Math.min(thumb.width / finalW, thumb.height / finalH, 1);
+      if (s0 < 0.12) s0 = 0.12;
+      s0 *= 0.96;
+      setZoomOrigin({ tcx, tcy, s0, finalW, finalH, vw, vh });
+    } else {
+      setZoomOrigin({ tcx: vw / 2, tcy: vh / 2, s0: 0.88, finalW, finalH, vw, vh });
+    }
+    setZoomAnimToCenter(false);
+    setZoomScale(1);
+    setIsZoomOpen(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setZoomAnimToCenter(true));
+    });
+  }, []);
+
+  const closeImageZoom = useCallback(() => {
+    setIsZoomOpen(false);
+    setZoomAnimToCenter(false);
+    setZoomOrigin(null);
+    setZoomScale(1);
+    pinchRef.current = null;
+  }, []);
+
+  const touchPinchDist = (a: React.Touch, b: React.Touch) =>
+    Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+
+  const onZoomPinchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      pinchRef.current = {
+        distance: touchPinchDist(e.touches[0], e.touches[1]),
+        scale: zoomScaleRef.current,
+      };
+    }
   };
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+  const onZoomPinchMove = (e: React.TouchEvent) => {
+    if (e.touches.length !== 2 || !pinchRef.current) return;
+    const d = touchPinchDist(e.touches[0], e.touches[1]);
+    if (d < 1) return;
+    const next = pinchRef.current.scale * (d / pinchRef.current.distance);
+    setZoomScale(Math.min(4, Math.max(1, Number(next.toFixed(3)))));
   };
 
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe && collageItems.length > 1) {
-      setSelectedImageIndex((i) => (i + 1) % collageItems.length);
-    }
-    if (isRightSwipe && collageItems.length > 1) {
-      setSelectedImageIndex((i) => (i - 1 + collageItems.length) % collageItems.length);
-    }
-
-    setTouchStart(null);
-    setTouchEnd(null);
+  const onZoomPinchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length < 2) pinchRef.current = null;
   };
 
   const onMouseDown = (e: React.MouseEvent) => {
+    if (isFromMainImageNavButton(e.target)) return;
     setIsDragging(true);
     setMouseStart(e.clientX);
   };
@@ -312,17 +427,27 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   };
 
   const onMouseUp = (e: React.MouseEvent) => {
+    if (isFromMainImageNavButton(e.target)) {
+      if (isDragging) {
+        setIsDragging(false);
+        setMouseStart(null);
+      }
+      return;
+    }
     if (!isDragging || mouseStart === null) return;
 
     const distance = mouseStart - e.clientX;
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
 
-    if (isLeftSwipe && collageItems.length > 1) {
-      setSelectedImageIndex((i) => (i + 1) % collageItems.length);
+    const len = collageLenRef.current;
+    if (isLeftSwipe && len > 1) {
+      didSwipeRef.current = true;
+      setSelectedImageIndex((i) => (i + 1) % len);
     }
-    if (isRightSwipe && collageItems.length > 1) {
-      setSelectedImageIndex((i) => (i - 1 + collageItems.length) % collageItems.length);
+    if (isRightSwipe && len > 1) {
+      didSwipeRef.current = true;
+      setSelectedImageIndex((i) => (i - 1 + len) % len);
     }
 
     setIsDragging(false);
@@ -470,6 +595,40 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
 
   if (!isOpen) return null;
 
+  const zMotion = zoomOrigin;
+  const zoomContentMotionStyle: CSSProperties =
+    isZoomOpen && zMotion
+      ? !zoomAnimToCenter
+        ? {
+            position: 'fixed',
+            left: '50%',
+            top: '50%',
+            width: zMotion.finalW,
+            height: zMotion.finalH,
+            transform: `translate(calc(-50% + ${zMotion.tcx - zMotion.vw / 2}px), calc(-50% + ${zMotion.tcy - zMotion.vh / 2}px)) scale(${zMotion.s0})`,
+            transition: 'none',
+            willChange: 'transform',
+          }
+        : {
+            position: 'fixed',
+            left: '50%',
+            top: '50%',
+            width: zMotion.finalW,
+            height: zMotion.finalH,
+            transform: 'translate(-50%, -50%) scale(1)',
+            transition: 'transform 380ms cubic-bezier(0.22, 1, 0.36, 1)',
+            willChange: 'transform',
+          }
+      : {};
+
+  const zoomOverlayMotionStyle: CSSProperties =
+    isZoomOpen && zMotion
+      ? {
+          opacity: zoomAnimToCenter ? 1 : 0.32,
+          transition: 'opacity 340ms ease',
+        }
+      : {};
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -503,19 +662,20 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
             <div 
               ref={mainImageRef}
               className={styles.mainImage}
-              onTouchStart={onTouchStart}
-              onTouchMove={onTouchMove}
-              onTouchEnd={onTouchEnd}
               onMouseDown={onMouseDown}
               onMouseMove={onMouseMove}
               onMouseUp={onMouseUp}
               onMouseLeave={onMouseLeave}
-              onClick={() => {
+              onClick={(e) => {
+                if (isFromMainImageNavButton(e.target)) return;
                 if (isDragging) return;
+                if (didSwipeRef.current) {
+                  didSwipeRef.current = false;
+                  return;
+                }
                 const current = collageItems[selectedImageIndex];
                 if (!current || current.startsWith('emoji:')) return;
-                setIsZoomOpen(true);
-                setZoomScale(1);
+                openImageZoom();
               }}
               style={{ cursor: isDragging ? 'grabbing' : 'zoom-in', userSelect: 'none' }}
             >
@@ -527,8 +687,10 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                 <Image
                   src={collageItems[selectedImageIndex]}
                   alt={product.name}
-                  fill
-                  style={{ objectFit: 'cover' }}
+                  width={1200}
+                  height={1200}
+                  className={styles.mainModalPhoto}
+                  sizes="(max-width: 968px) 100vw, min(560px, 50vw)"
                 />
               ) : (
                 <div className={styles.placeholderImage}>
@@ -855,7 +1017,25 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
               <div className={styles.membershipSection}>
                 <div className={styles.membershipHeader}>
                   <div>
-                    <h3 className={styles.membershipTitle}>Take a membership of this</h3>
+                    <div className={styles.membershipTitleRow}>
+                      <h3 className={styles.membershipTitle}>Take a membership of this</h3>
+                      <svg
+                        className={styles.membershipTitleIcon}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M7.45284 2.71266C7.8276 1.76244 9.1724 1.76245 9.54716 2.71267L10.7085 5.65732C10.8229 5.94743 11.0526 6.17707 11.3427 6.29148L14.2873 7.45284C15.2376 7.8276 15.2376 9.1724 14.2873 9.54716L11.3427 10.7085C11.0526 10.8229 10.8229 11.0526 10.7085 11.3427L9.54716 14.2873C9.1724 15.2376 7.8276 15.2376 7.45284 14.2873L6.29148 11.3427C6.17707 11.0526 5.94743 10.8229 5.65732 10.7085L2.71266 9.54716C1.76244 9.1724 1.76245 7.8276 2.71267 7.45284L5.65732 6.29148C5.94743 6.17707 6.17707 5.94743 6.29148 5.65732L7.45284 2.71266Z"
+                          fill="#008037"
+                        />
+                        <path
+                          d="M16.9245 13.3916C17.1305 12.8695 17.8695 12.8695 18.0755 13.3916L18.9761 15.6753C19.039 15.8348 19.1652 15.961 19.3247 16.0239L21.6084 16.9245C22.1305 17.1305 22.1305 17.8695 21.6084 18.0755L19.3247 18.9761C19.1652 19.039 19.039 19.1652 18.9761 19.3247L18.0755 21.6084C17.8695 22.1305 17.1305 22.1305 16.9245 21.6084L16.0239 19.3247C15.961 19.1652 15.8348 19.039 15.6753 18.9761L13.3916 18.0755C12.8695 17.8695 12.8695 17.1305 13.3916 16.9245L15.6753 16.0239C15.8348 15.961 15.961 15.8348 16.0239 15.6753L16.9245 13.3916Z"
+                          fill="#008037"
+                        />
+                      </svg>
+                    </div>
                     <p className={styles.membershipDescription}>
                       Get {displayProduct.name} - Fresh, carefully handled with zero adulteration. Quality-checked before every delivery, with assured supply for members.
                     </p>
@@ -1234,16 +1414,27 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
         )}
       </div>
 
-      {/* Zoom overlay */}
+      {/* Zoom overlay — opens from thumbnail position; pinch to zoom on touch */}
       {isZoomOpen && collageItems[selectedImageIndex] && (
         <div
           className={styles.zoomOverlay}
-          onClick={() => setIsZoomOpen(false)}
+          style={zoomOverlayMotionStyle}
+          onClick={(e) => {
+            e.stopPropagation();
+            closeImageZoom();
+          }}
           role="dialog"
           aria-label="Image zoom"
         >
-          <div className={styles.zoomContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.zoomTopBar}>
+          <div
+            className={`${styles.zoomContent} ${zMotion ? styles.zoomContentMotion : ''}`}
+            style={zoomContentMotionStyle}
+            onClick={(e) => {
+              e.stopPropagation();
+              closeImageZoom();
+            }}
+          >
+            <div className={styles.zoomTopBar} onClick={(e) => e.stopPropagation()}>
               <div className={styles.zoomControls}>
                 <button
                   type="button"
@@ -1264,7 +1455,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                 <button
                   type="button"
                   className={styles.zoomButton}
-                  onClick={() => setZoomScale((s) => Math.min(3, parseFloat((s + 0.25).toFixed(2))))}
+                  onClick={() => setZoomScale((s) => Math.min(4, parseFloat((s + 0.25).toFixed(2))))}
                   aria-label="Zoom in"
                 >
                   +
@@ -1273,19 +1464,26 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
               <button
                 type="button"
                 className={styles.zoomClose}
-                onClick={() => setIsZoomOpen(false)}
+                onClick={closeImageZoom}
                 aria-label="Close zoom"
               >
                 ✕
               </button>
             </div>
 
-            <div className={styles.zoomImageWrap}>
+            <div
+              className={styles.zoomImageWrap}
+              onTouchStart={onZoomPinchStart}
+              onTouchMove={onZoomPinchMove}
+              onTouchEnd={onZoomPinchEnd}
+              onTouchCancel={onZoomPinchEnd}
+            >
               <img
                 src={collageItems[selectedImageIndex]}
                 alt={displayProduct.name}
                 className={styles.zoomImage}
                 style={{ transform: `scale(${zoomScale})` }}
+                draggable={false}
               />
             </div>
           </div>

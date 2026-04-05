@@ -63,21 +63,20 @@
 }
 
 .closeButton {
-  position: absolute;
+  position: sticky;
   top: 1rem;
-  right: 1rem;
-  background: rgba(255, 255, 255, 0.9);
+  padding-right: 1rem;
+  background: rgb(255 255 255 / 0%);
   border: none;
   border-radius: 50%;
-  width: 40px;
+  width: 100%;
   height: 40px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   cursor: pointer;
-  z-index: 10;
+  z-index: 99;
   transition: all 0.2s ease;
-  
 }
 
 .closeButton:hover {
@@ -135,7 +134,8 @@
 .mainImage {
   position: relative;
   width: 100%;
-  height: 440px;
+  height: auto;
+  min-height: 200px;
   border-radius: 12px;
   overflow: hidden;
   background: #f0f0f0;
@@ -144,9 +144,19 @@
   user-select: none;
 }
 
+/* Full width; height follows image aspect ratio (no fixed crop box). */
+.mainModalPhoto {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  position: relative;
+  z-index: 0;
+}
+
 .placeholderImage {
   width: 100%;
-  height: 100%;
+  min-height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,7 +166,7 @@
 
 .emojiMain {
   width: 100%;
-  height: 100%;
+  min-height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,6 +178,7 @@
 .imageNavButton {
   position: absolute;
   top: 50%;
+  z-index: 2;
   transform: translateY(-50%);
   width: 44px;
   height: 44px;
@@ -212,8 +223,8 @@
 }
 
 .imageDot {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
   border: none;
   background: #d5dbe3;
@@ -222,6 +233,8 @@
 
 .imageDotActive {
   background: #0070f3;
+  width: 10px;
+  transition: ease 0.2s all;
 }
 
 .thumbnail {
@@ -528,6 +541,15 @@ box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
   display: none; /* Chrome, Safari, Opera */
 }
 
+/* Below two-column layout: scroll the whole modal, not a nested pane (avoids “stuck” image on mobile/tablet). */
+@media (max-width: 968px) {
+  .detailsSection {
+    overflow-y: visible;
+    max-height: none;
+    padding-right: 0;
+  }
+}
+
 .productHeader {
   display: flex;
   flex-direction: column;
@@ -647,6 +669,11 @@ box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.12);
+  box-sizing: border-box;
+}
+
+.zoomContentMotion {
+  max-width: none;
 }
 
 .zoomTopBar {
@@ -701,14 +728,16 @@ box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
   justify-content: center;
   overflow: auto;
   padding: 18px;
+  touch-action: none;
 }
 
 .zoomImage {
   max-width: 100%;
   max-height: 100%;
   transform-origin: center center;
-  transition: transform 120ms ease;
   border-radius: 12px;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .stockStatus {
@@ -871,16 +900,16 @@ box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
 }
 
 .showMoreButton {
-  padding: 0px 0px;
-    background: transparent;
-    border: 0px solid #ddd;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #000000;
-    cursor: pointer;
-    transition: all -0.2s ease;
-    font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
 .showMoreButton:hover {
@@ -1308,11 +1337,11 @@ margin-left: -11px;
 /* Membership Section */
 .membershipSection {
   margin-top: -24px;
-  padding: 1.5rem;
-  background: #ffffff;
+  padding: 1.5rem; 
+  background: #e6fff6;
   border-radius: 12px;
-  border: 1px solid #0b9c6b;
-  box-shadow: 0 1px 1px 0 rgb(31 255 141 / 20%);
+  border: 0px solid #0b9c6b;
+  
 }
 .membershipHeader {
   display: flex;
@@ -1321,12 +1350,29 @@ margin-left: -11px;
   gap: 1rem;
 }
 
+.membershipTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
 .membershipTitle {
   font-size: 1.1rem;
   font-weight: 700;
   color: #0b9c6b;
-  margin: 0 0 0.5rem 0;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.membershipTitleIcon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: block;
 }
 
 .membershipDescription {
@@ -1351,7 +1397,7 @@ margin-left: -11px;
   transition: background .02s;
   flex-shrink: 0;
   border: 1px solid #0b9c6b;
-  box-shadow: 0 1px 1px 0 rgb(0 119 59 / 53%);
+  
 }
 
 .membershipMoreButton:hover {
@@ -1583,7 +1629,8 @@ margin-left: -11px;
 
 .shimmerImage {
   width: 100%;
-  height: 440px;
+  aspect-ratio: 1;
+  min-height: 240px;
   border-radius: 12px;
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 1000px 100%;
@@ -1659,14 +1706,6 @@ margin-left: -11px;
     gap: 1.5rem;
   }
 
-  .shimmerImage {
-    height: 300px;
-  }
-
-  .mainImage {
-    height: 300px;
-  }
-
   .relatedProductsGrid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1714,14 +1753,16 @@ margin-left: -11px;
   }
 
   .mainImage {
-    height: 250px;
+    height: auto !important;
+    min-height: 200px;
     position: relative !important;
     top: auto !important;
     width: 100% !important;
     border-radius: 12px;
     overflow: hidden;
     background: #f0f0f0;
-    touch-action: pan-y !important;
+    /* Horizontal swipe for gallery; vertical scroll uses the modal body, not the image strip */
+    touch-action: pan-x !important;
   }
 
   .productTitle {

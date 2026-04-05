@@ -173,18 +173,23 @@ export default function ProductsSection() {
           <div className={styles.productsGrid}>
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className={styles.productCardShimmer}>
-                <div className={`${styles.productImageShimmer} ${styles.shimmer}`}></div>
+                <div className={styles.productImageShimmer}>
+                  <div className={`${styles.assuredBadgeShimmer} ${styles.shimmer}`} aria-hidden />
+                  <div className={`${styles.imageShimmerFill} ${styles.shimmer}`} aria-hidden />
+                </div>
                 <div className={styles.productInfoShimmer}>
-                  <div className={`${styles.titleShimmer} ${styles.shimmer}`}></div>
-                  <div className={`${styles.descriptionShimmer} ${styles.shimmer}`}></div>
-                  <div className={`${styles.descriptionShimmer} ${styles.shimmer}`} style={{ width: '70%' }}></div>
-                  <div className={styles.priceRowShimmer}>
-                    <div className={`${styles.priceShimmer} ${styles.shimmer}`}></div>
-                    <div className={`${styles.discountShimmer} ${styles.shimmer}`}></div>
+                  <div className={`${styles.categoryShimmer} ${styles.shimmer}`} aria-hidden />
+                  <div className={styles.titleRowShimmer}>
+                    <div className={`${styles.nameShimmer} ${styles.shimmer}`} aria-hidden />
+                    <div className={`${styles.ratingShimmer} ${styles.shimmer}`} aria-hidden />
                   </div>
-                  <div className={styles.buttonsShimmer}>
-                    <div className={`${styles.buttonShimmer} ${styles.shimmer}`}></div>
-                    <div className={`${styles.buttonShimmer} ${styles.shimmer}`}></div>
+                  <div className={`${styles.discountOffShimmer} ${styles.shimmer}`} aria-hidden />
+                  <div className={styles.addToCartRowShimmer}>
+                    <div className={styles.priceShimmerGroup}>
+                      <div className={`${styles.priceAmountShimmer} ${styles.shimmer}`} aria-hidden />
+                      <div className={`${styles.priceUnitShimmer} ${styles.shimmer}`} aria-hidden />
+                    </div>
+                    <div className={`${styles.addButtonShimmer} ${styles.shimmer}`} aria-hidden />
                   </div>
                 </div>
               </div>

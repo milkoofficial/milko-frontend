@@ -958,8 +958,24 @@ export default function AdminDeliveriesPage() {
 
       {/* Order details modal */}
       {selectedOrderId && (
-        <div className={styles.orderModalBackdrop}>
-          <div className={styles.orderModalPanel}>
+        <div
+          className={styles.orderModalBackdrop}
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              setSelectedOrderId(null);
+              setSelectedOrder(null);
+              setConfirmAction(null);
+            }
+          }}
+        >
+          <div
+            className={styles.orderModalPanel}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Order details"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               className={styles.orderModalClose}
@@ -1062,8 +1078,14 @@ export default function AdminDeliveriesPage() {
       )}
 
       {confirmAction && (
-        <div className={styles.confirmModalBackdrop}>
-          <div className={styles.confirmModalPanel}>
+        <div
+          className={styles.confirmModalBackdrop}
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setConfirmAction(null);
+          }}
+        >
+          <div className={styles.confirmModalPanel} role="alertdialog" onMouseDown={(e) => e.stopPropagation()}>
             <div className={styles.confirmModalTitle}>Confirm</div>
             <div className={styles.confirmModalText}>
               {confirmAction.kind === 'out' && 'Mark this order as out for delivery?'}

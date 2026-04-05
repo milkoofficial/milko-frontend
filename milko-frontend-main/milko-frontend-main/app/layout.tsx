@@ -23,10 +23,22 @@ const inter = Inter({
   display: 'swap',
 });
 
+function metadataBaseUrl(): URL {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (raw) {
+    try {
+      return new URL(raw);
+    } catch {
+      /* invalid URL in env would crash the app */
+    }
+  }
+  return new URL('http://localhost:3000');
+}
+
 export const metadata: Metadata = {
   title: 'Milko.in - Fresh Milk Delivery',
   description: 'Daily milk delivery subscription service',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  metadataBase: metadataBaseUrl(),
   openGraph: {
     type: 'website',
     siteName: 'Milko.in',

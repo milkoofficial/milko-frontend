@@ -907,7 +907,8 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 1000;
+  /* Above AdminMobileNav (1002); confirm stacks higher */
+  z-index: 1200;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -980,7 +981,7 @@
 
 .orderModalInfoCard {
   background: #f8fafc;
-  border: 1px solid #e5e7eb;
+  border: 0px solid #e5e7eb;
   border-radius: 12px;
   padding: 1rem;
   min-width: 0;
@@ -1100,7 +1101,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
-  z-index: 1100;
+  z-index: 1300;
   display: flex;
   align-items: center;
   justify-content: center;
