@@ -15,6 +15,32 @@ import { sanitizeHtml } from '@/lib/utils/sanitizeHtml';
 
 type AdminProductImage = ProductImage & { isMain?: boolean };
 
+function buildAdminImagesFromProduct(data: Product): AdminProductImage[] {
+  const sorted = [...(data.images || [])].sort(
+    (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+  );
+  const main = data.imageUrl || '';
+  const urlsInRows = new Set(sorted.map((i) => i.imageUrl));
+  if (main && !urlsInRows.has(main)) {
+    return [
+      {
+        id: 'main',
+        productId: data.id,
+        imageUrl: main,
+        displayOrder: -1,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        isMain: true,
+      },
+      ...sorted,
+    ];
+  }
+  return sorted.map((img, idx) => ({
+    ...img,
+    isMain: idx === 0,
+  }));
+}
+
 /**
  * Admin Product Edit Page
  * Edit product details, images, variations, and reviews
@@ -80,24 +106,7 @@ export default function AdminProductEditPage() {
         setIsActive(data.isActive);
         setIsMembershipEligible(data.isMembershipEligible || false);
 
-        // On create, the first image is stored on the product row (data.imageUrl).
-        // Additional images are stored in product_images (data.images).
-        // Show both on the edit page.
-        const dbImages: AdminProductImage[] = (data.images || []) as AdminProductImage[];
-        const mainImageUrl = data.imageUrl;
-        const combinedImages = [...dbImages];
-        if (mainImageUrl && !combinedImages.some(img => img.imageUrl === mainImageUrl)) {
-          combinedImages.unshift({
-            id: 'main',
-            productId: data.id,
-            imageUrl: mainImageUrl,
-            displayOrder: -1,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-            isMain: true,
-          });
-        }
-        setImages(combinedImages);
+        setImages(buildAdminImagesFromProduct(data));
 
         setVariations(data.variations || []);
       } catch (error) {
@@ -191,25 +200,66 @@ export default function AdminProductEditPage() {
     if (!newImageFile) return;
 
     try {
-      const image = await adminProductsApi.addImage(productId, newImageFile, images.length);
-      setImages([...images, image as AdminProductImage]);
+      await adminProductsApi.addImage(productId, newImageFile);
+      const data = await adminProductsApi.getById(productId);
+      setProduct(data);
+      setImages(buildAdminImagesFromProduct(data));
       setNewImageFile(null);
-      // Reset file input
       const fileInput = document.getElementById('imageInput') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
+      showToast('Image added', 'success');
     } catch (error) {
       console.error('Failed to add image:', error);
       showToast(getErrorMessage(error), 'error');
     }
   };
 
-  const handleDeleteImage = async (imageId: string) => {
-    if (imageId === 'main') return; // main image isn't stored in product_images
+  const applyProductFromResponse = (data: Product) => {
+    setProduct(data);
+    setImages(buildAdminImagesFromProduct(data));
+  };
+
+  const persistImageOrder = async (orderedUrls: string[]) => {
+    const data = await adminProductsApi.reorderImages(productId, orderedUrls);
+    applyProductFromResponse(data);
+    showToast('Image order updated', 'success');
+  };
+
+  const handleMoveImage = async (index: number, delta: number) => {
+    const j = index + delta;
+    if (j < 0 || j >= images.length) return;
+    const next = [...images];
+    [next[index], next[j]] = [next[j], next[index]];
+    try {
+      await persistImageOrder(next.map((i) => i.imageUrl));
+    } catch (error) {
+      console.error('Failed to reorder images:', error);
+      showToast(getErrorMessage(error), 'error');
+    }
+  };
+
+  const handleDeleteImage = async (image: AdminProductImage) => {
     if (!confirm('Are you sure you want to delete this image?')) return;
 
     try {
-      await adminProductsApi.deleteImage(productId, imageId);
-      setImages(images.filter(img => img.id !== imageId));
+      if (image.id === 'main') {
+        await adminProductsApi.update(productId, { imageUrl: null });
+        const rest = images.filter((i) => i.id !== 'main');
+        if (rest.length > 0) {
+          const data = await adminProductsApi.reorderImages(productId, rest.map((i) => i.imageUrl));
+          applyProductFromResponse(data);
+          showToast('Cover image removed. The next image is now the cover.', 'success');
+        } else {
+          const data = await adminProductsApi.getById(productId);
+          applyProductFromResponse(data);
+          showToast('Cover image removed', 'success');
+        }
+        return;
+      }
+
+      await adminProductsApi.deleteImage(productId, image.id);
+      const data = await adminProductsApi.getById(productId);
+      applyProductFromResponse(data);
       showToast('Image deleted', 'success');
     } catch (error) {
       console.error('Failed to delete image:', error);
@@ -508,13 +558,15 @@ export default function AdminProductEditPage() {
         {activeTab === 'images' && (
           <div className={styles.section}>
             <h2>Product Images</h2>
+            <p className={styles.imagesHint}>
+              The first image is the cover (product cards and first slide in the customer gallery). Use Up / Down to change order.
+              New uploads are added without removing existing images.
+            </p>
             <div className={styles.imageGrid}>
-              {images.map((image) => (
-                <div key={image.id} className={styles.imageCard}>
-                  {image.isMain && (
-                    <div className={`${styles.imageBadge} ${styles.imageBadgeMain}`}>
-                      Main
-                    </div>
+              {images.map((image, index) => (
+                <div key={`${image.id}-${index}`} className={styles.imageCard}>
+                  {index === 0 && (
+                    <div className={`${styles.imageBadge} ${styles.imageBadgeMain}`}>Cover</div>
                   )}
                   <Image
                     src={image.imageUrl}
@@ -523,14 +575,29 @@ export default function AdminProductEditPage() {
                     height={200}
                     style={{ objectFit: 'cover', borderRadius: '8px' }}
                   />
-                  {!image.isMain && (
-                  <button
-                    onClick={() => handleDeleteImage(image.id)}
-                    className={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
-                  )}
+                  <div className={styles.imageCardActions}>
+                    <button
+                      type="button"
+                      className={styles.reorderButton}
+                      disabled={index === 0}
+                      onClick={() => handleMoveImage(index, -1)}
+                      aria-label="Move image up"
+                    >
+                      ↑ Up
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.reorderButton}
+                      disabled={index === images.length - 1}
+                      onClick={() => handleMoveImage(index, 1)}
+                      aria-label="Move image down"
+                    >
+                      ↓ Down
+                    </button>
+                    <button type="button" onClick={() => handleDeleteImage(image)} className={styles.deleteButton}>
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

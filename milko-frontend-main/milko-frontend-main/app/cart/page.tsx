@@ -383,6 +383,12 @@ export default function CartPage() {
                 </div>
                 <div className={styles.itemDetails}>
                   <h3 className={styles.itemTitle}>Subscription for {subscriptionCartItem.productName}</h3>
+                  <p className={styles.subscriptionTransferNote}>
+                    Subscriptions are transferred in My Account &gt;{' '}
+                    <Link href="/subscriptions" className={styles.subscriptionTransferLink}>
+                      Subscriptions
+                    </Link>
+                  </p>
                   <div className={styles.itemInfo}>
                     <span>Qty: {subscriptionCartItem.litresPerDay} L/day</span>
                     <span>

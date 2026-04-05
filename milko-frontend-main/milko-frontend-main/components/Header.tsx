@@ -672,6 +672,17 @@ export default function Header() {
   const isAuthPage = pathname?.startsWith('/auth');
   const isAdminPage = pathname?.startsWith('/admin');
 
+  // Until the user has saved a pincode (deliverable or not), open the pincode modal on every route
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = localStorage.getItem('milko_delivery_pincode');
+    const pin = (raw || '').trim();
+    const hasSavedPincode = pin.length === 6 && /^\d{6}$/.test(pin);
+    if (!hasSavedPincode) {
+      setIsAddressModalOpen(true);
+    }
+  }, [pathname]);
+
   // Simulate initial loading (show shimmer for first load)
   useEffect(() => {
     const timer = setTimeout(() => {

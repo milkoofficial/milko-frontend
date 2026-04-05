@@ -170,6 +170,25 @@
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
+.subscriptionTransferNote {
+  margin: 0 0 0.35rem 0;
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: default;
+}
+
+.subscriptionTransferLink {
+  color: #0070f3;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.subscriptionTransferLink:hover {
+  text-decoration: underline;
+}
+
 .itemVariant {
   font-size: 0.875rem;
   color: #666;

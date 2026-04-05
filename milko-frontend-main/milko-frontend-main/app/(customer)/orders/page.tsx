@@ -53,8 +53,20 @@ type MyOrder = {
   items: OrderItem[];
 };
 
+type OrderLine = { item: OrderItem; orderItemIndex: number };
+
+type OrderGroup = {
+  order: MyOrder;
+  lines: OrderLine[];
+};
+
 function isSubscriptionOrderItem(item: OrderItem): boolean {
   return (item.productName || '').trim().toLowerCase().startsWith('subscription for ');
+}
+
+/** Line items the customer can rate (excludes subscription rows). */
+function countRatableOrderItems(order: MyOrder): number {
+  return order.items.filter((i) => !isSubscriptionOrderItem(i) && i.productId != null).length;
 }
 
 function getDeliveryDisplay(order: MyOrder): string {
@@ -73,8 +85,7 @@ function isOnTheWay(order: MyOrder): boolean {
 }
 
 /**
- * My Orders Page
- * One row per order item: image (left), product name, item, variation, order date, delivery (right)
+ * My Orders — one compact row per order (first product preview). More lines: +x on image; full list on order details.
  */
 export default function OrdersPage() {
   const [orders, setOrders] = useState<MyOrder[]>([]);
@@ -100,45 +111,52 @@ export default function OrdersPage() {
     fetchOrders();
   }, []);
 
-  // Flatten to one row per item; each row needs order-level orderDate and deliveryDisplay
-  const rows: { item: OrderItem; order: MyOrder; orderItemIndex: number }[] = [];
+  const orderGroups: OrderGroup[] = [];
   for (const order of orders) {
+    const lines: OrderLine[] = [];
     for (let orderItemIndex = 0; orderItemIndex < (order.items || []).length; orderItemIndex++) {
       const item = order.items[orderItemIndex];
       if (isSubscriptionOrderItem(item)) continue;
-      rows.push({ item, order, orderItemIndex });
+      lines.push({ item, orderItemIndex });
     }
+    if (lines.length === 0) continue;
+    orderGroups.push({ order, lines });
   }
 
-  const displayRows = [...rows].sort((a, b) => {
+  orderGroups.sort((a, b) => {
     const ta = a.order.createdAt ? new Date(a.order.createdAt).getTime() : 0;
     const tb = b.order.createdAt ? new Date(b.order.createdAt).getTime() : 0;
     return tb - ta;
   });
 
-  // Group by month: { key, label, rows } — label is "This month (January)" or "December 2025"
-  const monthGroups: { key: string; label: string; rows: { item: OrderItem; order: MyOrder; orderItemIndex: number }[] }[] = (() => {
-    const map = new Map<string, { label: string; rows: { item: OrderItem; order: MyOrder; orderItemIndex: number }[] }>();
+  // Group by month: each month lists whole orders (not split per line item)
+  const monthGroups: { key: string; label: string; orderGroups: OrderGroup[]; itemCount: number }[] = (() => {
+    const map = new Map<string, { label: string; orderGroups: OrderGroup[] }>();
     const now = new Date();
     const thisYear = now.getFullYear();
     const thisMonth = now.getMonth();
 
-    for (const row of displayRows) {
-      const d = row.order.createdAt ? new Date(row.order.createdAt) : new Date();
+    for (const og of orderGroups) {
+      const d = og.order.createdAt ? new Date(og.order.createdAt) : new Date();
       const y = d.getFullYear();
       const m = d.getMonth();
       const key = `${y}-${String(m + 1).padStart(2, '0')}`;
       if (!map.has(key)) {
         const monthName = d.toLocaleString('en-US', { month: 'long' });
         const label = y === thisYear && m === thisMonth ? `This month (${monthName})` : `${monthName} ${y}`;
-        map.set(key, { label, rows: [] });
+        map.set(key, { label, orderGroups: [] });
       }
-      map.get(key)!.rows.push(row);
+      map.get(key)!.orderGroups.push(og);
     }
 
     return Array.from(map.entries())
       .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([key, { label, rows }]) => ({ key, label, rows }));
+      .map(([key, { label, orderGroups: ogs }]) => ({
+        key,
+        label,
+        orderGroups: ogs,
+        itemCount: ogs.reduce((sum, g) => sum + g.lines.length, 0),
+      }));
   })();
 
   if (loading) {
@@ -154,131 +172,251 @@ export default function OrdersPage() {
       <h1 className={styles.pageTitle}>My Orders</h1>
 
       <div className={styles.ordersList}>
-        {monthGroups.map(({ key, label, rows }) => (
+        {monthGroups.map(({ key, label, orderGroups: monthOrderGroups, itemCount }) => (
           <div key={key} className={styles.monthGroup}>
             <div className={styles.monthGroupHeader}>
               <span className={styles.monthGroupLabel}>{label}</span>
-              <span className={styles.monthGroupCount}>{rows.length} items ordered</span>
+              <span className={styles.monthGroupCount}>
+                {itemCount} item{itemCount !== 1 ? 's' : ''} ordered
+              </span>
             </div>
             <div className={styles.monthGroupRows}>
-            {rows.map(({ item, order, orderItemIndex }, idx) => {
-          const deliveryDisplay = getDeliveryDisplay(order);
-          const onTheWay = isOnTheWay(order);
-          const orderDate = fmtDdMmYy(order.createdAt);
-          const itemLabel = `Qty ${item.quantity}`;
-          const variation = item.variationSize ? item.variationSize : null;
-          return (
-            <div key={`${order.id}-${idx}`} className={styles.orderRow}>
-              <button
-                type="button"
-                className={styles.orderNumberBadge}
-                onClick={() => {
-                  navigator.clipboard.writeText(order.orderNumber).then(() => showToast('Copied!', 'success')).catch(() => {});
-                }}
-              >
-                #{order.orderNumber}
-              </button>
-              <div className={styles.orderRowTop}>
-                <div className={styles.orderRowImageWrap}>
-                  <div className={styles.orderRowImage}>
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt="" />
-                    ) : (
-                      <div className={styles.orderRowImagePlaceholder}>📦</div>
-                    )}
-                    {order.items.length > 1 && orderItemIndex === 0 && (
-                      <div className={styles.productCountBadge}>+{order.items.length - 1}</div>
-                    )}
-                  </div>
-                  <div className={styles.orderRowTotal}>₹{order.total.toFixed(2)}</div>
-                </div>
-                <div className={styles.orderRowDetails}>
-                  <h3 className={styles.orderRowName}>{item.productName}</h3>
-                  <p className={styles.orderRowMeta}>
-                    <span>{itemLabel}</span>
-                    {variation && <span>{variation}</span>}
-                    <span>Ordered {orderDate}</span>
-                  </p>
-                  <p
-                    className={`${styles.orderRowDelivery} ${
-                      onTheWay ? styles.orderRowDeliveryOnTheWay : ''
-                    }`}
-                  >
-                    {onTheWay && (
-                      <svg className={styles.orderRowDeliveryIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                      </svg>
-                    )}
-                    {onTheWay ? <span>On its way</span> : `Delivery: ${deliveryDisplay}`}
-                  </p>
-                </div>
-              </div>
-              {/* Delivered: Rate this product (or You rated X star) + View details + Buy again */}
-              {order.status === 'delivered' && (
-                <>
-                  {item.detailedFeedback != null && item.detailedFeedback.qualityStars >= 1 ? (
-                    <div className={styles.orderRowRated}>
-                      <span className={styles.orderRowRateIcon} aria-hidden>★</span>
-                      <span>You rated {item.detailedFeedback.qualityStars} star{item.detailedFeedback.qualityStars !== 1 ? 's' : ''}</span>
-                    </div>
-                  ) : item.productId != null ? (
-                    <div
-                      className={styles.orderRowRate}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setRatingModal({ order, productId: item.productId! })}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRatingModal({ order, productId: item.productId! }); } }}
-                    >
-                      <span className={styles.orderRowRateIcon} aria-hidden>★</span>
-                      <span>Rate this product</span>
-                      <svg className={styles.orderRowRateArrow} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                        <path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  ) : null}
-                  <div className={styles.orderRowActions}>
-                    <Link href={`/orders/${order.id}`} className={styles.orderRowBtn}>View details</Link>
+              {monthOrderGroups.map(({ order, lines }) => {
+                const preview = lines[0];
+                const item = preview.item;
+                const extraProductCount = lines.length - 1;
+                const deliveryDisplay = getDeliveryDisplay(order);
+                const onTheWay = isOnTheWay(order);
+                const orderDate = fmtDdMmYy(order.createdAt);
+                const itemLabel = `Qty ${item.quantity}`;
+                const variation = item.variationSize ? item.variationSize : null;
+                const ratableLineCount = countRatableOrderItems(order);
+                const ratableItems = order.items.filter(
+                  (i) => !isSubscriptionOrderItem(i) && i.productId != null,
+                );
+                const allRatableLinesRated =
+                  ratableLineCount > 1 &&
+                  ratableItems.every(
+                    (i) => i.detailedFeedback != null && i.detailedFeedback.qualityStars >= 1,
+                  );
+                const scrollToFirstUnratedItemIndex = (): number => {
+                  for (let i = 0; i < order.items.length; i++) {
+                    const it = order.items[i];
+                    if (isSubscriptionOrderItem(it) || it.productId == null) continue;
+                    if (it.detailedFeedback == null || it.detailedFeedback.qualityStars < 1) return i;
+                  }
+                  return preview.orderItemIndex;
+                };
+                const openRateOrDetails = () => {
+                  if (item.productId == null) return;
+                  if (ratableLineCount <= 1) {
+                    setRatingModal({ order, productId: item.productId });
+                  } else {
+                    router.push(
+                      `/orders/${order.id}#order-item-${scrollToFirstUnratedItemIndex()}`,
+                    );
+                  }
+                };
+                return (
+                  <div key={order.id} className={styles.orderRow}>
                     <button
                       type="button"
-                      className={styles.orderRowBtn}
+                      className={styles.orderNumberBadge}
                       onClick={() => {
-                        order.items.forEach((it) => {
-                          if (it.productId != null) {
-                            addItem({
-                              productId: String(it.productId),
-                              quantity: it.quantity,
-                              variationId: it.variationId != null ? String(it.variationId) : undefined,
-                            });
-                          }
-                        });
-                        router.push('/cart');
+                        navigator.clipboard
+                          .writeText(order.orderNumber)
+                          .then(() => showToast('Copied!', 'success'))
+                          .catch(() => {});
                       }}
                     >
-                      <svg className={styles.orderRowBtnIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                      </svg>
-                      Buy again
+                      #{order.orderNumber}
                     </button>
+                    <div className={styles.orderRowTop}>
+                      <div className={styles.orderRowImageWrap}>
+                        <div className={styles.orderRowImage}>
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt="" />
+                          ) : (
+                            <div className={styles.orderRowImagePlaceholder}>📦</div>
+                          )}
+                          {extraProductCount > 0 ? (
+                            <div className={styles.productCountBadge} aria-hidden>
+                              +{extraProductCount}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className={styles.orderRowTotal}>₹{order.total.toFixed(2)}</div>
+                      </div>
+                      <div className={styles.orderRowDetails}>
+                        <h3 className={styles.orderRowName}>{item.productName}</h3>
+                        <p className={styles.orderRowMeta}>
+                          <span>{itemLabel}</span>
+                          {variation ? <span>{variation}</span> : null}
+                          <span>Ordered {orderDate}</span>
+                        </p>
+                        <p
+                          className={`${styles.orderRowDelivery} ${
+                            onTheWay ? styles.orderRowDeliveryOnTheWay : ''
+                          }`}
+                        >
+                          {onTheWay && (
+                            <svg className={styles.orderRowDeliveryIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                            </svg>
+                          )}
+                          {onTheWay ? <span>On its way</span> : `Delivery: ${deliveryDisplay}`}
+                        </p>
+                      </div>
+                    </div>
+                    {order.status === 'delivered' && (
+                      <>
+                        {ratableLineCount <= 1 &&
+                        item.detailedFeedback != null &&
+                        item.detailedFeedback.qualityStars >= 1 ? (
+                          <div className={styles.orderRowRated}>
+                            <span className={styles.orderRowRateIcon} aria-hidden>
+                              ★
+                            </span>
+                            <span>
+                              You rated {item.detailedFeedback.qualityStars} star
+                              {item.detailedFeedback.qualityStars !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        ) : null}
+                        {ratableLineCount <= 1 &&
+                        (item.detailedFeedback == null || item.detailedFeedback.qualityStars < 1) &&
+                        item.productId != null ? (
+                          <div
+                            className={styles.orderRowRate}
+                            role="button"
+                            tabIndex={0}
+                            onClick={openRateOrDetails}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                openRateOrDetails();
+                              }
+                            }}
+                          >
+                            <span className={styles.orderRowRateIcon} aria-hidden>
+                              ★
+                            </span>
+                            <span>Rate this product</span>
+                            <svg
+                              className={styles.orderRowRateArrow}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden
+                            >
+                              <path
+                                d="M14 5l7 7m0 0l-7 7m7-7H3"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
+                        ) : null}
+                        {ratableLineCount > 1 && allRatableLinesRated ? (
+                          <div className={styles.orderRowRated}>
+                            <span className={styles.orderRowRateIcon} aria-hidden>
+                              ★
+                            </span>
+                            <span>You rated all products in this order</span>
+                          </div>
+                        ) : null}
+                        {ratableLineCount > 1 && !allRatableLinesRated ? (
+                          <div
+                            className={styles.orderRowRate}
+                            role="button"
+                            tabIndex={0}
+                            onClick={openRateOrDetails}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                openRateOrDetails();
+                              }
+                            }}
+                          >
+                            <span className={styles.orderRowRateIcon} aria-hidden>
+                              ★
+                            </span>
+                            <span>Rate products</span>
+                            <svg
+                              className={styles.orderRowRateArrow}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden
+                            >
+                              <path
+                                d="M14 5l7 7m0 0l-7 7m7-7H3"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
+                        ) : null}
+                        <div className={styles.orderRowActions}>
+                          <Link href={`/orders/${order.id}`} className={styles.orderRowBtn}>
+                            View details
+                          </Link>
+                          <button
+                            type="button"
+                            className={styles.orderRowBtn}
+                            onClick={() => {
+                              order.items.forEach((it) => {
+                                if (it.productId != null && !isSubscriptionOrderItem(it)) {
+                                  addItem({
+                                    productId: String(it.productId),
+                                    quantity: it.quantity,
+                                    variationId: it.variationId != null ? String(it.variationId) : undefined,
+                                  });
+                                }
+                              });
+                              router.push('/cart');
+                            }}
+                          >
+                            <svg
+                              className={styles.orderRowBtnIcon}
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden
+                            >
+                              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                            </svg>
+                            Buy again
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {order.status !== 'delivered' && (
+                      <div className={styles.orderRowActions}>
+                        <Link href={`/orders/${order.id}`} className={styles.orderRowBtn}>
+                          View details
+                        </Link>
+                      </div>
+                    )}
                   </div>
-                </>
-              )}
-              {/* On its way (or cancelled/refunded): only View details */}
-              {order.status !== 'delivered' && (
-                <div className={styles.orderRowActions}>
-                  <Link href={`/orders/${order.id}`} className={styles.orderRowBtn}>View details</Link>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                );
+              })}
             </div>
           </div>
         ))}
       </div>
 
-      {orders.length === 0 && (
+      {!loading && monthGroups.length === 0 && (
         <div className={styles.emptyWrap}>
-          <p className={styles.emptyText}>You don&apos;t have any orders yet.</p>
+          <p className={styles.emptyText}>
+            {orders.length === 0
+              ? 'You don&apos;t have any orders yet.'
+              : 'No product orders to show here yet.'}
+          </p>
           <Link href="/products" className={styles.browseLink}>
             Browse Products
           </Link>

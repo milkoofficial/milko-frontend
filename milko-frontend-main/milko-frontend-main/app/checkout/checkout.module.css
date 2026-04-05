@@ -669,6 +669,24 @@
   color: #000;
 }
 
+.subscriptionTransferNote {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.subscriptionTransferLink {
+  color: #0070f3;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.subscriptionTransferLink:hover {
+  text-decoration: underline;
+}
+
 /* Delivery Address */
 .deliveryAddress {
   margin-bottom: 0rem;
@@ -1069,11 +1087,28 @@
   height: 26px;
   border-radius: 8px;
   color: #0f766e;
-  background: white;
+  background: none;
  
 }
 
 .paymentChoiceCashBadge svg {
+  width: 25px;
+  height: 25px;
+}
+
+.paymentChoiceWalletBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: #00835d;
+  background: none;
+  flex-shrink: 0;
+}
+
+.paymentChoiceWalletBadge svg {
   width: 25px;
   height: 25px;
 }

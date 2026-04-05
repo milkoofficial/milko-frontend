@@ -175,6 +175,41 @@
   color: #111;
 }
 
+.imagesHint {
+  margin: -0.5rem 0 1.25rem;
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.45;
+  max-width: 52rem;
+}
+
+.imageCardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.reorderButton {
+  padding: 0.4rem 0.65rem;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reorderButton:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.reorderButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .addSection {
   padding-top: 2rem;
   border-top: 1px solid #e0e0e0;

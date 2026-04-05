@@ -402,9 +402,21 @@ export default function SubscriptionDetailsPage() {
   const expiryTextForDisplay = expiryDateForDisplay ? fmtFullDate(expiryDateForDisplay) : 'N/A';
   const endLabel = subscription.status === 'cancelled' ? 'Ended' : 'Ends';
 
+  const showCodPendingNotice =
+    subscription.status === 'pending' && Boolean(subscription.checkoutOrderId);
+  /** Checkout COD (or any pending): no AutoPay until subscription is Active */
+  const autopayActionsDisabled = !canManage;
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
+        {showCodPendingNotice ? (
+          <p className={styles.codPendingNotice} role="status">
+            Subscription will be marked as <strong>Active</strong> when the COD amount is received from you at delivery.
+            Until then it stays <strong>Pending</strong> and becomes <strong>Active</strong> when an admin marks your
+            order as <strong>delivered</strong>.
+          </p>
+        ) : null}
         <div className={styles.header}>
           <h1 className={styles.pageTitle}>{subscription.product?.name || 'Subscription'}</h1>
           <div className={`${styles.statusBadge} ${badgeClass}`}>
@@ -707,7 +719,7 @@ export default function SubscriptionDetailsPage() {
                     <button
                       type="button"
                       className={styles.deleteAutopayButton}
-                      disabled={deleteAutopayBusy}
+                      disabled={deleteAutopayBusy || autopayActionsDisabled}
                       onClick={async () => {
                         try {
                           setDeleteAutopayBusy(true);
@@ -730,11 +742,18 @@ export default function SubscriptionDetailsPage() {
                   <p className={styles.autoPayText}>
                     AutoPay is not linked yet. Without it, your subscription ends when the current period ends. When linked, renewal is charged at the end of the period—not before.
                   </p>
+                  {autopayActionsDisabled ? (
+                    <p className={styles.autopayPendingHint}>
+                      {showCodPendingNotice
+                        ? 'AutoPay can be set after your COD order is delivered and this subscription becomes Active.'
+                        : 'AutoPay can be set once this subscription is Active.'}
+                    </p>
+                  ) : null}
                   <div className={styles.autoPayActions}>
                     <button
                       type="button"
                       className={styles.autoPayButton}
-                      disabled={autopayBusy}
+                      disabled={autopayBusy || autopayActionsDisabled}
                       onClick={async () => {
                         try {
                           setAutopayBusy(true);

@@ -531,11 +531,12 @@
   margin: 0 0 1.5rem 0;
 }
 
-.subscriptionTransferNote {
-  margin: -1.25rem 0 1.5rem 0;
+.subscriptionTransferNotePerItem {
+  margin: 0.35rem 0 0.25rem 0;
   font-size: 0.85rem;
   color: #666;
   font-weight: 500;
+  line-height: 1.4;
 }
 
 .subscriptionTransferLink {
@@ -652,6 +653,7 @@
   background: #fff;
   border-radius: 8px;
   overflow: hidden;
+  scroll-margin-top: 96px;
 }
 
 .productCardTop {
