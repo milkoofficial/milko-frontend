@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { adminSubscriptionsApi, adminProductsApi } from '@/lib/api';
 import { apiClient } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/utils/constants';
@@ -44,6 +45,20 @@ interface SalesData {
   sales: number;
 }
 
+function formatDashboardInr(amount: number) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function productForSubscription(products: Product[], productId: string | number | undefined) {
+  if (productId == null) return undefined;
+  const id = String(productId);
+  return products.find((p) => String(p.id) === id);
+}
+
 function removeRedundantPendingSubscriptions(subscriptions: Subscription[]): Subscription[] {
   const activeKeys = new Set(
     subscriptions
@@ -74,18 +89,86 @@ export default function AdminDashboard() {
   const [productsData, setProductsData] = useState<Product[]>([]);
   const [activeMemberships, setActiveMemberships] = useState(0);
   const [expiredMemberships, setExpiredMemberships] = useState(0);
+  const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null);
+  const [hoverBarIndex, setHoverBarIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
   useEffect(() => {
-    // Recalculate sales data when period changes
-    if (subscriptionsData.length > 0 && productsData.length > 0) {
-      const newSalesData = generateSalesData(subscriptionsData, productsData, chartPeriod);
-      setSalesData(newSalesData);
-    }
+    const newSalesData = generateSalesData(subscriptionsData, productsData, chartPeriod);
+    setSalesData(newSalesData);
+    setSelectedBarIndex(null);
+    setHoverBarIndex(null);
   }, [chartPeriod, subscriptionsData, productsData]);
+  const [floatTip, setFloatTip] = useState<{
+    left: number;
+    top: number;
+    transform: string;
+    label: string;
+  } | null>(null);
+  const [tooltipPortalReady, setTooltipPortalReady] = useState(false);
+  const chartBarsRef = useRef<HTMLDivElement | null>(null);
+  const barRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
+
+  useEffect(() => setTooltipPortalReady(true), []);
+
+  const activeBarIndex = hoverBarIndex !== null ? hoverBarIndex : selectedBarIndex;
+
+  const updateFloatTipPosition = useCallback(() => {
+    if (activeBarIndex === null) {
+      setFloatTip(null);
+      return;
+    }
+    const barEl = barRefs.current.get(activeBarIndex);
+    const row = salesData[activeBarIndex];
+    if (!barEl || !row) {
+      setFloatTip(null);
+      return;
+    }
+    const rect = barEl.getBoundingClientRect();
+    const label = formatDashboardInr(row.sales);
+    const gutter = 8;
+    const minTop = 6;
+    const estHeight = 40;
+    const spaceAbove = rect.top - minTop;
+    const placeAbove = spaceAbove >= estHeight + gutter;
+    const left = rect.left + rect.width / 2;
+    if (placeAbove) {
+      setFloatTip({
+        left,
+        top: rect.top - gutter,
+        transform: 'translate(-50%, -100%)',
+        label,
+      });
+    } else {
+      setFloatTip({
+        left,
+        top: rect.bottom + gutter,
+        transform: 'translate(-50%, 0)',
+        label,
+      });
+    }
+  }, [activeBarIndex, salesData]);
+
+  useLayoutEffect(() => {
+    updateFloatTipPosition();
+  }, [updateFloatTipPosition]);
+
+  useEffect(() => {
+    if (activeBarIndex === null) return;
+    const run = () => updateFloatTipPosition();
+    window.addEventListener('scroll', run, true);
+    window.addEventListener('resize', run);
+    const el = chartBarsRef.current;
+    el?.addEventListener('scroll', run, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', run, true);
+      window.removeEventListener('resize', run);
+      el?.removeEventListener('scroll', run);
+    };
+  }, [activeBarIndex, updateFloatTipPosition]);
 
   const fetchDashboardData = async () => {
     try {
@@ -113,9 +196,9 @@ export default function AdminDashboard() {
       // Calculate metrics
       const activeSubscriptions = subscriptions.filter(s => s.status === 'active');
       const totalSales = activeSubscriptions.reduce((sum, sub) => {
-        const product = products.find(p => p.id === sub.productId);
+        const product = productForSubscription(products, sub.productId);
         if (product) {
-          const dailyCost = product.pricePerLitre * sub.litresPerDay;
+          const dailyCost = (Number(product.pricePerLitre) || 0) * sub.litresPerDay;
           const monthlyCost = dailyCost * 30;
           return sum + (monthlyCost * sub.durationMonths);
         }
@@ -150,9 +233,9 @@ export default function AdminDashboard() {
           if (!user) return null;
           const userSubs = subscriptions.filter(s => s.userId === userId);
           const userTotal = userSubs.reduce((sum, sub) => {
-            const product = products.find(p => p.id === sub.productId);
+            const product = productForSubscription(products, sub.productId);
             if (product) {
-              const dailyCost = product.pricePerLitre * sub.litresPerDay;
+              const dailyCost = (Number(product.pricePerLitre) || 0) * sub.litresPerDay;
               const monthlyCost = dailyCost * 30;
               return sum + (monthlyCost * sub.durationMonths);
             }
@@ -226,11 +309,12 @@ export default function AdminDashboard() {
 
     const calcSubscriptionSales = (subs: Subscription[]) => {
       return subs.reduce((sum, sub) => {
-        const product = products.find((p) => p.id === sub.productId);
+        const product = productForSubscription(products, sub.productId);
         if (product) {
-          const dailyCost = product.pricePerLitre * sub.litresPerDay;
+          const dailyCost = (Number(product.pricePerLitre) || 0) * sub.litresPerDay;
           const monthlyCost = dailyCost * 30;
-          return sum + monthlyCost * sub.durationMonths;
+          const months = Number(sub.durationMonths) || 0;
+          return sum + monthlyCost * months;
         }
         return sum;
       }, 0);
@@ -360,13 +444,7 @@ export default function AdminDashboard() {
     return data;
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) => formatDashboardInr(amount);
 
   const getMaxSales = () => {
     if (salesData.length === 0) return 10000;
@@ -380,12 +458,12 @@ export default function AdminDashboard() {
     return niceScaled * magnitude;
   };
 
-  const getYAxisTicks = () => {
+  const getYAxisTicks = (): number[] => {
     const max = getMaxSales();
-    const ticks = 5;
-    const step = Math.max(1, Math.round(max / (ticks - 1)));
-    const values = Array.from({ length: ticks }, (_, i) => i * step);
-    return values.reverse(); // high at top, 0 at bottom
+    const divisions = 4;
+    return Array.from({ length: divisions + 1 }, (_, i) =>
+      Math.round((max * (divisions - i)) / divisions),
+    );
   };
 
   if (loading) {
@@ -615,28 +693,71 @@ export default function AdminDashboard() {
           </div>
           <div className={styles.chartContainer}>
             <div className={styles.chartYAxis}>
-              {getYAxisTicks().map((val) => (
-                <div key={val} className={styles.yAxisLabel}>
+              {getYAxisTicks().map((val, i) => (
+                <div key={`${i}-${val}`} className={styles.yAxisLabel}>
                   {val.toLocaleString()}
                 </div>
               ))}
             </div>
-            <div className={styles.chartBars}>
+            <div ref={chartBarsRef} className={styles.chartBars}>
               {salesData.map((data, index) => {
                 const maxSales = getMaxSales();
                 const height = maxSales > 0 ? (data.sales / maxSales) * 100 : 0;
+                const isSelected = selectedBarIndex === index;
+                const valueLabel = formatCurrency(data.sales);
                 return (
-                  <div key={index} className={styles.barWrapper}>
-                    <div
-                      className={styles.bar}
-                      style={{ height: `${height}%` }}
-                      title={`${data.date}: ${formatCurrency(data.sales)}`}
-                    />
+                  <div
+                    key={index}
+                    className={`${styles.barWrapper} ${isSelected ? styles.barWrapperSelected : ''}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${data.date}, sales ${valueLabel}`}
+                    aria-pressed={isSelected}
+                    onMouseEnter={() => setHoverBarIndex(index)}
+                    onMouseLeave={() => setHoverBarIndex(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedBarIndex((i) => (i === index ? null : index));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedBarIndex((i) => (i === index ? null : index));
+                      }
+                    }}
+                  >
+                    <div className={styles.barStack}>
+                      <div
+                        ref={(el) => {
+                          if (el) barRefs.current.set(index, el);
+                          else barRefs.current.delete(index);
+                        }}
+                        className={styles.bar}
+                        style={{ height: `${height}%` }}
+                        title={`${data.date}: ${valueLabel}`}
+                      />
+                    </div>
                     <div className={styles.barLabel}>{data.date}</div>
                   </div>
                 );
               })}
             </div>
+            {tooltipPortalReady && floatTip
+              ? createPortal(
+                  <div
+                    className={styles.barTooltipFloating}
+                    style={{
+                      left: floatTip.left,
+                      top: floatTip.top,
+                      transform: floatTip.transform,
+                    }}
+                    role="tooltip"
+                  >
+                    {floatTip.label}
+                  </div>,
+                  document.body,
+                )
+              : null}
           </div>
         </div>
 

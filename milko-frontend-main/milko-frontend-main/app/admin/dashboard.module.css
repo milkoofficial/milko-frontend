@@ -222,7 +222,7 @@
 /* Chart Card */
 .chartCard {
   background: white;
-  border-radius: 6px;
+  border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
@@ -274,8 +274,10 @@
 
 .chartContainer {
   display: flex;
+  align-items: stretch;
   gap: 1rem;
   height: 300px;
+  min-height: 240px;
 }
 
 .chartYAxis {
@@ -284,6 +286,9 @@
   justify-content: space-between;
   padding-right: 1rem;
   min-width: 60px;
+  flex-shrink: 0;
+  height: 100%;
+  min-height: 0;
 }
 
 .yAxisLabel {
@@ -300,6 +305,8 @@
   gap: 0.5rem;
   padding-bottom: 2rem;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 @media (max-width: 900px) {
@@ -367,13 +374,15 @@
   }
 
   .chartContainer {
-    height: auto;
+    /* Fixed height so bar % heights resolve; stretch so Y-axis spans full plot area */
+    height: 220px;
+    min-height: 220px;
     width: 100%;
     max-width: 100%;
     overflow: hidden; /* prevent any child from forcing page width */
     display: grid;
     grid-template-columns: 44px minmax(0, 1fr);
-    align-items: end;
+    align-items: stretch;
     gap: 0.6rem;
   }
 
@@ -381,10 +390,14 @@
     min-width: 44px;
     flex: 0 0 44px;
     padding-right: 0.5rem;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
   }
 
   .barLabel {
     max-width: 44px;
+    font-size: 0.625rem;
   }
 
   /* Make chart usable under 500px (many bars like 12 months) */
@@ -408,11 +421,14 @@
   }
 
   .chartBars {
+    height: 100%;
+    min-height: 0;
+    align-self: stretch;
     justify-content: flex-start;
     overflow-x: auto;
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
-    padding-bottom: 1.5rem;
+    padding-bottom: 0rem;
     -webkit-overflow-scrolling: touch;
     min-width: 0; /* allow flex child to shrink */
     max-width: 100%;
@@ -429,6 +445,10 @@
     max-width: 44px;
   }
 
+  .barStack {
+    max-width: 44px;
+  }
+
   .chartCard {
     max-width: 100%;
     overflow: hidden;
@@ -441,23 +461,64 @@
   flex-direction: column;
   align-items: center;
   height: 100%;
+  min-height: 0;
   justify-content: flex-end;
+  cursor: pointer;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.barWrapper:focus-visible {
+  outline: 2px solid #0070f3;
+  outline-offset: 2px;
+}
+
+.barWrapperSelected {
+  background: linear-gradient(0deg, #ffffff, #e0f5ff);
+}
+
+.barStack {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Portaled to document.body — not clipped by chart overflow */
+.barTooltipFloating {
+  position: fixed;
+  z-index: 10060;
+  box-sizing: border-box;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+  padding: 0.4rem 0.7rem;
+  background: #fff;
+  border: 1px solid #d3d3d3;
+  border-radius: 8px;
+  box-shadow: none;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .bar {
   width: 100%;
   max-width: 60px;
-  background: linear-gradient(180deg, #fbbf24 0%, #c37b00 100%);
+  margin-top: auto;
+  background: linear-gradient(180deg, #91d6ff 0%, #ffffff 100%);
   border-radius: 4px 4px 0 0;
-  transition: all 0.1s;
+  transition: opacity 0.1s ease;
   cursor: pointer;
   min-height: 4px;
-  box-shadow: 0 0 0px 1px #c37b00;
+  box-shadow: none;
 }
 
-.bar:hover {
-  opacity: 0.8;
-  transform: scaleY(1);
+.barWrapper:hover .bar {
+  opacity: 0.92;
 }
 
 .barLabel {
@@ -689,9 +750,11 @@
   }
 }
 
-@media (max-width: 768px) {
+/* Tablet-only chart height (avoid overriding narrow-phone grid rules in max-width:520px) */
+@media (max-width: 768px) and (min-width: 521px) {
   .chartContainer {
-    height: 200px;
+    height: 220px;
+    min-height: 220px;
   }
 
   .barLabel {
