@@ -477,9 +477,6 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  overflow: hidden;
-  overscroll-behavior: none;
-  touch-action: none;
 }
 
 .modalPanel {
@@ -668,9 +665,6 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  overflow: hidden;
-  overscroll-behavior: none;
-  touch-action: none;
 }
 
 .confirmPanel {
@@ -902,18 +896,6 @@
     display: grid;
   }
 
-  .modalBackdrop {
-    align-items: flex-end;
-    padding: 0;
-    padding-bottom: env(safe-area-inset-bottom, 0);
-  }
-
-  .modalPanel {
-    max-height: min(92vh, 900px);
-    border-radius: 16px 16px 0 0;
-    width: 100%;
-  }
-
   .modalBody {
     padding: 1.25rem;
     padding-top: 1.5rem;
@@ -937,15 +919,8 @@
     flex-direction: column;
   }
 
-  .confirmBackdrop {
-    align-items: flex-end;
-    padding: 0;
-    padding-bottom: env(safe-area-inset-bottom, 0);
-  }
-
   .confirmPanel {
-    border-radius: 16px 16px 0 0;
-    max-width: none;
+    max-width: 400px;
     padding: 1.5rem;
   }
 
