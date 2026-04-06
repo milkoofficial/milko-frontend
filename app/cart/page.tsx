@@ -9,6 +9,7 @@ import { productsApi, couponsApi } from '@/lib/api';
 import type { Coupon } from '@/lib/api';
 import { Product } from '@/types';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
+import { saveCheckoutCouponCode } from '@/lib/utils/checkoutCoupon';
 import styles from './cart.module.css';
 
 type SubscriptionCartItem = {
@@ -119,16 +120,20 @@ export default function CartPage() {
   };
 
 
-  // Calculate subtotal based on ALL items in cart (not filtered by selection)
-  const subtotal = useMemo(() => {
-    return items.reduce((sum, it) => {
+  /** Same basis as checkout `itemsSubtotal` + subscription — coupons and totals match checkout. */
+  const subtotalAlignedWithCheckout = useMemo(() => {
+    const itemsPart = items.reduce((sum, it) => {
       const p = products[it.productId];
       if (!p) return sum;
       const v = it.variationId ? (p.variations || []).find((x) => x.id === it.variationId) : null;
+      const basePrice =
+        p.sellingPrice !== null && p.sellingPrice !== undefined ? p.sellingPrice : p.pricePerLitre;
       const mult = v?.priceMultiplier ?? 1;
-      return sum + p.pricePerLitre * mult * it.quantity;
+      const unitPrice = v?.price ?? basePrice * mult;
+      return sum + unitPrice * it.quantity;
     }, 0);
-  }, [items, products]);
+    return itemsPart + (subscriptionCartItem?.totalAmount ?? 0);
+  }, [items, products, subscriptionCartItem]);
 
   // Your total savings = sum of (compareAtPrice - sellingPrice) * mult * qty per item
   const savings = useMemo(() => {
@@ -150,17 +155,16 @@ export default function CartPage() {
     const c = appliedCouponData;
     let d = 0;
     if (c.discountType === 'percentage') {
-      d = (subtotal * c.discountValue) / 100;
+      d = (subtotalAlignedWithCheckout * c.discountValue) / 100;
       if (c.maxDiscountAmount != null && d > c.maxDiscountAmount) d = c.maxDiscountAmount;
     } else {
       d = c.discountValue;
     }
-    return Math.min(d, subtotal);
-  }, [appliedCouponData, subtotal]);
+    return Math.min(d, subtotalAlignedWithCheckout);
+  }, [appliedCouponData, subtotalAlignedWithCheckout]);
 
   const deliveryCharges = items.length > 0 ? 0 : 0; // Free delivery
-  const subscriptionCharge = subscriptionCartItem ? subscriptionCartItem.totalAmount : 0;
-  const total = subtotal - couponDiscount + deliveryCharges + subscriptionCharge;
+  const total = subtotalAlignedWithCheckout - couponDiscount + deliveryCharges;
   const totalItemCount = items.length + (subscriptionCartItem ? 1 : 0);
 
   const handleSelectMembership = () => {
@@ -190,14 +194,16 @@ export default function CartPage() {
     setValidatingCoupon(true);
     setCouponValidationStatus('idle');
     try {
-      const coupon = await couponsApi.validate(code, subtotal);
+      const coupon = await couponsApi.validate(code, subtotalAlignedWithCheckout);
       setAppliedCoupon(code);
       setAppliedCouponData(coupon);
       setCouponValidationStatus('valid');
+      saveCheckoutCouponCode(code);
     } catch {
       setCouponValidationStatus('invalid');
       setAppliedCoupon(null);
       setAppliedCouponData(null);
+      saveCheckoutCouponCode(null);
     } finally {
       setValidatingCoupon(false);
     }
@@ -208,6 +214,7 @@ export default function CartPage() {
     setAppliedCouponData(null);
     setCouponCode('');
     setCouponValidationStatus('idle');
+    saveCheckoutCouponCode(null);
   };
 
   useEffect(() => {
@@ -286,7 +293,11 @@ export default function CartPage() {
               const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
               const itemKey = getItemKey(it.productId, it.variationId);
               const mult = v?.priceMultiplier ?? 1;
-              const price = p ? p.pricePerLitre * mult : 0;
+              const basePrice =
+                p && (p.sellingPrice !== null && p.sellingPrice !== undefined)
+                  ? p.sellingPrice
+                  : p?.pricePerLitre ?? 0;
+              const price = p ? (v?.price ?? basePrice * mult) : 0;
               const itemTotal = price * it.quantity;
               const productImage = p?.images?.[0]?.imageUrl || p?.imageUrl || '/placeholder-product.png';
 
@@ -487,7 +498,11 @@ export default function CartPage() {
                 const p = products[it.productId];
                 const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
                 const mult = v?.priceMultiplier ?? 1;
-                const price = p ? p.pricePerLitre * mult : 0;
+                const basePrice =
+                  p && (p.sellingPrice !== null && p.sellingPrice !== undefined)
+                    ? p.sellingPrice
+                    : p?.pricePerLitre ?? 0;
+                const price = p ? (v?.price ?? basePrice * mult) : 0;
                 const itemTotal = price * it.quantity;
                 return (
                   <div key={getItemKey(it.productId, it.variationId)} className={styles.priceRow}>

@@ -838,6 +838,7 @@ const resumeSubscription = async (req, res, next) => {
  */
 const getDeliveries = async (req, res, next) => {
   try {
+    await subscriptionModel.ensureSubscriptionSchema();
     const { date } = req.query;
     const deliveryDate = date
       || (
@@ -845,12 +846,14 @@ const getDeliveries = async (req, res, next) => {
       ).rows[0]?.ymd;
 
     const result = await query(
-      `SELECT ds.*, s.user_id, s.litres_per_day, s.delivery_time,
-              p.name as product_name, u.name as user_name, u.email as user_email
+      `SELECT ds.*, s.user_id, s.litres_per_day, s.delivery_time, s.product_id,
+              p.name as product_name, u.name as user_name, u.email as user_email,
+              pv.size as product_variation_size
        FROM delivery_schedules ds
        LEFT JOIN subscriptions s ON ds.subscription_id = s.id
        LEFT JOIN products p ON s.product_id = p.id
        LEFT JOIN users u ON s.user_id = u.id
+       LEFT JOIN product_variations pv ON s.product_variation_id = pv.id
        WHERE ds.delivery_date = $1
          AND (s.id IS NULL OR s.status = 'active')
        ORDER BY COALESCE(s.delivery_time, '23:59'), ds.id`,

@@ -338,10 +338,20 @@
   align-items: flex-start;
   gap: 0.5rem;
   margin: 0.75rem 0 0;
+
   
-    border-radius: 8px;
+  border-radius: 8px;
   font-size: 0.8rem;
   color: #713f12;
+  line-height: 1.45;
+}
+
+.calendarShiftNoteMeta {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #854d0e;
   line-height: 1.45;
 }
 

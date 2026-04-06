@@ -61,6 +61,7 @@ async function ensureSubscriptionSchema() {
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS duration_days INTEGER;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS first_day_shift_applied BOOLEAN NOT NULL DEFAULT FALSE;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS first_day_shift_reason VARCHAR(64);`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS product_variation_id INTEGER;`);
 
   // Ensure delivery schedule + paused dates tables exist.
   // Live deployments may run partially without executing schema.sql migrations.
@@ -262,6 +263,58 @@ const getSubscriptionById = async (subscriptionId) => {
 };
 
 /**
+ * Get subscription by ID only if it belongs to the given user (customer API).
+ * Prevents IDOR: wrong user_id never receives another user's row.
+ */
+const getSubscriptionByIdForUser = async (subscriptionId, userId) => {
+  await ensureSubscriptionSchema();
+  const result = await query(
+    `SELECT s.*, p.name as product_name, p.description as product_description, 
+            p.price_per_litre, p.image_url as product_image_url,
+            a.id as address_id,
+            a.name as address_name,
+            a.street as address_street,
+            a.city as address_city,
+            a.state as address_state,
+            a.postal_code as address_postal_code,
+            a.country as address_country,
+            a.phone as address_phone,
+            a.latitude as address_latitude,
+            a.longitude as address_longitude
+     FROM subscriptions s
+     LEFT JOIN products p ON s.product_id = p.id
+     LEFT JOIN addresses a ON s.address_id = a.id
+     WHERE s.id = $1 AND s.user_id::text = $2::text`,
+    [subscriptionId, String(userId)]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  const sub = transformSubscription(row);
+
+  const schedulesRes = await query(
+    `SELECT delivery_date::text AS delivery_date, status
+     FROM delivery_schedules
+     WHERE subscription_id = $1
+     ORDER BY delivery_date`,
+    [subscriptionId]
+  );
+  const deliverySchedules = schedulesRes.rows.map((r) => ({
+    deliveryDate: r.delivery_date,
+    status: r.status,
+  }));
+
+  const pausedRes = await query(
+    `SELECT date::text AS d FROM paused_dates WHERE subscription_id = $1`,
+    [subscriptionId]
+  );
+  const pausedDates = pausedRes.rows.map((r) => r.d);
+
+  return { ...sub, deliverySchedules, pausedDates };
+};
+
+/**
  * Update subscription status
  * @param {string} subscriptionId - Subscription ID
  * @param {string} status - New status
@@ -358,6 +411,7 @@ module.exports = {
   getSubscriptionsByUserId,
   getAllSubscriptions,
   getSubscriptionById,
+  getSubscriptionByIdForUser,
   updateSubscriptionStatus,
   generateDeliverySchedules,
 };

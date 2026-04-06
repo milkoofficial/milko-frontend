@@ -162,6 +162,9 @@ export interface DeliverySchedule {
   userId?: string;
   litresPerDay?: number;
   deliveryTime?: string;
+  productId?: string;
+  /** From `product_variations.size` when subscription stores `product_variation_id`. */
+  variationSize?: string;
   productName?: string;
   userName?: string;
   userEmail?: string;

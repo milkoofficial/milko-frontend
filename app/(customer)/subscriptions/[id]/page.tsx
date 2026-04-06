@@ -274,6 +274,7 @@ export default function SubscriptionDetailsPage() {
       const data = await subscriptionsApi.getById(subscriptionId);
       setSubscription(data);
     } catch (e) {
+      setSubscription(null);
       const message = (e as { message?: string })?.message || 'Failed to load subscription details';
       setError(message);
     } finally {
@@ -321,8 +322,11 @@ export default function SubscriptionDetailsPage() {
     return months;
   }, [dateRange]);
 
-  // `firstDayShiftApplied` is set only when activation/manual renew happens after the chosen slot’s end (IST).
-  // AutoPay renew clears it in the backend, so this UI hides for autopay-extended terms. Manual renew re-evaluates at payment time.
+  // Shift UI follows API `firstDayShiftApplied` / `firstDayShiftReason`.
+  // - Set on activate or manual renew when payment is after the slot end (IST).
+  // - Stays visible for the full current period even if AutoPay is linked mid-period; cleared when a new period
+  //   starts from successful AutoPay renewal (`applyAutopaySubscriptionRenewalFromPayment`).
+  // - After expiry, manual renew evaluates slot-shift again at payment time.
   const shiftCalendarHighlight = useMemo(
     () => ({
       applied: !!subscription?.firstDayShiftApplied,
@@ -616,6 +620,9 @@ export default function SubscriptionDetailsPage() {
                 <strong>{shiftedToText}</strong>. The system automatically added an extra delivery day at the end of your
                 subscription because this subscription was bought or renewed after your selected {firstDayShiftSlotLabel}{' '}
                 delivery window had already ended.
+                <span className={styles.calendarShiftNoteMeta}>
+                  
+                </span>
               </span>
             </p>
           ) : null}
@@ -845,7 +852,7 @@ export default function SubscriptionDetailsPage() {
         {(subscription.status !== 'cancelled' && subscription.status !== 'expired') && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Help</h2>
-            <p className={styles.autoPayText}>Need Help with Subscription? Contact us regarding your doubt.</p>
+            <p className={styles.autoPayText}>Need Help with this subscription? Contact us regarding your doubt.</p>
             <div className={styles.autoPayActions}>
               <button
                 type="button"

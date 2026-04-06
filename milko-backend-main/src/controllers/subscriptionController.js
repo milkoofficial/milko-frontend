@@ -1,6 +1,6 @@
 const subscriptionService = require('../services/subscriptionService');
 const subscriptionModel = require('../models/subscription');
-const { ValidationError } = require('../utils/errors');
+const { ValidationError, NotFoundError } = require('../utils/errors');
 const { getPayment: getRazorpayPayment } = require('../config/razorpay');
 
 /**
@@ -32,11 +32,9 @@ const getMySubscriptions = async (req, res, next) => {
 const getSubscriptionById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const subscription = await subscriptionModel.getSubscriptionById(id);
-
-    // Check authorization
-    if (subscription.userId !== req.user.id && req.user.role !== 'admin') {
-      throw new ValidationError('Unauthorized');
+    const subscription = await subscriptionModel.getSubscriptionByIdForUser(id, req.user.id);
+    if (!subscription) {
+      throw new NotFoundError('Subscription');
     }
 
     res.json({

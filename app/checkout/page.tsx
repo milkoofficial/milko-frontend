@@ -9,6 +9,7 @@ import { apiClient, productsApi, couponsApi, Coupon, addressesApi, walletApi } f
 import { Product, Address } from '@/types';
 import Link from 'next/link';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
+import { readCheckoutCouponCode, saveCheckoutCouponCode } from '@/lib/utils/checkoutCoupon';
 import styles from './checkout.module.css';
 
 const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
@@ -488,6 +489,7 @@ export default function CheckoutPage() {
   const handleValidateCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponValidation({ status: 'idle', message: '', coupon: null });
+      saveCheckoutCouponCode(null);
       return;
     }
 
@@ -501,23 +503,57 @@ export default function CheckoutPage() {
         message: `${couponCode.trim().toUpperCase()} code is valid`,
         coupon,
       });
+      saveCheckoutCouponCode(couponCode.trim().toUpperCase());
     } catch (error: any) {
       setCouponValidation({
         status: 'invalid',
         message: `${couponCode.trim().toUpperCase()} code is invalid`,
         coupon: null,
       });
+      saveCheckoutCouponCode(null);
     } finally {
       setValidatingCoupon(false);
     }
   };
 
-  // Clear coupon when code changes
+  // Cart applies coupon to sessionStorage; re-validate here so address + payment steps use the same discount
   useEffect(() => {
-    if (!couponCode.trim()) {
+    if (loading) return;
+    if (items.length === 0 && !subscriptionCartItem) return;
+    const stored = readCheckoutCouponCode();
+    if (!stored) {
       setCouponValidation({ status: 'idle', message: '', coupon: null });
+      setCouponCode('');
+      return;
     }
-  }, [couponCode]);
+    setCouponCode(stored);
+    let cancelled = false;
+    setValidatingCoupon(true);
+    couponsApi
+      .validate(stored, subtotal)
+      .then((coupon) => {
+        if (cancelled) return;
+        setCouponValidation({
+          status: 'valid',
+          message: `${stored} applied`,
+          coupon,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCouponValidation({
+          status: 'invalid',
+          message: 'Coupon could not be applied',
+          coupon: null,
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setValidatingCoupon(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, subtotal, items.length, subscriptionSubtotal, subscriptionCartItem]);
 
   // Build order items for localStorage (with productName, imageUrl, unitPrice) so order-success can show them even if fetch fails
   const buildStoredOrderItems = () =>
@@ -633,6 +669,7 @@ export default function CheckoutPage() {
               }
               clearCart();
               localStorage.removeItem(SUBSCRIPTION_CART_KEY);
+              saveCheckoutCouponCode(null);
               router.push('/order-success');
             } catch (e) {
               console.error(e);
@@ -655,6 +692,7 @@ export default function CheckoutPage() {
       }
       clearCart();
       localStorage.removeItem(SUBSCRIPTION_CART_KEY);
+      saveCheckoutCouponCode(null);
       router.push('/order-success');
     } catch (error) {
       console.error('Failed to place order:', error);

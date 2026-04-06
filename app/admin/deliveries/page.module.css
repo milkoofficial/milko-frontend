@@ -72,6 +72,270 @@
   display: none;
 }
 
+/* Today's need — subscription aggregate (admin) */
+.todaysNeedBar {
+  display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1rem;
+    margin-bottom: 0.8rem;
+    padding: 1rem 1rem;
+    background: white;
+    border: 0px solid #a5f3fc;
+    border-radius: 18px;
+}
+
+.todaysNeedBtn {
+  border: none;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #0c4a6e;
+  background: #cfedffc2;
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  box-shadow: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.todaysNeedBtn:hover {
+  box-shadow: 0 2px 8px rgba(14, 116, 144, 0.15);
+}
+
+.todaysNeedBtn:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+
+.todaysNeedHint {
+  font-size: 0.8rem;
+  color: #0e7490;
+  font-weight: 600;
+}
+
+.todaysNeedBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.todaysNeedPanel {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: min(88vh, 100dvh);
+  overflow: auto;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.todaysNeedClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: #64748b;
+  z-index: 2;
+  padding: 0.35rem;
+  border-radius: 8px;
+}
+
+.todaysNeedClose:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.todaysNeedInner {
+  padding: 1.35rem 1.35rem 1.5rem;
+  padding-top: 2.35rem;
+}
+
+.todaysNeedTitle {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 0 0 0.35rem;
+  padding-right: 2.25rem;
+  color: #0f172a;
+}
+
+.todaysNeedToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.todaysNeedToggle input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #0284c7;
+}
+
+.todaysNeedFootnote {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.todaysNeedSummaryCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-top: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.todaysNeedTotalRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.todaysNeedTotalLabel {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.todaysNeedTotalValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.todaysNeedTotalUnit {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.todaysNeedMeta {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.todaysNeedSectionTitle {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin: 1rem 0 0.5rem;
+}
+
+.todaysNeedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.todaysNeedList li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.todaysNeedList li:last-child {
+  border-bottom: none;
+}
+
+.todaysNeedLineTitle {
+  font-weight: 700;
+}
+
+.todaysNeedLineDetail {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.todaysNeedSlotGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 0.35rem;
+}
+
+.todaysNeedSlotCard {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+
+.todaysNeedSlotCardEvening {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.todaysNeedSlotHeading {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #92400e;
+  margin: 0 0 0.35rem;
+}
+
+.todaysNeedSlotCardEvening .todaysNeedSlotHeading {
+  color: #3730a3;
+}
+
+.todaysNeedSlotTotal {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.55rem;
+}
+
+.todaysNeedUnknown {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
+.todaysNeedUnknownTitle {
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: #475569;
+  margin: 0 0 0.35rem;
+}
+
+@media (max-width: 540px) {
+  .todaysNeedSlotGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .searchWrap {
   position: relative;
   width: 100%;
@@ -653,6 +917,10 @@
   color: #111827;
 }
 
+.productCell .cardProductRow {
+  margin-top: 0;
+}
+
 .customerCell {
   display: flex;
   flex-direction: column;
@@ -848,7 +1116,7 @@
   display: flex;
   width: 100%;
   flex-wrap: nowrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
 }
@@ -860,12 +1128,45 @@
   font-family: inter;
 }
 
-.cardProduct {
+.cardProductRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4rem;
   margin-top: 0.35rem;
+}
+
+.cardProductName {
   font-weight: 600;
   color: #111827;
   font-size: 0.95rem;
   line-height: 1.35;
+  min-width: 0;
+}
+
+.cardProductQty {
+  font-weight: 700;
+  color: #475569;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cardSlotLine {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.slotCell {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.35;
+  max-width: 14rem;
 }
 
 .cardDate {

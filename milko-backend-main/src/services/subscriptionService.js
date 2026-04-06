@@ -429,14 +429,11 @@ const activateSubscription = async (subscriptionId) => {
  * @returns {Promise<Object>} Updated subscription
  */
 const pauseSubscription = async (subscriptionId, userId) => {
-  const subscription = await subscriptionModel.getSubscriptionById(subscriptionId);
+  const subscription = userId
+    ? await subscriptionModel.getSubscriptionByIdForUser(subscriptionId, userId)
+    : await subscriptionModel.getSubscriptionById(subscriptionId);
   if (!subscription) {
     throw new NotFoundError('Subscription');
-  }
-
-  // Check authorization (user owns subscription or is admin - userId is null for admin)
-  if (userId && subscription.userId !== userId) {
-    throw new ValidationError('Unauthorized');
   }
 
   if (subscription.status !== 'active') {
@@ -453,14 +450,11 @@ const pauseSubscription = async (subscriptionId, userId) => {
  * @returns {Promise<Object>} Updated subscription
  */
 const resumeSubscription = async (subscriptionId, userId) => {
-  const subscription = await subscriptionModel.getSubscriptionById(subscriptionId);
+  const subscription = userId
+    ? await subscriptionModel.getSubscriptionByIdForUser(subscriptionId, userId)
+    : await subscriptionModel.getSubscriptionById(subscriptionId);
   if (!subscription) {
     throw new NotFoundError('Subscription');
-  }
-
-  // Check authorization (userId is null for admin)
-  if (userId && subscription.userId !== userId) {
-    throw new ValidationError('Unauthorized');
   }
 
   if (subscription.status !== 'paused') {
@@ -651,6 +645,12 @@ const cancelTodaysDelivery = async (subscriptionId, userId) => {
   }
 };
 
+/**
+ * Link Razorpay recurring for end-of-period renewals only.
+ * Does not modify `first_day_shift_*` — the Shifted customer UI stays for the rest of the current period
+ * even after AutoPay is linked. Flags clear when a new period starts from successful
+ * `applyAutopaySubscriptionRenewalFromPayment`. Set on activate or manual `renewExpiredSubscriptionVerify`.
+ */
 const setupAutoPay = async (subscriptionId, userId) => {
   await subscriptionModel.ensureSubscriptionSchema();
   if (!hasRazorpayKeys) {
@@ -832,6 +832,7 @@ const applyAutopaySubscriptionRenewalFromPayment = async (razorpaySubscriptionId
 
 /**
  * Remove AutoPay: cancel Razorpay recurring subscription and clear local link.
+ * Does not modify `first_day_shift_*`.
  */
 const removeAutoPay = async (subscriptionId, userId) => {
   await subscriptionModel.ensureSubscriptionSchema();

@@ -153,6 +153,8 @@ const transformDeliverySchedule = (row) => {
     userId: row.user_id ? String(row.user_id) : undefined,
     litresPerDay: row.litres_per_day ? parseFloat(row.litres_per_day) : undefined,
     deliveryTime: row.delivery_time || undefined,
+    productId: row.product_id != null && row.product_id !== undefined ? String(row.product_id) : undefined,
+    variationSize: row.product_variation_size ? String(row.product_variation_size).trim() : undefined,
     productName: row.product_name || undefined,
     userName: row.user_name || undefined,
     userEmail: row.user_email || undefined,

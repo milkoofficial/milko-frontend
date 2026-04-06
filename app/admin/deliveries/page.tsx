@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { apiClient } from '@/lib/api';
+import { adminContentApi, apiClient } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/utils/constants';
 import { DeliverySchedule } from '@/types';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -16,6 +16,17 @@ import {
   formatYyyyMmDdInputAsDDMMYYYY,
 } from '@/lib/utils/datetime';
 import { normalizeAdminListSearchQuery } from '@/lib/utils/searchQuery';
+import {
+  formatSubscriptionSlotLine,
+  parseDeliverySlotWindowsFromMetadata,
+  type DeliverySlotWindow,
+} from '@/lib/utils/deliverySlotDisplay';
+import {
+  aggregateTodaysSubscriptionNeed,
+  formatLitresAmount,
+  formatTodaysNeedLineLabel,
+  type TodaysNeedLine,
+} from '@/lib/utils/todaysSubscriptionNeed';
 
 type OrderDeliveryRow = {
   orderId: string;
@@ -148,6 +159,12 @@ function CopyOrderNumberButton({
   );
 }
 
+function subscriptionDeliveryQtyLabel(d: DeliverySchedule): string | null {
+  const n = d.litresPerDay;
+  if (n == null || !Number.isFinite(Number(n))) return null;
+  return formatLitresAmount(Number(n));
+}
+
 /**
  * Admin Deliveries Page
  * View and manage daily delivery schedules
@@ -166,8 +183,19 @@ export default function AdminDeliveriesPage() {
   const [filterSheetMounted, setFilterSheetMounted] = useState(false);
   const filterSheetMenuTitleId = useId();
   const { showToast } = useToast();
+  const [deliverySlotWindows, setDeliverySlotWindows] = useState<DeliverySlotWindow[]>([]);
+  const [todaysNeedOpen, setTodaysNeedOpen] = useState(false);
+  const [todaysNeedIncludeDelivered, setTodaysNeedIncludeDelivered] = useState(false);
+  const todaysNeedTitleId = useId();
 
   useEffect(() => setFilterSheetMounted(true), []);
+
+  useEffect(() => {
+    adminContentApi
+      .getByType('pincodes')
+      .then((c) => setDeliverySlotWindows(parseDeliverySlotWindowsFromMetadata(c?.metadata)))
+      .catch(() => setDeliverySlotWindows(parseDeliverySlotWindowsFromMetadata({})));
+  }, []);
 
   useEffect(() => {
     if (!filterSheetOpen) return;
@@ -259,6 +287,14 @@ export default function AdminDeliveriesPage() {
     return result;
   }, [deliveries, query, statusFilter, sort]);
 
+  const todaysNeedReport = useMemo(
+    () =>
+      aggregateTodaysSubscriptionNeed(deliveries, deliverySlotWindows, {
+        onlyPending: !todaysNeedIncludeDelivered,
+      }),
+    [deliveries, deliverySlotWindows, todaysNeedIncludeDelivered]
+  );
+
   const filteredOrders = useMemo(() => {
     let result = [...orderDeliveries];
 
@@ -293,7 +329,7 @@ export default function AdminDeliveriesPage() {
   const [confirmAction, setConfirmAction] = useState<null | { kind: 'out' | 'deliver' | 'fulfill' }>(null);
 
   useEffect(() => {
-    if (!filterSheetOpen && !selectedOrderId && !confirmAction) return;
+    if (!filterSheetOpen && !selectedOrderId && !confirmAction && !todaysNeedOpen) return;
 
     const html = document.documentElement;
     const body = document.body;
@@ -313,7 +349,7 @@ export default function AdminDeliveriesPage() {
       html.style.overscrollBehaviorY = prevHtmlOverscrollY;
       body.style.overscrollBehaviorY = prevBodyOverscrollY;
     };
-  }, [filterSheetOpen, selectedOrderId, confirmAction]);
+  }, [filterSheetOpen, selectedOrderId, confirmAction, todaysNeedOpen]);
 
   const closeFilterSheet = () => {
     setFilterSheetOpen(false);
@@ -410,6 +446,23 @@ export default function AdminDeliveriesPage() {
         return styles.badgeInfo;
     }
   };
+
+  const renderNeedLines = (lines: TodaysNeedLine[]) =>
+    lines.length === 0 ? (
+      <p className={styles.todaysNeedMeta}>None</p>
+    ) : (
+      <ul className={styles.todaysNeedList}>
+        {lines.map((line) => (
+          <li key={line.key}>
+            <span className={styles.todaysNeedLineTitle}>{formatTodaysNeedLineLabel(line)}</span>
+            <span className={styles.todaysNeedLineDetail}>
+              {formatLitresAmount(line.totalLitres)} L total · {line.deliveryCount} stop
+              {line.deliveryCount === 1 ? '' : 's'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
 
   if (loading) {
     return (
@@ -508,6 +561,19 @@ export default function AdminDeliveriesPage() {
           </svg>
         </button>
       </div>
+
+      {tab === 'subscriptions' ? (
+        <div className={styles.todaysNeedBar}>
+          <button
+            type="button"
+            className={styles.todaysNeedBtn}
+            onClick={() => setTodaysNeedOpen(true)}
+          >
+            Today&apos;s need
+          </button>
+          <span className={styles.todaysNeedHint}>Total litres, products, morning vs evening slots</span>
+        </div>
+      ) : null}
 
       {filterSheetMounted && filterSheetOpen
         ? createPortal(
@@ -722,6 +788,7 @@ export default function AdminDeliveriesPage() {
                     <tr>
                       <th>Subscription</th>
                       <th>Product</th>
+                      <th>Slot</th>
                       <th>Customer</th>
                       <th>Delivery Date</th>
                       <th>Status</th>
@@ -729,8 +796,13 @@ export default function AdminDeliveriesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((delivery) => (
-                      <tr key={delivery.id}>
+                    {filtered.map((delivery) => {
+                      const qtyLabel = subscriptionDeliveryQtyLabel(delivery);
+                      return (
+                      <tr
+                        key={delivery.id}
+                        className={delivery.status === 'delivered' ? styles.rowFulfilled : ''}
+                      >
                         <td>
                           <div className={styles.subscriptionCell}>
                             #{delivery.subscriptionId}
@@ -738,7 +810,17 @@ export default function AdminDeliveriesPage() {
                         </td>
                         <td>
                           <div className={styles.productCell}>
-                            {delivery.productName || 'N/A'}
+                            <div className={styles.cardProductRow}>
+                              <span className={styles.cardProductName}>{delivery.productName || 'N/A'}</span>
+                              {qtyLabel != null ? (
+                                <span className={styles.cardProductQty}>· {qtyLabel} Qty</span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className={styles.slotCell}>
+                            {formatSubscriptionSlotLine(delivery.deliveryTime, deliverySlotWindows) || '—'}
                           </div>
                         </td>
                         <td>
@@ -775,47 +857,61 @@ export default function AdminDeliveriesPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
             <div className={styles.cards}>
-              {filtered.map((delivery) => (
-                <div key={`m-${delivery.id}`} className={styles.card}>
-                  <div className={styles.cardTop}>
-                    <div>
-                      <div className={styles.cardTitleRow}>
-                        <span className={styles.cardTitle}>#{delivery.subscriptionId}</span>
-                        <span className={`${styles.badge} ${getStatusBadgeClass(delivery.status)}`}>{delivery.status}</span>
+              {filtered.map((delivery) => {
+                const slotLabel = formatSubscriptionSlotLine(delivery.deliveryTime, deliverySlotWindows);
+                const qtyLabel = subscriptionDeliveryQtyLabel(delivery);
+                return (
+                  <div
+                    key={`m-${delivery.id}`}
+                    className={`${styles.card} ${delivery.status === 'delivered' ? styles.cardFulfilled : ''}`}
+                  >
+                    <div className={styles.cardTop}>
+                      <div>
+                        <div className={styles.cardTitleRow}>
+                          <span className={styles.cardTitle}>#{delivery.subscriptionId}</span>
+                          <span className={`${styles.badge} ${getStatusBadgeClass(delivery.status)}`}>{delivery.status}</span>
+                        </div>
+                        <div className={styles.cardProductRow}>
+                          <span className={styles.cardProductName}>{delivery.productName || 'N/A'}</span>
+                          {qtyLabel != null ? (
+                            <span className={styles.cardProductQty}>· {qtyLabel} Qty</span>
+                          ) : null}
+                        </div>
+                        {slotLabel ? <div className={styles.cardSlotLine}>{slotLabel}</div> : null}
                       </div>
-                      <div className={styles.cardProduct}>{delivery.productName || 'N/A'}</div>
                     </div>
-                  </div>
-                  <div className={styles.cardBody}>
-                    <div className={styles.customerCell}>
-                      <div className={styles.customerName}>{delivery.userName || delivery.userEmail || 'N/A'}</div>
-                      {delivery.userEmail && delivery.userName ? (
-                        <div className={styles.customerEmail}>{delivery.userEmail}</div>
+                    <div className={styles.cardBody}>
+                      <div className={styles.customerCell}>
+                        <div className={styles.customerName}>{delivery.userName || delivery.userEmail || 'N/A'}</div>
+                        {delivery.userEmail && delivery.userName ? (
+                          <div className={styles.customerEmail}>{delivery.userEmail}</div>
+                        ) : null}
+                      </div>
+                      <div className={styles.cardMeta}>
+                        <span className={styles.cardMetaLabel}>Delivery</span>
+                        <span className={styles.dateCell}>{formatDateDDMMYYYYIST(delivery.deliveryDate)}</span>
+                      </div>
+                      {delivery.status === 'pending' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkDelivered(delivery.id)}
+                          className={styles.actionButton}
+                          title="Mark as Delivered"
+                        >
+                          Mark Delivered
+                        </button>
                       ) : null}
                     </div>
-                    <div className={styles.cardMeta}>
-                      <span className={styles.cardMetaLabel}>Delivery</span>
-                      <span className={styles.dateCell}>{formatDateDDMMYYYYIST(delivery.deliveryDate)}</span>
-                    </div>
-                    {delivery.status === 'pending' ? (
-                      <button
-                        type="button"
-                        onClick={() => handleMarkDelivered(delivery.id)}
-                        className={styles.actionButton}
-                        title="Mark as Delivered"
-                      >
-                        Mark Delivered
-                      </button>
-                    ) : null}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
       ) : filteredOrders.length === 0 ? (
@@ -954,6 +1050,101 @@ export default function AdminDeliveriesPage() {
             </div>
           </>
       )}
+
+      {todaysNeedOpen
+        ? createPortal(
+            <div
+              className={styles.todaysNeedBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setTodaysNeedOpen(false);
+              }}
+            >
+              <div
+                className={styles.todaysNeedPanel}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={todaysNeedTitleId}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className={styles.todaysNeedClose}
+                  aria-label="Close"
+                  onClick={() => setTodaysNeedOpen(false)}
+                >
+                  ×
+                </button>
+                <div className={styles.todaysNeedInner}>
+                  <h2 id={todaysNeedTitleId} className={styles.todaysNeedTitle}>
+                    Today&apos;s need
+                  </h2>
+                  <p className={styles.todaysNeedMeta}>
+                    {formatDateDDMMYYYYIST(getTodayLocalYmd())} · full list for this day (ignores search / filters)
+                  </p>
+                  <label className={styles.todaysNeedToggle}>
+                    <input
+                      type="checkbox"
+                      checked={todaysNeedIncludeDelivered}
+                      onChange={(e) => setTodaysNeedIncludeDelivered(e.target.checked)}
+                    />
+                    <span>Include delivered stops</span>
+                  </label>
+                  <p className={styles.todaysNeedFootnote}>
+                    {todaysNeedIncludeDelivered
+                      ? 'Counts pending and delivered; skips skipped and cancelled.'
+                      : 'Pending stops only — what still needs to go out.'}
+                  </p>
+
+                  <div className={styles.todaysNeedSummaryCard}>
+                    <div className={styles.todaysNeedTotalRow}>
+                      <span className={styles.todaysNeedTotalLabel}>Total qty</span>
+                      <span className={styles.todaysNeedTotalValue}>{formatLitresAmount(todaysNeedReport.totalLitres)}</span>
+                      <span className={styles.todaysNeedTotalUnit}>L</span>
+                    </div>
+                    <p className={styles.todaysNeedMeta}>
+                      Sum of per-day litres across {todaysNeedReport.rowCount} delivery row
+                      {todaysNeedReport.rowCount === 1 ? '' : 's'}
+                    </p>
+                  </div>
+
+                  <div className={styles.todaysNeedSectionTitle}>Products</div>
+                  {renderNeedLines(todaysNeedReport.lines)}
+
+                  <div className={styles.todaysNeedSectionTitle}>By delivery slot</div>
+                  <div className={styles.todaysNeedSlotGrid}>
+                    <div className={styles.todaysNeedSlotCard}>
+                      <h3 className={styles.todaysNeedSlotHeading}>Morning</h3>
+                      <div className={styles.todaysNeedSlotTotal}>
+                        {formatLitresAmount(todaysNeedReport.morning.totalLitres)} L
+                      </div>
+                      {renderNeedLines(todaysNeedReport.morning.lines)}
+                    </div>
+                    <div className={`${styles.todaysNeedSlotCard} ${styles.todaysNeedSlotCardEvening}`}>
+                      <h3 className={styles.todaysNeedSlotHeading}>Evening</h3>
+                      <div className={styles.todaysNeedSlotTotal}>
+                        {formatLitresAmount(todaysNeedReport.evening.totalLitres)} L
+                      </div>
+                      {renderNeedLines(todaysNeedReport.evening.lines)}
+                    </div>
+                  </div>
+
+                  {todaysNeedReport.unknown.lines.length > 0 ? (
+                    <div className={styles.todaysNeedUnknown}>
+                      <h4 className={styles.todaysNeedUnknownTitle}>Unknown slot</h4>
+                      <p className={styles.todaysNeedMeta}>
+                        {formatLitresAmount(todaysNeedReport.unknown.totalLitres)} L — assign a delivery time on the
+                        subscription
+                      </p>
+                      {renderNeedLines(todaysNeedReport.unknown.lines)}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {/* Order details modal */}
       {selectedOrderId && (
