@@ -839,7 +839,10 @@ const resumeSubscription = async (req, res, next) => {
 const getDeliveries = async (req, res, next) => {
   try {
     const { date } = req.query;
-    const deliveryDate = date || new Date().toISOString().split('T')[0];
+    const deliveryDate = date
+      || (
+        await query(`SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date::text AS ymd`)
+      ).rows[0]?.ymd;
 
     const result = await query(
       `SELECT ds.*, s.user_id, s.litres_per_day, s.delivery_time,
@@ -850,7 +853,7 @@ const getDeliveries = async (req, res, next) => {
        LEFT JOIN users u ON s.user_id = u.id
        WHERE ds.delivery_date = $1
          AND (s.id IS NULL OR s.status = 'active')
-       ORDER BY ds.delivery_time`,
+       ORDER BY COALESCE(s.delivery_time, '23:59'), ds.id`,
       [deliveryDate]
     );
 
@@ -903,10 +906,12 @@ const updateDeliveryStatus = async (req, res, next) => {
 
       result = await client.query(
         `UPDATE delivery_schedules 
-         SET status = $1, updated_at = NOW() 
+         SET status = $1,
+             delivered_at = CASE WHEN $3 THEN NOW() ELSE delivered_at END,
+             updated_at = NOW() 
          WHERE id = $2
          RETURNING *`,
-        [status, id]
+        [status, id, status === 'delivered']
       );
 
       if (subscriptionId) {

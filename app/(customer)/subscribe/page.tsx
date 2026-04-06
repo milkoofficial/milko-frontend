@@ -11,8 +11,8 @@ import Link from 'next/link';
 
 const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
 const DEFAULT_DELIVERY_TIME_OPTIONS = [
-  { label: 'Before 9 AM', value: '09:00' },
-  { label: 'After 5 PM', value: '17:00' },
+  { label: '06:00 AM - 09:00 AM', value: '06:00' },
+  { label: '05:00 PM - 08:00 PM', value: '17:00' },
 ];
 
 /**
@@ -31,7 +31,7 @@ export default function SubscribePage() {
   const [resolvedProductId, setResolvedProductId] = useState(productId || '');
   const [cartFlowProducts, setCartFlowProducts] = useState<Product[]>([]);
   const [litresPerDay, setLitresPerDay] = useState(1);
-  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('daily');
+  const [frequency, setFrequency] = useState<'daily'>('daily');
   const [durationDays, setDurationDays] = useState(30);
   const [deliveryTime, setDeliveryTime] = useState(DEFAULT_DELIVERY_TIME_OPTIONS[0].value);
   const [deliveryTimeOptions, setDeliveryTimeOptions] = useState<Array<{ label: string; value: string }>>(DEFAULT_DELIVERY_TIME_OPTIONS);
@@ -87,12 +87,7 @@ export default function SubscribePage() {
       setDurationDays(parseInt(daysParam, 10));
     }
 
-    if (
-      frequencyParam === 'daily' ||
-      frequencyParam === 'weekly' ||
-      frequencyParam === 'monthly' ||
-      frequencyParam === 'quarterly'
-    ) {
+    if (frequencyParam === 'daily') {
       setFrequency(frequencyParam);
     }
 
@@ -661,13 +656,10 @@ export default function SubscribePage() {
                 id="frequency"
                 className={styles.select}
                 value={frequency}
-                onChange={(e) => setFrequency(e.target.value as 'daily' | 'weekly' | 'monthly' | 'quarterly')}
+                onChange={(e) => setFrequency(e.target.value as 'daily')}
                 required
               >
                 <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
               </select>
               <svg className={styles.selectArrow} viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

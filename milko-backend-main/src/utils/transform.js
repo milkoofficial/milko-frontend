@@ -79,6 +79,8 @@ const transformSubscription = (row) => {
     renewedAt: row.renewed_at ? new Date(row.renewed_at).toISOString() : undefined,
     initialStartDate: row.initial_start_date ? pgDateOnlyToYmd(row.initial_start_date) : undefined,
     autopayFailureReason: row.autopay_failure_reason || undefined,
+    firstDayShiftApplied: row.first_day_shift_applied === true || row.first_day_shift_applied === 't',
+    firstDayShiftReason: row.first_day_shift_reason || undefined,
     createdAt: row.created_at?.toISOString(),
     updatedAt: row.updated_at?.toISOString(),
     // Extended fields from joins (for admin view)
@@ -144,7 +146,7 @@ const transformDeliverySchedule = (row) => {
   return {
     id: String(row.id),
     subscriptionId: String(row.subscription_id),
-    deliveryDate: row.delivery_date ? row.delivery_date.split('T')[0] : null,
+    deliveryDate: pgDateOnlyToYmd(row.delivery_date) || null,
     status: row.status,
     createdAt: row.created_at?.toISOString(),
     // Extended fields from joins

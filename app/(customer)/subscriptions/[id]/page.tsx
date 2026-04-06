@@ -50,7 +50,9 @@ function getCalendarDayClassName(
     dayCancelled: string;
     dayPaused: string;
     dayToday: string;
+    dayShifted: string;
   },
+  shiftHighlight: { applied: boolean; shiftedDayKey: string | null },
 ): string {
   const parts: string[] = [css.dayCell];
   if (!cell.inMonth) {
@@ -79,6 +81,10 @@ function getCalendarDayClassName(
     parts.push(css.dayPaused);
   } else {
     parts.push(css.dayPending);
+  }
+
+  if (shiftHighlight.applied && shiftHighlight.shiftedDayKey && key === shiftHighlight.shiftedDayKey) {
+    parts.push(css.dayShifted);
   }
 
   if (cell.isToday) parts.push(css.dayToday);
@@ -315,6 +321,18 @@ export default function SubscriptionDetailsPage() {
     return months;
   }, [dateRange]);
 
+  // `firstDayShiftApplied` is set only when activation/manual renew happens after the chosen slot’s end (IST).
+  // AutoPay renew clears it in the backend, so this UI hides for autopay-extended terms. Manual renew re-evaluates at payment time.
+  const shiftCalendarHighlight = useMemo(
+    () => ({
+      applied: !!subscription?.firstDayShiftApplied,
+      /** Calendar day that missed the slot (start_date); bonus day at end_date stays normal “scheduled” styling. */
+      shiftedDayKey:
+        subscription?.firstDayShiftApplied && dateRange ? formatDateKey(dateRange.start) : null,
+    }),
+    [subscription?.firstDayShiftApplied, dateRange],
+  );
+
   const scheduleByDate = useMemo(() => {
     const m = new Map<string, 'pending' | 'delivered' | 'skipped' | 'cancelled'>();
     subscription?.deliverySchedules?.forEach((s) => {
@@ -333,6 +351,13 @@ export default function SubscriptionDetailsPage() {
     const status = scheduleByDate.get(todayIstKey);
     return pausedDateSet.has(todayIstKey) || status === 'cancelled' || status === 'skipped';
   }, [pausedDateSet, scheduleByDate, todayIstKey]);
+
+  const firstDayShiftSlotLabel =
+    subscription?.firstDayShiftReason === 'evening_slot_passed'
+      ? 'evening'
+      : subscription?.firstDayShiftReason === 'morning_slot_passed'
+        ? 'morning'
+        : 'delivery';
 
   if (loading) {
     return (
@@ -381,6 +406,16 @@ export default function SubscriptionDetailsPage() {
   const end =
     dateRange?.end ??
     dateOnly(parseLocalDateFromYmd(subscription.endDate) ?? new Date(subscription.endDate));
+  const shiftedFromText = start.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  const shiftedToText = end.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
   const msPerDay = 1000 * 60 * 60 * 24;
   const totalDays =
     subscription.durationDays != null && subscription.durationDays >= 1
@@ -502,6 +537,12 @@ export default function SubscriptionDetailsPage() {
               <span className={`${styles.calendarHintDot} ${styles.calendarHintDotPaused}`} aria-hidden />
               Paused day
             </span>
+            {subscription.firstDayShiftApplied ? (
+              <span className={styles.calendarHintItem} role="listitem">
+                <span className={`${styles.calendarHintDot} ${styles.calendarHintDotShifted}`} aria-hidden />
+                Shifted
+              </span>
+            ) : null}
           </div>
           <div className={styles.calendarList}>
             {dateRange && calendarMonths.map((month) => {
@@ -534,13 +575,22 @@ export default function SubscriptionDetailsPage() {
                             dayCancelled: styles.dayCancelled,
                             dayPaused: styles.dayPaused,
                             dayToday: styles.dayToday,
+                            dayShifted: styles.dayShifted,
                           },
+                          shiftCalendarHighlight,
                         )}
                         title={
                           cell.inMonth && cell.inSubscriptionRange
                             ? (() => {
                                 const k = formatDateKey(cell.date);
                                 const st = scheduleByDate.get(k);
+                                const isShiftedFirstDay =
+                                  shiftCalendarHighlight.applied &&
+                                  shiftCalendarHighlight.shiftedDayKey &&
+                                  k === shiftCalendarHighlight.shiftedDayKey;
+                                if (isShiftedFirstDay) {
+                                  return 'Shifted first delivery day — purchase was after your delivery window ended (an extra day was added at the end of your plan)';
+                                }
                                 if (st === 'delivered') return 'Delivered';
                                 if (st === 'cancelled' || st === 'skipped') return 'Delivery cancelled / skipped';
                                 if (st === 'pending') return 'Scheduled (not delivered yet)';
@@ -558,6 +608,17 @@ export default function SubscriptionDetailsPage() {
               );
             })}
           </div>
+          {subscription.firstDayShiftApplied ? (
+            <p className={styles.calendarShiftNote}>
+              <span className={styles.calendarShiftNoteDot} aria-hidden />
+              <span>
+                <strong>Shifted</strong> — Shifted from <strong>{shiftedFromText}</strong> to{' '}
+                <strong>{shiftedToText}</strong>. The system automatically added an extra delivery day at the end of your
+                subscription because this subscription was bought or renewed after your selected {firstDayShiftSlotLabel}{' '}
+                delivery window had already ended.
+              </span>
+            </p>
+          ) : null}
         </section>
 
         <section className={styles.section}>

@@ -88,6 +88,14 @@ const SUBSCRIPTION_SORT_OPTIONS = [
   { value: 'statusAsc' as const, label: 'Status (A-Z)' },
 ];
 
+function getTodayLocalYmd(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function CopyOrderNumberButton({
   orderNumber,
   showToast,
@@ -149,7 +157,6 @@ export default function AdminDeliveriesPage() {
   const [deliveries, setDeliveries] = useState<DeliverySchedule[]>([]);
   const [orderDeliveries, setOrderDeliveries] = useState<OrderDeliveryRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'delivered' | 'skipped' | 'cancelled'>('all');
   const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'package_prepared' | 'out_for_delivery' | 'delivered'>('all');
@@ -175,7 +182,7 @@ export default function AdminDeliveriesPage() {
 
   useEffect(() => {
     if (tab === 'subscriptions') fetchDeliveries();
-  }, [selectedDate, tab]);
+  }, [tab]);
 
   useEffect(() => {
     if (tab === 'orders') fetchOrderDeliveries();
@@ -185,8 +192,9 @@ export default function AdminDeliveriesPage() {
   const fetchDeliveries = async () => {
     try {
       setLoading(true);
+      const today = getTodayLocalYmd();
       const data = await apiClient.get<DeliverySchedule[]>(
-        `${API_ENDPOINTS.ADMIN.DELIVERIES.LIST}?date=${selectedDate}`
+        `${API_ENDPOINTS.ADMIN.DELIVERIES.LIST}?date=${today}`
       );
       setDeliveries(data);
     } catch (error) {
@@ -363,7 +371,10 @@ export default function AdminDeliveriesPage() {
 
   const handleMarkDelivered = async (id: string) => {
     try {
-      // TODO: Implement mark as delivered API call
+      await apiClient.put(
+        API_ENDPOINTS.ADMIN.DELIVERIES.UPDATE_STATUS(id),
+        { status: 'delivered' }
+      );
       showToast('Delivery marked as delivered', 'success');
       await fetchDeliveries();
     } catch (error) {
@@ -422,18 +433,6 @@ export default function AdminDeliveriesPage() {
           <p className={styles.subtitle}>Manage subscription deliveries and checkout order deliveries</p>
         </div>
       </div>
-
-      {tab === 'subscriptions' && (
-        <div className={styles.dateFilterRow}>
-          <label className={styles.dateLabel}>Select Date:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className={styles.dateInput}
-          />
-        </div>
-      )}
 
       <div className={styles.toolbar}>
         <div className={styles.searchSlot}>
@@ -710,7 +709,7 @@ export default function AdminDeliveriesPage() {
       {tab === 'subscriptions' && filtered.length === 0 ? (
         <div className={styles.panel}>
           <div className={styles.emptyState}>
-            <p>No deliveries found for {formatYyyyMmDdInputAsDDMMYYYY(selectedDate)}</p>
+            <p>No deliveries found for today</p>
             {query && <p className={styles.emptyStateSubtext}>Try adjusting your search</p>}
           </div>
         </div>

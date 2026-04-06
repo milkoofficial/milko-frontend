@@ -11,6 +11,7 @@ const {
 const { ValidationError, NotFoundError } = require('../utils/errors');
 const { getClient, query } = require('../config/database');
 const walletService = require('./walletService');
+const { computeFirstDayShiftBonus } = require('./subscriptionSlotShift');
 
 const AUTOPAY_FAILURE_MESSAGE = 'Autopay failed: Either low balance or Issue with the provider.';
 
@@ -365,16 +366,31 @@ const activateSubscription = async (subscriptionId) => {
       }
     }
 
+    const baseDays = Math.max(1, parseInt(s.duration_days, 10) || planDaysFromSubscriptionRow(s));
+    const { bonusDays, reason } = await computeFirstDayShiftBonus({
+      deliveryTime: s.delivery_time,
+      activationInstant: new Date(),
+    });
+    const newDays = baseDays + bonusDays;
+    const litres = parseFloat(s.litres_per_day || 0);
+    const newTotalQty = litres * newDays;
+
     await client.query(
       `
       UPDATE subscriptions
       SET status = 'active',
           total_amount_paid = COALESCE(total_amount, total_amount_paid),
           purchased_at = COALESCE(purchased_at, NOW()),
+          duration_days = $2,
+          end_date = start_date + ($2::integer - 1) * INTERVAL '1 day',
+          total_qty = $3,
+          remaining_qty = $3,
+          first_day_shift_applied = $4,
+          first_day_shift_reason = $5,
           updated_at = NOW()
       WHERE id = $1
       `,
-      [subscriptionId]
+      [subscriptionId, newDays, newTotalQty, bonusDays > 0, reason]
     );
 
     await client.query('COMMIT');
@@ -389,10 +405,18 @@ const activateSubscription = async (subscriptionId) => {
   if (!subscription) throw new NotFoundError('Subscription');
 
   // Generate schedules after successful activation.
+  // Slot-shift: first calendar day had no slot (purchase after window) — skip that day in admin; bonus day at end is included.
+  const skipShiftYmd =
+    subscription.firstDayShiftApplied && subscription.startDate
+      ? String(subscription.startDate).trim().slice(0, 10)
+      : null;
   await subscriptionModel.generateDeliverySchedules(
     subscriptionId,
     subscription.startDate,
-    subscription.endDate
+    subscription.endDate,
+    skipShiftYmd && /^\d{4}-\d{2}-\d{2}$/.test(skipShiftYmd)
+      ? { skipShiftedFirstDayYmd: skipShiftYmd }
+      : {},
   );
 
   return await subscriptionModel.getSubscriptionById(subscriptionId);
@@ -777,6 +801,8 @@ const applyAutopaySubscriptionRenewalFromPayment = async (razorpaySubscriptionId
           total_amount = $4,
           total_amount_paid = $4,
           autopay_failure_reason = NULL,
+          first_day_shift_applied = FALSE,
+          first_day_shift_reason = NULL,
           updated_at = NOW()
       WHERE id = $5
       `,
@@ -919,9 +945,16 @@ const renewExpiredSubscriptionVerify = async (subscriptionId, userId, razorpayOr
       throw new ValidationError('Invalid renewal order');
     }
 
-    const planDays = planDaysFromSubscriptionRow(s);
-    const totalQty = parseFloat(s.litres_per_day || 0) * planDays;
-    const totalAmount = parseFloat(s.per_unit_price || 0) * totalQty;
+    const basePlanDays = planDaysFromSubscriptionRow(s);
+    const { bonusDays, reason } = await computeFirstDayShiftBonus({
+      deliveryTime: s.delivery_time,
+      activationInstant: new Date(),
+    });
+    const planDays = basePlanDays + bonusDays;
+    const litres = parseFloat(s.litres_per_day || 0);
+    const perUnit = parseFloat(s.per_unit_price || 0);
+    const totalQty = litres * planDays;
+    const totalAmount = perUnit * litres * basePlanDays;
 
     await client.query(
       `
@@ -933,15 +966,18 @@ const renewExpiredSubscriptionVerify = async (subscriptionId, userId, razorpayOr
           renewed_at = NOW(),
           renewal_order_id = NULL,
           razorpay_payment_id = $2,
+          duration_days = $1,
           total_qty = $3,
           delivered_qty = 0,
           remaining_qty = $3,
           total_amount = $4,
           total_amount_paid = $4,
+          first_day_shift_applied = $6,
+          first_day_shift_reason = $7,
           updated_at = NOW()
       WHERE id = $5
       `,
-      [planDays, razorpayPaymentId, totalQty, totalAmount, subscriptionId]
+      [planDays, razorpayPaymentId, totalQty, totalAmount, subscriptionId, bonusDays > 0, reason]
     );
 
     await client.query(`DELETE FROM paused_dates WHERE subscription_id = $1`, [subscriptionId]);
@@ -956,10 +992,17 @@ const renewExpiredSubscriptionVerify = async (subscriptionId, userId, razorpayOr
   }
 
   const renewed = await subscriptionModel.getSubscriptionById(subscriptionId);
+  const skipRenewShiftYmd =
+    renewed.firstDayShiftApplied && renewed.startDate
+      ? String(renewed.startDate).trim().slice(0, 10)
+      : null;
   await subscriptionModel.generateDeliverySchedules(
     subscriptionId,
     renewed.startDate,
-    renewed.endDate
+    renewed.endDate,
+    skipRenewShiftYmd && /^\d{4}-\d{2}-\d{2}$/.test(skipRenewShiftYmd)
+      ? { skipShiftedFirstDayYmd: skipRenewShiftYmd }
+      : {},
   );
 
   return await subscriptionModel.getSubscriptionById(subscriptionId);

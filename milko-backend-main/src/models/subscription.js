@@ -59,6 +59,8 @@ async function ensureSubscriptionSchema() {
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS checkout_order_id UUID;`);
   await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_checkout_order_id ON subscriptions(checkout_order_id) WHERE checkout_order_id IS NOT NULL;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS duration_days INTEGER;`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS first_day_shift_applied BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS first_day_shift_reason VARCHAR(64);`);
 
   // Ensure delivery schedule + paused dates tables exist.
   // Live deployments may run partially without executing schema.sql migrations.
@@ -283,8 +285,12 @@ const updateSubscriptionStatus = async (subscriptionId, status) => {
  * Generate delivery schedules for a subscription
  * Creates daily delivery entries from start_date to end_date (inclusive), skipping paused dates.
  * Uses calendar YYYY-MM-DD stepping only — avoids mixing `new Date("YYYY-MM-DD")` (UTC) with local setDate (off-by-one).
+ *
+ * @param {object} [options]
+ * @param {string|null} [options.skipShiftedFirstDayYmd] — When slot-shift applied (missed first slot, bonus day at end),
+ *   omit the first calendar day (start_date) from admin deliveries; the extended end date still gets a row.
  */
-const generateDeliverySchedules = async (subscriptionId, startDate, endDate) => {
+const generateDeliverySchedules = async (subscriptionId, startDate, endDate, options = {}) => {
   await ensureSubscriptionSchema();
   const client = await getClient();
   const schedules = [];
@@ -294,6 +300,13 @@ const generateDeliverySchedules = async (subscriptionId, startDate, endDate) => 
   if (!startYmd || !endYmd) {
     throw new Error('generateDeliverySchedules: invalid start or end date');
   }
+
+  const skipShiftedFirstDayYmd =
+    typeof options.skipShiftedFirstDayYmd === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(options.skipShiftedFirstDayYmd) &&
+    options.skipShiftedFirstDayYmd === startYmd
+      ? options.skipShiftedFirstDayYmd
+      : null;
 
   try {
     await client.query('BEGIN');
@@ -308,6 +321,10 @@ const generateDeliverySchedules = async (subscriptionId, startDate, endDate) => 
 
     let cur = startYmd;
     while (cur.localeCompare(endYmd) <= 0) {
+      if (skipShiftedFirstDayYmd && cur === skipShiftedFirstDayYmd) {
+        cur = addOneCalendarDayYmd(cur);
+        continue;
+      }
       if (!pausedDates.has(cur)) {
         const result = await client.query(
           `INSERT INTO delivery_schedules (subscription_id, delivery_date, status, created_at)

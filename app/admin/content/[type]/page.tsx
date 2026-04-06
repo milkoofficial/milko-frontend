@@ -41,12 +41,25 @@ export default function AdminContentEditPage() {
   const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime: string }>>([]);
   const [newPincodeInput, setNewPincodeInput] = useState('');
   const [newDeliveryTimeInput, setNewDeliveryTimeInput] = useState('1h');
-  const [deliveryTimeSlots, setDeliveryTimeSlots] = useState<Array<{ label: string; value: string }>>([
-    { label: 'Before 9 AM', value: '09:00' },
-    { label: 'After 5 PM', value: '17:00' },
+  const [deliveryTimeSlots, setDeliveryTimeSlots] = useState<Array<{ label: string; value: string; end?: string }>>([
+    { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+    { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
   ]);
-  const [newSlotLabel, setNewSlotLabel] = useState('');
-  const [newSlotValue, setNewSlotValue] = useState('');
+  const [newSlotValue, setNewSlotValue] = useState('06:00');
+  const [newSlotEnd, setNewSlotEnd] = useState('09:00');
+
+  const formatTime12h = (hhmm: string): string => {
+    const [hRaw, mRaw] = String(hhmm || '').split(':');
+    const h = Number(hRaw);
+    const m = Number(mRaw);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return hhmm;
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+  };
+
+  const buildRangeLabel = (start: string, end: string): string =>
+    `${formatTime12h(start)} - ${formatTime12h(end)}`;
 
   useEffect(() => {
     fetchContent();
@@ -80,20 +93,21 @@ export default function AdminContentEditPage() {
             .map((slot: any) => ({
               label: (slot?.label || '').toString().trim(),
               value: (slot?.value || '').toString().trim(),
+              end: (slot?.end || '').toString().trim(),
             }))
             .filter((slot: { label: string; value: string }) => slot.label && slot.value);
           setDeliveryTimeSlots(
             parsedSlots.length > 0
               ? parsedSlots
               : [
-                  { label: 'Before 9 AM', value: '09:00' },
-                  { label: 'After 5 PM', value: '17:00' },
+                  { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+                  { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
                 ]
           );
         } else {
           setDeliveryTimeSlots([
-            { label: 'Before 9 AM', value: '09:00' },
-            { label: 'After 5 PM', value: '17:00' },
+            { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+            { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
           ]);
         }
       }
@@ -108,14 +122,14 @@ export default function AdminContentEditPage() {
         setMetadata({
           serviceablePincodes: [],
           deliveryTimeSlots: [
-            { label: 'Before 9 AM', value: '09:00' },
-            { label: 'After 5 PM', value: '17:00' },
+            { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+            { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
           ],
         });
         setServiceablePincodes([] as Array<{ pincode: string; deliveryTime: string }>);
         setDeliveryTimeSlots([
-          { label: 'Before 9 AM', value: '09:00' },
-          { label: 'After 5 PM', value: '17:00' },
+          { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+          { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
         ]);
         setIsActive(true);
       } else if (contentType === 'help_support') {
@@ -184,10 +198,11 @@ export default function AdminContentEditPage() {
           .map((x) => ({ pincode: x.pincode.trim(), deliveryTime: (x.deliveryTime || '1h').toString().trim() || '1h' }));
         const validSlots = deliveryTimeSlots
           .map((slot) => ({
-            label: (slot.label || '').toString().trim(),
             value: (slot.value || '').toString().trim(),
+            end: (slot.end || '').toString().trim(),
+            label: buildRangeLabel((slot.value || '').toString().trim(), (slot.end || '').toString().trim()),
           }))
-          .filter((slot) => slot.label && slot.value);
+          .filter((slot) => slot.label && slot.value && slot.end);
 
         if (validSlots.length === 0) {
           setError('Please keep at least one delivery time slot.');
@@ -522,24 +537,13 @@ export default function AdminContentEditPage() {
             <div className={styles.deliverySlotsBlock}>
               <label className={styles.label}>Subscription delivery slots</label>
               <div className={styles.helpText}>
-                These slots appear in the customer subscription page delivery-time dropdown.
+                These slots appear in the customer subscription page delivery-time dropdown as ranges.
               </div>
 
               {deliveryTimeSlots.length > 0 && (
                 <div className={styles.deliverySlotList}>
                   {deliveryTimeSlots.map((slot, index) => (
                     <div key={`${slot.value}-${index}`} className={styles.deliverySlotItem}>
-                      <input
-                        type="text"
-                        value={slot.label}
-                        onChange={(e) => {
-                          const next = [...deliveryTimeSlots];
-                          next[index] = { ...next[index], label: e.target.value };
-                          setDeliveryTimeSlots(next);
-                        }}
-                        className={styles.input}
-                        placeholder="Label (e.g. Before 9 AM)"
-                      />
                       <input
                         type="time"
                         value={slot.value}
@@ -549,6 +553,23 @@ export default function AdminContentEditPage() {
                           setDeliveryTimeSlots(next);
                         }}
                         className={styles.deliveryTimeInput}
+                      />
+                      <input
+                        type="time"
+                        value={slot.end || ''}
+                        onChange={(e) => {
+                          const next = [...deliveryTimeSlots];
+                          next[index] = { ...next[index], end: e.target.value };
+                          setDeliveryTimeSlots(next);
+                        }}
+                        className={styles.deliveryTimeInput}
+                      />
+                      <input
+                        type="text"
+                        value={buildRangeLabel(slot.value, slot.end || slot.value)}
+                        readOnly
+                        className={styles.input}
+                        placeholder="Range"
                       />
                       <button
                         type="button"
@@ -567,30 +588,37 @@ export default function AdminContentEditPage() {
 
               <div className={styles.addPincodeRow}>
                 <input
-                  type="text"
-                  value={newSlotLabel}
-                  onChange={(e) => setNewSlotLabel(e.target.value)}
-                  className={styles.input}
-                  placeholder="Slot label (e.g. Before 9 AM)"
-                />
-                <input
                   type="time"
                   value={newSlotValue}
                   onChange={(e) => setNewSlotValue(e.target.value)}
                   className={styles.deliveryTimeInput}
                 />
+                <input
+                  type="time"
+                  value={newSlotEnd}
+                  onChange={(e) => setNewSlotEnd(e.target.value)}
+                  className={styles.deliveryTimeInput}
+                />
+                <input
+                  type="text"
+                  value={buildRangeLabel(newSlotValue, newSlotEnd)}
+                  readOnly
+                  className={styles.input}
+                  placeholder="Range"
+                />
                 <button
                   type="button"
                   onClick={() => {
-                    const label = newSlotLabel.trim();
                     const value = newSlotValue.trim();
-                    if (!label || !value) return;
-                    if (deliveryTimeSlots.some((s) => s.label === label && s.value === value)) return;
-                    setDeliveryTimeSlots([...deliveryTimeSlots, { label, value }]);
-                    setNewSlotLabel('');
-                    setNewSlotValue('');
+                    const end = newSlotEnd.trim();
+                    if (!value || !end) return;
+                    if (deliveryTimeSlots.some((s) => s.value === value && (s.end || '') === end)) return;
+                    setDeliveryTimeSlots([
+                      ...deliveryTimeSlots,
+                      { label: buildRangeLabel(value, end), value, end },
+                    ]);
                   }}
-                  disabled={!newSlotLabel.trim() || !newSlotValue.trim()}
+                  disabled={!newSlotValue.trim() || !newSlotEnd.trim()}
                   className={styles.addPincodeButton}
                 >
                   Add slot

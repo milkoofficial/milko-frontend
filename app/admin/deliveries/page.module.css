@@ -801,7 +801,7 @@
 }
 
 .card {
-  border: 1px solid #e5e7eb;
+  border: 0px solid #e5e7eb;
   border-radius: 16px;
   background: #fff;
   padding: 1rem;
@@ -838,10 +838,18 @@
   gap: 0.75rem;
 }
 
+/* Inner block must span full card width so subscription title row can space-between id vs badge */
+.cardTop > div {
+  flex: 1;
+  min-width: 0;
+}
+
 .cardTitleRow {
   display: flex;
-  flex-wrap: wrap;
+  width: 100%;
+  flex-wrap: nowrap;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
 }
 
