@@ -28,7 +28,7 @@ export function slotPeriodLabel(endOrStartHhmm: string): 'Morning' | 'Evening' {
 export function formatHhmmTo12h(hhmm: string): string {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm).trim());
   if (!m) return hhmm;
-  let h = parseInt(m[1], 10);
+  const h = parseInt(m[1], 10);
   const min = parseInt(m[2], 10);
   if (!Number.isFinite(h) || !Number.isFinite(min)) return hhmm;
   const suffix = h >= 12 ? 'pm' : 'am';
