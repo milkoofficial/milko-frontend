@@ -17,6 +17,7 @@ const orderRoutes = require('./routes/orders');
 const orderController = require('./controllers/orderController');
 const walletRoutes = require('./routes/wallet');
 const analyticsRoutes = require('./routes/analytics');
+const deliveryTrackingRoutes = require('./routes/deliveryTracking');
 
 // Import middleware
 const { authenticate } = require('./middleware/auth');
@@ -122,6 +123,7 @@ app.get('/api/orders/delivered-for-review', authenticate, orderController.getDel
 app.use('/api/orders', orderRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api', deliveryTrackingRoutes);
 
 // 404 handler
 app.use(notFound);

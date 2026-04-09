@@ -81,6 +81,10 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/addresses/${id}`,
     DELETE: (id: string) => `/api/addresses/${id}`,
   },
+  DELIVERY_TRACKING: {
+    LIST: '/api/deliveries',
+    MARK_DELIVERED: '/api/mark-delivered',
+  },
   // Admin
   ADMIN: {
     PRODUCTS: {
