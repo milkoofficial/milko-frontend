@@ -1,6 +1,6 @@
-import { Loader } from '@googlemaps/js-api-loader';
+import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 
-let loaderInstance: Loader | null = null;
+let mapsConfigured = false;
 let loaderPromise: Promise<typeof google> | null = null;
 const reverseGeocodeCache = new Map<string, string>();
 
@@ -18,16 +18,16 @@ export async function loadGoogleMaps(): Promise<typeof google> {
     throw new Error('Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY');
   }
 
-  if (!loaderInstance) {
-    loaderInstance = new Loader({
-      apiKey,
-      version: 'weekly',
-      libraries: ['places'],
+  if (!mapsConfigured) {
+    setOptions({
+      key: apiKey,
+      v: 'weekly',
     });
+    mapsConfigured = true;
   }
 
   if (!loaderPromise) {
-    loaderPromise = loaderInstance.load();
+    loaderPromise = Promise.all([importLibrary('maps'), importLibrary('places')]).then(() => google);
   }
 
   return loaderPromise;

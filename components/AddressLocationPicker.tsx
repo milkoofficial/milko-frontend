@@ -88,7 +88,8 @@ export default function AddressLocationPicker({
 
   useEffect(() => {
     const trimmed = searchText.trim();
-    if (!trimmed || trimmed.length < 3 || !autocompleteServiceRef.current) {
+    const autocompleteService = autocompleteServiceRef.current;
+    if (!trimmed || trimmed.length < 3 || !autocompleteService) {
       setResults([]);
       return;
     }
@@ -96,7 +97,7 @@ export default function AddressLocationPicker({
     const timer = window.setTimeout(async () => {
       try {
         setSearching(true);
-        const next = await autocompleteServiceRef.current.getPlacePredictions({
+        const next = await autocompleteService.getPlacePredictions({
           input: trimmed,
           componentRestrictions: { country: 'in' },
         });
