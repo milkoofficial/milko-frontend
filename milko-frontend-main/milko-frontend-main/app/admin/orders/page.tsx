@@ -724,7 +724,7 @@ export default function AdminOrdersPage() {
                         typeof selectedOrder.deliveryAddress.longitude === 'number' ? (
                           <p style={{ margin: '0.35rem 0 0' }}>
                             <a
-                              href={`https://www.openstreetmap.org/?mlat=${selectedOrder.deliveryAddress.latitude}&mlon=${selectedOrder.deliveryAddress.longitude}#map=17/${selectedOrder.deliveryAddress.latitude}/${selectedOrder.deliveryAddress.longitude}`}
+                              href={`https://www.google.com/maps?q=${selectedOrder.deliveryAddress.latitude},${selectedOrder.deliveryAddress.longitude}`}
                               target="_blank"
                               rel="noreferrer"
                               className={styles.mapLink}

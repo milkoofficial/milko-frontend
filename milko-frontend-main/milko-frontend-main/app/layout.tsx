@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
-import 'leaflet/dist/leaflet.css';
 import { Inter } from 'next/font/google';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { AuthProvider } from '@/contexts/AuthContext';
