@@ -998,15 +998,18 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                 >
                   Add to Cart
                 </button>
-                <Link
-                  href={pincode.length === 6 && isPincodeAvailable === true ? `/subscribe?productId=${displayProduct.id}` : '#'}
+                <button
+                  type="button"
                   className={styles.buyNowButton}
-                  onClick={(e) => {
-                    if (pincode.length !== 6 || isPincodeAvailable !== true) {
-                      e.preventDefault();
-                      return;
-                    }
+                  onClick={() => {
+                    if (pincode.length !== 6 || isPincodeAvailable !== true) return;
+                    addItem({
+                      productId: displayProduct.id,
+                      quantity: Math.max(1, quantity),
+                      variationId: selectedVariationId ?? undefined,
+                    });
                     onClose();
+                    window.location.href = '/cart';
                   }}
                   style={{
                     opacity: (pincode.length === 6 && isPincodeAvailable === true) ? 1 : 0.5,
@@ -1022,7 +1025,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                     </g>
                   </svg>
                   Buy Now
-                </Link>
+                </button>
               </div>
             </div>
 

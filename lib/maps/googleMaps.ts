@@ -2,6 +2,7 @@ import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 
 let mapsConfigured = false;
 let loaderPromise: Promise<typeof google> | null = null;
+let mapsLibrary: google.maps.MapsLibrary | null = null;
 const reverseGeocodeCache = new Map<string, string>();
 
 function getGoogleMapsApiKey(): string {
@@ -27,10 +28,22 @@ export async function loadGoogleMaps(): Promise<typeof google> {
   }
 
   if (!loaderPromise) {
-    loaderPromise = Promise.all([importLibrary('maps'), importLibrary('places')]).then(() => google);
+    loaderPromise = (async () => {
+      const [mapsMod] = await Promise.all([importLibrary('maps'), importLibrary('places')]);
+      mapsLibrary = mapsMod;
+      return google;
+    })();
   }
 
   return loaderPromise;
+}
+
+/** Use after `loadGoogleMaps()` resolves — prefer `Map` / `Marker` from here over `google.maps.*` when possible. */
+export function getLoadedMapsLibrary(): google.maps.MapsLibrary {
+  if (!mapsLibrary) {
+    throw new Error('Call loadGoogleMaps() before getLoadedMapsLibrary()');
+  }
+  return mapsLibrary;
 }
 
 function cacheKey(lat: number, lng: number): string {

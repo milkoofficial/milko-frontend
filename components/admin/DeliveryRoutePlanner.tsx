@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/utils/constants';
-import { getGoogleMapsApiKeyPresent, loadGoogleMaps, reverseGeocodeLatLng } from '@/lib/maps/googleMaps';
+import {
+  getGoogleMapsApiKeyPresent,
+  getLoadedMapsLibrary,
+  loadGoogleMaps,
+  reverseGeocodeLatLng,
+} from '@/lib/maps/googleMaps';
 import { calculateDistance, optimizeRoute, type RouteUserPoint } from '@/lib/maps/routeOptimization';
 import styles from './DeliveryRoutePlanner.module.css';
 
@@ -47,6 +52,7 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
   const [routeDurationSec, setRouteDurationSec] = useState(0);
   const [activeStopId, setActiveStopId] = useState<number | null>(null);
   const [errorText, setErrorText] = useState<string>('');
+  const [mapsReady, setMapsReady] = useState(false);
 
   const pendingStops = useMemo(() => stops.filter((s) => s.status !== 'delivered'), [stops]);
   const activeStop = useMemo(() => stops.find((s) => s.id === activeStopId) || null, [stops, activeStopId]);
@@ -59,6 +65,7 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
       try {
         await loadGoogleMaps();
         if (cancelled) return;
+        setMapsReady(true);
         const deliveryData = await apiClient.get<DeliveryStop[]>(
           `${API_ENDPOINTS.DELIVERY_TRACKING.LIST}?date=${encodeURIComponent(date)}&slot=${slot}`,
         );
@@ -66,6 +73,7 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
         setStops(Array.isArray(deliveryData) ? deliveryData : []);
       } catch (error) {
         if (cancelled) return;
+        setMapsReady(false);
         setErrorText((error as { message?: string })?.message || 'Unable to load route data');
       } finally {
         if (!cancelled) setLoading(false);
@@ -77,8 +85,23 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
   }, [date, slot]);
 
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
-    const map = new google.maps.Map(mapContainerRef.current, {
+    if (!mapsReady || !mapContainerRef.current || mapRef.current) return;
+    let MapCtor: typeof google.maps.Map;
+    try {
+      ({ Map: MapCtor } = getLoadedMapsLibrary());
+    } catch {
+      setErrorText(
+        'Google Maps failed to load (check API key, billing, and Maps JavaScript API on the same Cloud project).',
+      );
+      return;
+    }
+    if (typeof MapCtor !== 'function') {
+      setErrorText(
+        'Google Maps failed to load (check API key, billing, and Maps JavaScript API on the same Cloud project).',
+      );
+      return;
+    }
+    const map = new MapCtor(mapContainerRef.current, {
       center: adminLocation || { lat: 20.5937, lng: 78.9629 },
       zoom: 11,
       mapTypeControl: false,
@@ -95,7 +118,7 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
         strokeWeight: 5,
       },
     });
-  }, [adminLocation]);
+  }, [mapsReady, adminLocation]);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -135,7 +158,7 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
   }, [pendingStops]);
 
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !mapsReady) return;
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
 
@@ -169,7 +192,7 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
         }),
       );
     });
-  }, [stops, adminLocation]);
+  }, [mapsReady, stops, adminLocation]);
 
   async function generateOptimizedRoute() {
     if (!adminLocation || !mapRef.current || !directionsRendererRef.current) {
