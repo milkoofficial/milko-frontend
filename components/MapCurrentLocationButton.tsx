@@ -1,9 +1,8 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { getGoogleMapsApiKeyPresent, reverseGeocodeLatLng } from '@/lib/maps/googleMaps';
-import { getQuickGeolocationPosition } from '@/lib/utils/geolocation';
 import LocationPermissionHelpDialog from '@/components/LocationPermissionHelpDialog';
 import styles from './MapCurrentLocationButton.module.css';
 
@@ -40,6 +39,11 @@ const locateIcon = (
   </svg>
 );
 
+/**
+ * Call geolocation synchronously from a click handler so the browser keeps
+ * "transient user activation" — required for the permission prompt to appear
+ * again (Chrome/Safari/WebView). Async/await before getCurrentPosition often breaks that.
+ */
 export default function MapCurrentLocationButton({
   onLocated,
   className,
@@ -51,21 +55,22 @@ export default function MapCurrentLocationButton({
   const [busy, setBusy] = useState(false);
   const [permissionHelpOpen, setPermissionHelpOpen] = useState(false);
 
-  const runLocate = useCallback(async () => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      showToast('Location is not supported on this device.', 'error');
-      return;
-    }
+  const onLocatedRef = useRef(onLocated);
+  const withAddressRef = useRef(withAddress);
+  useEffect(() => {
+    onLocatedRef.current = onLocated;
+  }, [onLocated]);
+  useEffect(() => {
+    withAddressRef.current = withAddress;
+  }, [withAddress]);
 
-    setBusy(true);
-    setPermissionHelpOpen(false);
-    try {
-      const pos = await getQuickGeolocationPosition(timeoutMs);
+  const finishWithPosition = useCallback(
+    async (pos: GeolocationPosition) => {
       const { latitude, longitude, accuracy } = pos.coords;
       const accuracyM = Number.isFinite(accuracy) && accuracy > 0 ? accuracy : null;
 
       let formattedAddress: string | null = null;
-      if (withAddress && getGoogleMapsApiKeyPresent()) {
+      if (withAddressRef.current && getGoogleMapsApiKeyPresent()) {
         try {
           formattedAddress = await reverseGeocodeLatLng(latitude, longitude);
         } catch {
@@ -73,33 +78,63 @@ export default function MapCurrentLocationButton({
         }
       }
 
-      await onLocated({
-        latitude,
-        longitude,
-        accuracyM,
-        formattedAddress: formattedAddress?.trim() || null,
-      });
-    } catch (err: unknown) {
-      const geo = err as GeolocationPositionError;
-      if (geo && typeof geo.code === 'number') {
-        if (geo.code === 1) {
+      try {
+        await onLocatedRef.current({
+          latitude,
+          longitude,
+          accuracyM,
+          formattedAddress: formattedAddress?.trim() || null,
+        });
+      } catch {
+        showToast('Could not apply this location.', 'error');
+      }
+    },
+    [showToast],
+  );
+
+  /** Must be invoked directly from onClick (no await before getCurrentPosition). */
+  const requestFromUserGesture = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      showToast('Location is not supported on this device.', 'error');
+      return;
+    }
+
+    setPermissionHelpOpen(false);
+    setBusy(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void (async () => {
+          try {
+            await finishWithPosition(pos);
+          } finally {
+            setBusy(false);
+          }
+        })();
+      },
+      (err) => {
+        setBusy(false);
+        if (err.code === err.PERMISSION_DENIED || err.code === 1) {
           setPermissionHelpOpen(true);
           return;
         }
-        if (geo.code === 2) {
+        if (err.code === err.POSITION_UNAVAILABLE || err.code === 2) {
           showToast('Location unavailable. Try outdoors or pick on the map.', 'error');
           return;
         }
-        if (geo.code === 3) {
+        if (err.code === err.TIMEOUT || err.code === 3) {
           showToast('Location timed out. Try again.', 'error');
           return;
         }
-      }
-      showToast('Could not get your location.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  }, [onLocated, showToast, timeoutMs, withAddress]);
+        showToast('Could not get your location.', 'error');
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: timeoutMs,
+      },
+    );
+  }, [finishWithPosition, showToast, timeoutMs]);
 
   return (
     <>
@@ -107,7 +142,7 @@ export default function MapCurrentLocationButton({
         type="button"
         className={`${styles.btn} ${className || ''}`}
         disabled={disabled || busy}
-        onClick={runLocate}
+        onClick={requestFromUserGesture}
         aria-label="Use current location"
       >
         {locateIcon}
@@ -117,9 +152,11 @@ export default function MapCurrentLocationButton({
       <LocationPermissionHelpDialog
         open={permissionHelpOpen}
         onClose={() => setPermissionHelpOpen(false)}
-        onTryAgain={() => {
-          setPermissionHelpOpen(false);
-          void runLocate();
+        onTryAgain={requestFromUserGesture}
+        onReloadPage={() => {
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
         }}
       />
     </>
