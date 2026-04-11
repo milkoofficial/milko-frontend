@@ -7,13 +7,14 @@
   font-size: 0.78rem;
   font-weight: 600;
   color: #0f172a;
-  background: #fff;
+  background: #ffffff57;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .12);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background .15s, border-color .15s;
+  backdrop-filter: blur(4px) !Important;
 }
 
 .btn:hover:not(:disabled) {

@@ -68,6 +68,8 @@ export default function AddressLocationPicker({
 
   const onChangeRef = useRef(onChange);
   const zoomAccuracyToastShownRef = useRef(false);
+  const mapDraggingRef = useRef(false);
+  const autocompleteEpochRef = useRef(0);
   const { showToast } = useToast();
   const showToastRef = useRef(showToast);
   useEffect(() => {
@@ -83,6 +85,8 @@ export default function AddressLocationPicker({
   const [searchText, setSearchText] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<PlacePrediction[]>([]);
+  /** Hide place predictions while the user is dragging the map (coords still update on drag end). */
+  const [mapDragging, setMapDragging] = useState(false);
 
   /** Only show permission help if GPS failed and user still has no address/map fix. */
   const shouldOpenPermissionHelpOnDeny = useCallback(() => {
@@ -129,7 +133,17 @@ export default function AddressLocationPicker({
     placesServiceRef.current = new google.maps.places.PlacesService(document.createElement('div'));
     autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
 
+    map.addListener('dragstart', () => {
+      autocompleteEpochRef.current += 1;
+      mapDraggingRef.current = true;
+      setMapDragging(true);
+      setSearching(false);
+      setResults([]);
+    });
+
     map.addListener('dragend', () => {
+      mapDraggingRef.current = false;
+      setMapDragging(false);
       const c = map.getCenter();
       if (!c) return;
       const lat = c.lat();
@@ -144,15 +158,18 @@ export default function AddressLocationPicker({
         showToastRef.current('Zoom in closer for a more accurate address.', 'error', 4500);
       }
       onChangeRef.current({ latitude: lat, longitude: lng });
-      void reverseGeocodeLatLng(lat, lng).then((rev) => {
-        if (rev) setSearchText(rev);
-      });
+      // Do not fill the search box from reverse geocode — only typed search / pick / GPS updates it.
       setResults([]);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- create map once; use pan effect for prop updates
   }, [mapsReady]);
 
   useEffect(() => {
+    if (mapDragging) {
+      setResults([]);
+      return;
+    }
+
     const trimmed = searchText.trim();
     const autocompleteService = autocompleteServiceRef.current;
     if (!trimmed || trimmed.length < 3 || !autocompleteService) {
@@ -163,10 +180,18 @@ export default function AddressLocationPicker({
     const timer = window.setTimeout(async () => {
       try {
         setSearching(true);
+        const requestEpoch = autocompleteEpochRef.current;
         const next = await autocompleteService.getPlacePredictions({
           input: trimmed,
           componentRestrictions: { country: 'in' },
         });
+        if (
+          requestEpoch !== autocompleteEpochRef.current ||
+          mapDraggingRef.current
+        ) {
+          setResults([]);
+          return;
+        }
         setResults((next.predictions || []).slice(0, 5).map((item) => ({
           placeId: item.place_id,
           description: item.description,
@@ -179,7 +204,7 @@ export default function AddressLocationPicker({
     }, 400);
 
     return () => window.clearTimeout(timer);
-  }, [searchText]);
+  }, [searchText, mapDragging]);
 
   useEffect(() => {
     if (!mapInstanceRef.current) return;
@@ -215,7 +240,7 @@ export default function AddressLocationPicker({
     <div className={styles.wrap}>
       <p className={styles.label}>Pin exact location on map</p>
       <p className={styles.helpText}>
-        Drag the map so the <strong>blue pin</strong> sits on your doorstep, search above, or use{' '}
+        Drag the map so the <strong>blue pin</strong> sits on your doorstep, use the search on the map, or{' '}
         <strong>Use current location</strong>. Coordinates update when you finish dragging.
       </p>
       {!getGoogleMapsApiKeyPresent() ? (
@@ -225,37 +250,40 @@ export default function AddressLocationPicker({
         </p>
       ) : null}
       {mapsError ? <p className={styles.searchStatus}>{mapsError}</p> : null}
-      <div className={styles.searchWrap}>
-        <span className={styles.searchIcon} aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-            <path d="M20 20L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </span>
-        <input
-          type="text"
-          className={styles.searchInput}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          placeholder="Search location"
-        />
-        {searching ? <p className={styles.searchStatus}>Searching...</p> : null}
-        {results.length > 0 ? (
-          <div className={styles.searchResults}>
-            {results.map((item) => (
-              <button
-                key={item.placeId}
-                type="button"
-                className={styles.searchResultItem}
-                onClick={() => onPickPlace(item.placeId)}
-              >
-                {item.description}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
       <div className={styles.mapWrap}>
+        <div className={styles.searchOverlay}>
+          <div className={styles.searchWrap}>
+            <span className={styles.searchIcon} aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <path d="M20 20L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              className={`${styles.searchInput} ${searching ? styles.searchInputBusy : ''}`}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Search location"
+              autoComplete="off"
+            />
+            {searching ? <span className={styles.searchingInline}>Searching…</span> : null}
+            {results.length > 0 && !mapDragging ? (
+              <div className={styles.searchResults}>
+                {results.map((item) => (
+                  <button
+                    key={item.placeId}
+                    type="button"
+                    className={styles.searchResultItem}
+                    onClick={() => onPickPlace(item.placeId)}
+                  >
+                    {item.description}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
         <div className={styles.mapToolbar}>
           <div className={styles.mapToolbarSpacer} />
           <span className={styles.dragMapHint}>Drag Map</span>
