@@ -46,8 +46,17 @@ export default function SubscribePage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [mapModalAddress, setMapModalAddress] = useState<Address | null>(null);
-  const [mapDraftLat, setMapDraftLat] = useState<number | undefined>(undefined);
-  const [mapDraftLng, setMapDraftLng] = useState<number | undefined>(undefined);
+  const [mapModalDraft, setMapModalDraft] = useState<{
+    name: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    latitude?: number;
+    longitude?: number;
+  } | null>(null);
   const [mapSaving, setMapSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
@@ -401,13 +410,23 @@ export default function SubscribePage() {
 
   const openMapModal = (address: Address) => {
     setMapModalAddress(address);
-    setMapDraftLat(address.latitude);
-    setMapDraftLng(address.longitude);
+    setMapModalDraft({
+      name: address.name,
+      phone: address.phone || '',
+      street: address.street,
+      city: address.city,
+      state: address.state,
+      postalCode: address.postalCode,
+      country: address.country || 'India',
+      latitude: address.latitude,
+      longitude: address.longitude,
+    });
   };
 
   const closeMapModal = () => {
     if (mapSaving) return;
     setMapModalAddress(null);
+    setMapModalDraft(null);
   };
 
   const openAddLocationModal = () => {
@@ -477,23 +496,49 @@ export default function SubscribePage() {
     }
   };
 
-  const saveMapLocation = async () => {
-    if (!mapModalAddress || mapDraftLat === undefined || mapDraftLng === undefined) {
-      alert('Please tap the map to set a location.');
+  const saveAddressFromMapModal = async () => {
+    if (!mapModalAddress || !mapModalDraft) return;
+    const d = mapModalDraft;
+    if (
+      !d.name.trim()
+      || !d.phone.trim()
+      || !d.street.trim()
+      || !d.city.trim()
+      || !d.state.trim()
+      || !d.postalCode.trim()
+      || !d.country.trim()
+    ) {
+      alert('Please fill all address fields.');
+      return;
+    }
+    if (d.latitude === undefined || d.longitude === undefined) {
+      alert('Please set your location on the map.');
+      return;
+    }
+    if (!isDeliverable(d.postalCode.trim())) {
+      alert('This pincode is not deliverable.');
       return;
     }
     setMapSaving(true);
     try {
       const updated = await addressesApi.update(mapModalAddress.id, {
-        latitude: mapDraftLat,
-        longitude: mapDraftLng,
+        name: d.name.trim(),
+        phone: d.phone.trim(),
+        street: d.street.trim(),
+        city: d.city.trim(),
+        state: d.state.trim(),
+        postalCode: d.postalCode.trim(),
+        country: d.country.trim(),
+        latitude: d.latitude,
+        longitude: d.longitude,
       });
       setSavedAddresses((prev) =>
         prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a)),
       );
       setMapModalAddress(null);
+      setMapModalDraft(null);
     } catch (e) {
-      alert((e as { message?: string })?.message || 'Could not save location.');
+      alert((e as { message?: string })?.message || 'Could not save address.');
     } finally {
       setMapSaving(false);
     }
@@ -580,7 +625,7 @@ export default function SubscribePage() {
                             openMapModal(address);
                           }}
                         >
-                          {hasPin ? 'Change exact location' : 'Set exact location'}
+                          {hasPin ? 'Change Address' : 'Set address & map'}
                         </button>
                       </div>
                     );
@@ -817,7 +862,7 @@ export default function SubscribePage() {
           </div>
         </form>
 
-        {mapModalAddress ? (
+        {mapModalAddress && mapModalDraft ? (
           <div
             className={styles.mapModalOverlay}
             role="presentation"
@@ -827,7 +872,7 @@ export default function SubscribePage() {
               className={styles.mapModal}
               role="dialog"
               aria-modal="true"
-              aria-labelledby="subscribe-map-title"
+              aria-labelledby="subscribe-address-modal-title"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -839,22 +884,72 @@ export default function SubscribePage() {
               >
                 ×
               </button>
-              <h3 id="subscribe-map-title" className={styles.mapModalTitle}>
-                Set exact location
+              <h3 id="subscribe-address-modal-title" className={styles.mapModalTitle}>
+                Delivery address
               </h3>
               <p className={styles.mapModalSubtitle}>
-                {mapModalAddress.name} — {mapModalAddress.city}, {mapModalAddress.postalCode}
+                Update your details and map pin. Changes apply when you save.
               </p>
-              <div className={styles.mapModalBody}>
-                <AddressLocationPicker
-                  latitude={mapDraftLat}
-                  longitude={mapDraftLng}
-                  showCoords={false}
-                  onChange={({ latitude, longitude }) => {
-                    setMapDraftLat(latitude);
-                    setMapDraftLng(longitude);
-                  }}
+              <div className={styles.addLocationForm}>
+                <div className={styles.addLocationRow}>
+                  <input
+                    className={styles.input}
+                    placeholder="Full name"
+                    value={mapModalDraft.name}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, name: e.target.value } : p))}
+                  />
+                  <input
+                    className={styles.input}
+                    placeholder="Phone number"
+                    value={mapModalDraft.phone}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, phone: e.target.value } : p))}
+                  />
+                </div>
+                <input
+                  className={styles.input}
+                  placeholder="Street address"
+                  value={mapModalDraft.street}
+                  onChange={(e) => setMapModalDraft((p) => (p ? { ...p, street: e.target.value } : p))}
                 />
+                <div className={styles.addLocationRow}>
+                  <input
+                    className={styles.input}
+                    placeholder="City"
+                    value={mapModalDraft.city}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, city: e.target.value } : p))}
+                  />
+                  <input
+                    className={styles.input}
+                    placeholder="State"
+                    value={mapModalDraft.state}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, state: e.target.value } : p))}
+                  />
+                </div>
+                <div className={styles.addLocationRow}>
+                  <input
+                    className={styles.input}
+                    placeholder="Postal code"
+                    value={mapModalDraft.postalCode}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, postalCode: e.target.value } : p))}
+                  />
+                  <input
+                    className={styles.input}
+                    value="India"
+                    readOnly
+                    aria-label="Country (fixed)"
+                  />
+                </div>
+                <div className={styles.mapModalBody}>
+                  <AddressLocationPicker
+                    key={mapModalAddress.id}
+                    latitude={mapModalDraft.latitude}
+                    longitude={mapModalDraft.longitude}
+                    showCoords={false}
+                    onChange={({ latitude, longitude }) =>
+                      setMapModalDraft((p) => (p ? { ...p, latitude, longitude } : p))
+                    }
+                  />
+                </div>
               </div>
               <div className={styles.mapModalActions}>
                 <button
@@ -869,9 +964,9 @@ export default function SubscribePage() {
                   type="button"
                   className={styles.mapModalSave}
                   disabled={mapSaving}
-                  onClick={() => void saveMapLocation()}
+                  onClick={() => void saveAddressFromMapModal()}
                 >
-                  {mapSaving ? 'Saving…' : 'Save location'}
+                  {mapSaving ? 'Saving…' : 'Save changes'}
                 </button>
               </div>
             </div>

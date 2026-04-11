@@ -34,15 +34,23 @@ async function getDeliveriesForDate(date, slot) {
         ds.delivered_at AS base_delivered_at,
         s.user_id,
         s.delivery_time,
+        s.litres_per_day,
         u.name AS user_name,
         u.email AS user_email,
+        p.name AS product_name,
         a.latitude,
         a.longitude,
+        a.street,
+        a.city,
+        a.state,
+        a.postal_code,
+        a.country,
         COALESCE(d.status, ds.status) AS status,
         COALESCE(d.delivered_at, ds.delivered_at) AS delivered_at
       FROM delivery_schedules ds
       JOIN subscriptions s ON s.id = ds.subscription_id
       LEFT JOIN users u ON u.id = s.user_id
+      LEFT JOIN products p ON p.id = s.product_id
       LEFT JOIN addresses a ON a.id = s.address_id
       LEFT JOIN deliveries d ON d.delivery_schedule_id = ds.id AND d.date = ds.delivery_date
       WHERE ds.delivery_date = $1
@@ -67,6 +75,13 @@ async function getDeliveriesForDate(date, slot) {
     lng: Number(row.longitude),
     status: row.status,
     deliveredAt: row.delivered_at || null,
+    litresPerDay: row.litres_per_day != null ? Number(row.litres_per_day) : null,
+    productName: row.product_name || null,
+    street: row.street || null,
+    city: row.city || null,
+    state: row.state || null,
+    postalCode: row.postal_code || null,
+    country: row.country || null,
   }));
 }
 

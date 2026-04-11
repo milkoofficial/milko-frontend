@@ -1202,16 +1202,14 @@ export default function AdminDeliveriesPage() {
                 className={`${styles.routePopupPanel} ${styles.routePopupPanelWide}`}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Route check"
+                aria-label="Delivery route"
                 onMouseDown={(e) => e.stopPropagation()}
               >
-                <h3 className={styles.routePopupTitle}>Check route and start delivering</h3>
-                <DeliveryRoutePlanner slot={routePlannerSlot} date={getTodayLocalYmd()} />
-                <div className={styles.routePopupActions}>
-                  <button type="button" className={styles.routePopupBtnSecondary} onClick={() => setRouteCheckPopupOpen(false)}>
-                    Close
-                  </button>
-                </div>
+                <DeliveryRoutePlanner
+                  slot={routePlannerSlot}
+                  date={getTodayLocalYmd()}
+                  onClose={() => setRouteCheckPopupOpen(false)}
+                />
               </div>
             </div>,
             document.body

@@ -619,7 +619,7 @@ export default function SubscriptionDetailsPage() {
                 <strong>Shifted</strong> — Shifted from <strong>{shiftedFromText}</strong> to{' '}
                 <strong>{shiftedToText}</strong>. The system automatically added an extra delivery day at the end of your
                 subscription because this subscription was bought or renewed after your selected {firstDayShiftSlotLabel}{' '}
-                delivery window had already ended.
+                delivery window had already ended today.
                 <span className={styles.calendarShiftNoteMeta}>
                   
                 </span>
