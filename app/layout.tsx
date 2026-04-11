@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
 import { Inter } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
@@ -66,6 +67,7 @@ export default function RootLayout({
               <ConditionalFooter />
               <MobileBottomNav />
               <Toast />
+              <Analytics />
               <SpeedInsights />
               <GoogleAnalytics measurementId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
             </ToastProvider>

@@ -13,7 +13,8 @@ import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import { contentApi, productsApi, walletApi } from '@/lib/api';
 import ProductDetailsModal from './ProductDetailsModal';
 import Logo from './Logo';
-import { getGoogleMapsApiKeyPresent, getPostalCodeFromLatLng } from '@/lib/maps/googleMaps';
+import { getGoogleMapsApiKeyPresent, getPostalCodeFromLatLng, reverseGeocodeLatLng } from '@/lib/maps/googleMaps';
+import { getAccuratePosition } from '@/lib/utils/geolocation';
 
 /**
  * User Dropdown Component
@@ -516,6 +517,9 @@ export default function Header() {
   const [deliveryStatus, setDeliveryStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
   const [isLocationDetecting, setIsLocationDetecting] = useState(false);
   const [locationNotice, setLocationNotice] = useState<{ type: 'info' | 'error'; text: string } | null>(null);
+  const [detectedAddress, setDetectedAddress] = useState<string | null>(null);
+  const [locationAccuracyM, setLocationAccuracyM] = useState<number | null>(null);
+  const [showLocationPermissionHelp, setShowLocationPermissionHelp] = useState(false);
   const [savedPincode, setSavedPincode] = useState<string | null>(null);
   const [savedDeliveryStatus, setSavedDeliveryStatus] = useState<'available' | 'unavailable' | null>(null);
   const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime?: string }> | null>(null);
@@ -587,6 +591,9 @@ export default function Header() {
       setDeliveryStatus(null);
       setIsLocationDetecting(false);
       setLocationNotice(null);
+      setDetectedAddress(null);
+      setLocationAccuracyM(null);
+      setShowLocationPermissionHelp(false);
       // Focus first input after a short delay to ensure DOM is ready
       setTimeout(() => {
         pincodeInputRefs.current[0]?.focus();
@@ -607,6 +614,8 @@ export default function Header() {
     if (fullPincode.length !== 6) return;
 
     setLocationNotice(null);
+    setDetectedAddress(null);
+    setLocationAccuracyM(null);
     setDeliveryStatus('checking');
 
     setTimeout(() => {
@@ -618,6 +627,9 @@ export default function Header() {
   const handleGetCurrentLocation = () => {
     if (typeof window === 'undefined') return;
     setLocationNotice(null);
+    setShowLocationPermissionHelp(false);
+    setDetectedAddress(null);
+    setLocationAccuracyM(null);
 
     if (!getGoogleMapsApiKeyPresent()) {
       setLocationNotice({
@@ -638,49 +650,79 @@ export default function Header() {
     setDeliveryStatus(null);
     setIsLocationDetecting(true);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+    (async () => {
+      try {
+        const pos = await getAccuratePosition({
+          targetAccuracyMeters: 12,
+          maxWaitMs: 32000,
+          minSampleMs: 500,
+        });
+
+        setDeliveryStatus('checking');
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        setLocationAccuracyM(Number.isFinite(accuracy) && accuracy > 0 ? accuracy : null);
+
+        let postal: string | null;
+        let formatted: string | null;
         try {
-          setDeliveryStatus('checking');
-          const postal = await getPostalCodeFromLatLng(pos.coords.latitude, pos.coords.longitude);
-          if (!postal || !/^\d{6}$/.test(postal)) {
-            setDeliveryStatus(null);
-            setLocationNotice({
-              type: 'error',
-              text: 'Could not find a 6-digit pincode for this location. Enter it manually.',
-            });
-            return;
-          }
-          const digits = postal.split('');
-          setPincode(digits);
-          const isAvailable = isDeliverable(postal);
-          setDeliveryStatus(isAvailable ? 'available' : 'unavailable');
+          [postal, formatted] = await Promise.all([
+            getPostalCodeFromLatLng(lat, lng),
+            reverseGeocodeLatLng(lat, lng),
+          ]);
         } catch {
           setDeliveryStatus(null);
+          setLocationAccuracyM(null);
           setLocationNotice({
             type: 'error',
             text: 'Could not look up your address. Try again or enter your pincode manually.',
           });
-        } finally {
-          setIsLocationDetecting(false);
+          return;
         }
-      },
-      (err) => {
-        setIsLocationDetecting(false);
+
+        setDetectedAddress(formatted?.trim() || null);
+
+        if (!postal || !/^\d{6}$/.test(postal)) {
+          setDeliveryStatus(null);
+          setLocationNotice({
+            type: 'error',
+            text: 'Could not find a 6-digit pincode for this location. Enter it manually.',
+          });
+          return;
+        }
+
+        const digits = postal.split('');
+        setPincode(digits);
+        const isAvailable = isDeliverable(postal);
+        setDeliveryStatus(isAvailable ? 'available' : 'unavailable');
+      } catch (err: unknown) {
         setDeliveryStatus(null);
-        let msg = 'Could not get your location.';
-        if (err.code === 1) {
-          msg =
-            'Location permission denied. Allow location when your browser or app asks, or enable it in settings—then try again. You can also enter your pincode manually.';
-        } else if (err.code === 2) {
-          msg = 'Location unavailable. Try again or enter your pincode manually.';
-        } else if (err.code === 3) {
-          msg = 'Location request timed out. Try again.';
+        setLocationAccuracyM(null);
+        setDetectedAddress(null);
+
+        const geoErr = err as GeolocationPositionError;
+        if (geoErr && typeof geoErr.code === 'number') {
+          if (geoErr.code === 1) {
+            setShowLocationPermissionHelp(true);
+            return;
+          }
+          let msg = 'Could not get your location.';
+          if (geoErr.code === 2) {
+            msg = 'Location unavailable. Try again outdoors with GPS, or enter your pincode manually.';
+          } else if (geoErr.code === 3) {
+            msg = 'Location request timed out. Try again in an open area or enter your pincode manually.';
+          }
+          setLocationNotice({ type: 'error', text: msg });
+          return;
         }
-        setLocationNotice({ type: 'error', text: msg });
-      },
-      { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 }
-    );
+
+        setLocationNotice({
+          type: 'error',
+          text: 'Could not get your location. Try again or enter your pincode manually.',
+        });
+      } finally {
+        setIsLocationDetecting(false);
+      }
+    })();
   };
 
   // Handle final done action
@@ -1382,7 +1424,10 @@ export default function Header() {
       {/* Address Modal */}
       {isAddressModalOpen ? (
         <div className={styles.modalOverlay} onClick={() => setIsAddressModalOpen(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={`${styles.modalContent} ${styles.addressModalContent}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className={styles.modalHeader}>
               <h2 className={styles.modalTitle}>Enter your pincode</h2>
@@ -1416,6 +1461,8 @@ export default function Header() {
                       const value = e.target.value.replace(/[^0-9]/g, '');
                       if (value.length <= 1) {
                         setLocationNotice(null);
+                        setDetectedAddress(null);
+                        setLocationAccuracyM(null);
                         const newPincode = [...pincode];
                         newPincode[index] = value;
                         setPincode(newPincode);
@@ -1435,6 +1482,8 @@ export default function Header() {
                     onPaste={(e) => {
                       e.preventDefault();
                       setLocationNotice(null);
+                      setDetectedAddress(null);
+                      setLocationAccuracyM(null);
                       const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
                       const newPincode = [...pincode];
                       for (let i = 0; i < 6; i++) {
@@ -1493,7 +1542,8 @@ export default function Header() {
                       <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     </svg>
                     <span>
-                      Allow location when your browser or app prompts you—we only use it to detect your pincode.
+                      Allow location when your browser or app prompts you. We refine GPS to about ±10–15 m (outdoors
+                      works best), then match your pincode to our delivery areas.
                     </span>
                   </>
                 ) : deliveryStatus === 'checking' ? (
@@ -1502,21 +1552,45 @@ export default function Header() {
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
                       <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     </svg>
-                    <span>{isLocationDetecting ? 'Looking up your pincode…' : 'Checking availability…'}</span>
+                    <span>
+                      {isLocationDetecting
+                        ? 'Resolving address and pincode from your location…'
+                        : 'Checking availability…'}
+                    </span>
                   </>
                 ) : deliveryStatus === 'available' ? (
                   <>
                     <svg className={styles.statusIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    <span>{pincode.join('')} available to deliver</span>
+                    <div className={styles.deliveryStatusStack}>
+                      <span className={styles.deliveryStatusLine}>{pincode.join('')} available to deliver</span>
+                      {detectedAddress ? (
+                        <span className={`${styles.deliveryStatusLine} ${styles.deliveryStatusMuted}`}>
+                          Near: {detectedAddress}
+                          {locationAccuracyM != null && Number.isFinite(locationAccuracyM)
+                            ? ` · GPS accuracy ~±${Math.round(locationAccuracyM)} m`
+                            : ''}
+                        </span>
+                      ) : null}
+                    </div>
                   </>
                 ) : (
                   <>
                     <svg className={styles.statusIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    <span>{pincode.join('')} not available to deliver</span>
+                    <div className={styles.deliveryStatusStack}>
+                      <span className={styles.deliveryStatusLine}>{pincode.join('')} not available to deliver</span>
+                      {detectedAddress ? (
+                        <span className={`${styles.deliveryStatusLine} ${styles.deliveryStatusMuted}`}>
+                          Near: {detectedAddress}
+                          {locationAccuracyM != null && Number.isFinite(locationAccuracyM)
+                            ? ` · GPS accuracy ~±${Math.round(locationAccuracyM)} m`
+                            : ''}
+                        </span>
+                      ) : null}
+                    </div>
                   </>
                 )}
               </div>
@@ -1588,8 +1662,59 @@ export default function Header() {
                 />
                 <path d="M12 3V5M12 19V21M3 12H5M19 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
-              {isLocationDetecting ? 'Getting location…' : 'Get current location'}
+              {isLocationDetecting ? 'Getting precise location…' : 'Get current location'}
             </button>
+
+            {showLocationPermissionHelp ? (
+              <div
+                className={styles.locationPermissionSheet}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="location-permission-title"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 id="location-permission-title" className={styles.locationPermissionTitle}>
+                  Turn on location access
+                </h3>
+                <p className={styles.locationPermissionBody}>
+                  Location was blocked. Browsers and in-app webviews <strong>do not show the system permission popup
+                  again</strong> after you choose Block—you must allow this site in settings first, then use{' '}
+                  <strong>Try again</strong> here.
+                </p>
+                <ul className={styles.locationPermissionList}>
+                  <li>
+                    <strong>Chrome / Edge (desktop):</strong> click the lock or “site information” icon in the
+                    address bar → Permissions / Site settings → Location → Allow.
+                  </li>
+                  <li>
+                    <strong>Chrome (Android):</strong> tap the lock icon → Permissions → Location → Allow.
+                  </li>
+                  <li>
+                    <strong>Safari (iPhone):</strong> Settings → Safari → (or Privacy &amp; Security) → Location, or
+                    Settings → Privacy & Security → Location Services.
+                  </li>
+                </ul>
+                <div className={styles.locationPermissionActions}>
+                  <button
+                    type="button"
+                    className={styles.modalDoneButton}
+                    onClick={() => {
+                      setShowLocationPermissionHelp(false);
+                      handleGetCurrentLocation();
+                    }}
+                  >
+                    Try again
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.modalLocationButton}
+                    onClick={() => setShowLocationPermissionHelp(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
