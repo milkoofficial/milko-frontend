@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './AddressLocationPicker.module.css';
+import MapCurrentLocationButton from '@/components/MapCurrentLocationButton';
 import { getGoogleMapsApiKeyPresent, loadGoogleMaps, reverseGeocodeLatLng } from '@/lib/maps/googleMaps';
 
 type AddressLocationPickerProps = {
@@ -151,7 +152,9 @@ export default function AddressLocationPicker({
   return (
     <div className={styles.wrap}>
       <p className={styles.label}>Pin exact location on map</p>
-      <p className={styles.helpText}>Zoom and tap on map to set marker. This helps delivery partner find you faster.</p>
+      <p className={styles.helpText}>
+        Zoom and tap the map, search above, or use <strong>Use current location</strong> on the map for a fast GPS fix.
+      </p>
       {!getGoogleMapsApiKeyPresent() ? (
         <p className={styles.searchStatus}>Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable Google Maps.</p>
       ) : null}
@@ -186,7 +189,21 @@ export default function AddressLocationPicker({
           </div>
         ) : null}
       </div>
-      <div ref={mapRef} className={styles.map} />
+      <div className={styles.mapWrap}>
+        <MapCurrentLocationButton
+          className={styles.mapLocateFloating}
+          disabled={!mapsReady || Boolean(mapsError)}
+          timeoutMs={6500}
+          onLocated={async (r) => {
+            onChange({ latitude: r.latitude, longitude: r.longitude });
+            setSearchText(
+              r.formattedAddress || `${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`,
+            );
+            setResults([]);
+          }}
+        />
+        <div ref={mapRef} className={styles.map} />
+      </div>
       <p className={styles.coords}>
         {hasSelection
           ? `Selected: ${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`

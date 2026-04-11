@@ -10,6 +10,7 @@ import {
   reverseGeocodeLatLng,
 } from '@/lib/maps/googleMaps';
 import { calculateDistance, optimizeRoute, type RouteUserPoint } from '@/lib/maps/routeOptimization';
+import MapCurrentLocationButton from '@/components/MapCurrentLocationButton';
 import styles from './DeliveryRoutePlanner.module.css';
 
 type SlotKey = 'morning' | 'evening';
@@ -274,7 +275,25 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
       {loading ? <div className={styles.meta}>Loading delivery points...</div> : null}
       {errorText ? <div className={styles.inlineError}>{errorText}</div> : null}
 
-      <div ref={mapContainerRef} className={styles.map} />
+      <div className={styles.mapWrap}>
+        <MapCurrentLocationButton
+          className={styles.mapLocateFloating}
+          disabled={!mapsReady || loading}
+          timeoutMs={6500}
+          onLocated={async (r) => {
+            const next = { lat: r.latitude, lng: r.longitude };
+            setAdminLocation(next);
+            if (mapRef.current) {
+              mapRef.current.panTo(next);
+              mapRef.current.setZoom(16);
+            }
+            if (r.formattedAddress) {
+              setAdminAddress(r.formattedAddress);
+            }
+          }}
+        />
+        <div ref={mapContainerRef} className={styles.map} />
+      </div>
 
       <div className={styles.stats}>
         <span>Total Distance: {routeDistanceMeters > 0 ? formatMeters(routeDistanceMeters) : '—'}</span>

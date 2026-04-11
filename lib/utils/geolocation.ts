@@ -97,3 +97,21 @@ export function getAccuratePosition(options?: {
     }, maxWaitMs);
   });
 }
+
+/**
+ * Single fast GPS read — usually 1–6s on phones with Wi‑Fi/GPS. Good for map pickers
+ * where waiting for a long watch-based fix feels slow.
+ */
+export function getQuickGeolocationPosition(timeoutMs = 7000): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      reject(Object.assign(new Error('Geolocation not supported'), { code: 0 }));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: timeoutMs,
+    });
+  });
+}

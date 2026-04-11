@@ -1790,65 +1790,6 @@
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
-/* Pincode modal: nested permission sheet */
-.addressModalContent {
-  position: relative;
-}
-
-.locationPermissionSheet {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  background: #fff;
-  border-radius: 12px;
-  padding: 1rem 1.1rem 1.15rem;
-  box-sizing: border-box;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  animation: fadeIn 0.2s ease-out;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
-}
-
-.locationPermissionTitle {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #000;
-  letter-spacing: -0.4px;
-}
-
-.locationPermissionBody {
-  margin: 0;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: #333;
-}
-
-.locationPermissionList {
-  margin: 0;
-  padding-left: 1.1rem;
-  font-size: 0.82rem;
-  line-height: 1.45;
-  color: #333;
-}
-
-.locationPermissionList li {
-  margin-bottom: 0.4rem;
-}
-
-.locationPermissionActions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.35rem;
-}
-
-.locationPermissionActions .modalLocationButton {
-  margin-top: 0;
-}
-
 /* Mobile: centre modal in the middle of the screen */
 @media (max-width: 767px) {
   .modalOverlay {
@@ -2048,24 +1989,6 @@
   flex-shrink: 0;
 }
 
-.deliveryStatusStack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.deliveryStatusLine {
-  line-height: 1.35;
-}
-
-.deliveryStatusMuted {
-  font-size: 0.8rem;
-  font-weight: 450;
-  opacity: 0.92;
-}
-
 .modalDoneButton {
   width: 100%;
   padding: 0.875rem;
@@ -2111,44 +2034,5 @@
 
 .modalDoneButtonError:active:not(:disabled) {
   background: #bd2130;
-}
-
-.modalLocationButton {
-  width: 100%;
-  margin-top: 0.75rem;
-  padding: 0.75rem 0.875rem;
-  background: #fff;
-  color: #000;
-  border: 1.5px solid #000;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0s, border-color 0s;
-  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  letter-spacing: -0.2px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.modalLocationButton:hover:not(:disabled) {
-  background: #eeeeee;
-}
-
-.modalLocationButton:active:not(:disabled) {
-  background: #ebebeb;
-}
-
-.modalLocationButton:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.modalLocationIcon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
 }
 
