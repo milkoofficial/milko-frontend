@@ -172,19 +172,16 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
     markersRef.current = [];
 
     if (adminLocation) {
+      const adminIconSize = 56;
       markersRef.current.push(
         new google.maps.Marker({
           map: mapRef.current,
           position: adminLocation,
           title: 'Warehouse / Admin live location',
-          label: 'W',
           icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            fillColor: '#0b84ff',
-            fillOpacity: 1,
-            strokeColor: '#ffffff',
-            strokeWeight: 2,
-            scale: 8,
+            url: '/icons/admin-live-location-marker.svg',
+            scaledSize: new google.maps.Size(adminIconSize, adminIconSize),
+            anchor: new google.maps.Point(adminIconSize / 2, adminIconSize),
           },
         }),
       );

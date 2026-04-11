@@ -240,7 +240,7 @@ export default function AddressLocationPicker({
     <div className={styles.wrap}>
       <p className={styles.label}>Pin exact location on map</p>
       <p className={styles.helpText}>
-        Drag the map so the <strong>blue pin</strong> sits on your doorstep, use the search on the map, or{' '}
+        Drag the map so the <strong>blue pin</strong> sits on your doorstep, search above the map, or choose{' '}
         <strong>Use current location</strong>. Coordinates update when you finish dragging.
       </p>
       {!getGoogleMapsApiKeyPresent() ? (
@@ -250,40 +250,38 @@ export default function AddressLocationPicker({
         </p>
       ) : null}
       {mapsError ? <p className={styles.searchStatus}>{mapsError}</p> : null}
-      <div className={styles.mapWrap}>
-        <div className={styles.searchOverlay}>
-          <div className={styles.searchWrap}>
-            <span className={styles.searchIcon} aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none">
-                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-                <path d="M20 20L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </span>
-            <input
-              type="text"
-              className={`${styles.searchInput} ${searching ? styles.searchInputBusy : ''}`}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search location"
-              autoComplete="off"
-            />
-            {searching ? <span className={styles.searchingInline}>Searching…</span> : null}
-            {results.length > 0 && !mapDragging ? (
-              <div className={styles.searchResults}>
-                {results.map((item) => (
-                  <button
-                    key={item.placeId}
-                    type="button"
-                    className={styles.searchResultItem}
-                    onClick={() => onPickPlace(item.placeId)}
-                  >
-                    {item.description}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+      <div className={styles.searchWrap}>
+        <span className={styles.searchIcon} aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path d="M20 20L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </span>
+        <input
+          type="text"
+          className={`${styles.searchInput} ${searching ? styles.searchInputBusy : ''}`}
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search location"
+          autoComplete="off"
+        />
+        {searching ? <span className={styles.searchingInline}>Searching…</span> : null}
+        {results.length > 0 && !mapDragging ? (
+          <div className={styles.searchResults}>
+            {results.map((item) => (
+              <button
+                key={item.placeId}
+                type="button"
+                className={styles.searchResultItem}
+                onClick={() => onPickPlace(item.placeId)}
+              >
+                {item.description}
+              </button>
+            ))}
           </div>
-        </div>
+        ) : null}
+      </div>
+      <div className={styles.mapWrap}>
         <div className={styles.mapToolbar}>
           <div className={styles.mapToolbarSpacer} />
           <span className={styles.dragMapHint}>Drag Map</span>
