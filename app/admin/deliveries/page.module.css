@@ -383,7 +383,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 0rem;
 }
 
 .routePopupPanel {
@@ -397,7 +397,7 @@
 
 .routePopupPanelWide {
   width: 100%;
-  max-width: min(100vw, 480px);
+  max-width: min(100vw, 520px);
   height: 100dvh;
   max-height: 100dvh;
   padding: 0;

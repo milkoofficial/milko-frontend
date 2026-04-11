@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
-// Client-side Maps code only sees NEXT_PUBLIC_* unless we map a server-only name here.
-// Use either NEXT_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY in .env.local, then restart `next dev`.
+const { loadEnvConfig } = require('@next/env');
+
+// Load .env / .env.local before reading keys. Without this, this file can run before
+// those files are applied and the Maps key stays empty in the client bundle.
+loadEnvConfig(__dirname);
+
+// Client-side Maps reads NEXT_PUBLIC_*; we also accept GOOGLE_MAPS_API_KEY here and map it through.
+// Use either name in .env.local next to package.json, then restart the dev server (Ctrl+C, then npm run dev).
 const googleMapsApiKey = String(
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '',
 )

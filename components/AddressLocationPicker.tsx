@@ -11,9 +11,11 @@ import {
 import {
   formatGoogleMapsLoadError,
   getGoogleMapsApiKeyPresent,
+  getGoogleMapsEnvSetupHint,
   loadGoogleMaps,
   reverseGeocodeLatLng,
 } from '@/lib/maps/googleMaps';
+import MapLocationPinIcon from '@/components/icons/MapLocationPinIcon';
 
 type AddressLocationPickerProps = {
   latitude?: number;
@@ -34,17 +36,7 @@ type PlacePrediction = {
 function MapCenterPin() {
   return (
     <div className={styles.centerPin} aria-hidden>
-      <svg
-        viewBox="0 0 12 12"
-        className={styles.centerPinSvg}
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-      >
-        <path
-          d="M6,0C3.2385864,0,1,2.2385864,1,5s2.5,5,5,7c2.5-2,5-4.2385864,5-7S8.7614136,0,6,0z M6,7 C4.8954468,7,4,6.1045532,4,5s0.8954468-2,2-2s2,0.8954468,2,2S7.1045532,7,6,7z"
-          fill="#0062ff"
-        />
-      </svg>
+      <MapLocationPinIcon className={styles.centerPinSvg} />
     </div>
   );
 }
@@ -244,10 +236,7 @@ export default function AddressLocationPicker({
         <strong>Use current location</strong>. Coordinates update when you finish dragging.
       </p>
       {!getGoogleMapsApiKeyPresent() ? (
-        <p className={styles.searchStatus}>
-          Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY to <code>.env.local</code> (app root) and restart{' '}
-          <code>next dev</code>.
-        </p>
+        <p className={styles.searchStatus}>{getGoogleMapsEnvSetupHint()}</p>
       ) : null}
       {mapsError ? <p className={styles.searchStatus}>{mapsError}</p> : null}
       <div className={styles.searchWrap}>

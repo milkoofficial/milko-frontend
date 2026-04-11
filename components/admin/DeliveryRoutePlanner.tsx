@@ -5,13 +5,15 @@ import { apiClient } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/utils/constants';
 import {
   getGoogleMapsApiKeyPresent,
+  getGoogleMapsEnvSetupHint,
   getLoadedMapsLibrary,
   formatGoogleMapsLoadError,
   loadGoogleMaps,
   reverseGeocodeLatLng,
 } from '@/lib/maps/googleMaps';
 import { calculateDistance } from '@/lib/maps/routeOptimization';
-import MapCurrentLocationButton from '@/components/MapCurrentLocationButton';
+import LocationPermissionHelpDialog from '@/components/LocationPermissionHelpDialog';
+import { mapLocationPinIconDataUrl } from '@/components/icons/MapLocationPinIcon';
 import SwipeToDeliver from '@/components/admin/SwipeToDeliver';
 import styles from './DeliveryRoutePlanner.module.css';
 
@@ -43,6 +45,22 @@ type Props = {
 };
 
 const PROXIMITY_METERS = 20;
+
+const MAP_PIN_PX = 48;
+
+/** Match customer map pin; white halo drawn underneath via `routeGlowPolylineRef`. */
+const ROUTE_STROKE_COLOR = '#0062ff';
+const ROUTE_STROKE_WEIGHT = 5;
+const ROUTE_GLOW_STROKE_WEIGHT = 14;
+const ROUTE_GLOW_OPACITY = 0.82;
+
+function deliveryMapPinMarkerIcon(): google.maps.Icon {
+  return {
+    url: mapLocationPinIconDataUrl(MAP_PIN_PX),
+    scaledSize: new google.maps.Size(MAP_PIN_PX, MAP_PIN_PX),
+    anchor: new google.maps.Point(MAP_PIN_PX / 2, MAP_PIN_PX),
+  };
+}
 
 function slotLabel(slot: SlotKey): string {
   return slot === 'morning' ? 'morning' : 'evening';
@@ -92,6 +110,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const routeGlowPolylineRef = useRef<google.maps.Polyline | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const watchIdRef = useRef<number | null>(null);
 
@@ -111,6 +130,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
   const [sessionDelivered, setSessionDelivered] = useState<DeliveryStop[]>([]);
   const [marking, setMarking] = useState(false);
   const [queuePopupOpen, setQueuePopupOpen] = useState(false);
+  const [locationPermissionHelpOpen, setLocationPermissionHelpOpen] = useState(false);
 
   const pendingStops = useMemo(() => stops.filter(isPendingStop), [stops]);
   const totalPendingLitres = useMemo(
@@ -201,21 +221,29 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     });
   }, [mapsReady]);
 
+  const updateFromGeolocation = useCallback(async (position: GeolocationPosition, opts?: { focusMap?: boolean }) => {
+    const next = {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+    };
+    setAdminLocation(next);
+    try {
+      const address = await reverseGeocodeLatLng(next.lat, next.lng);
+      if (address) setAdminAddress(address);
+    } catch {
+      /* ignore */
+    }
+    if (opts?.focusMap && mapRef.current) {
+      mapRef.current.panTo(next);
+      mapRef.current.setZoom(16);
+    }
+  }, []);
+
   useEffect(() => {
     if (!navigator.geolocation) return;
     watchIdRef.current = navigator.geolocation.watchPosition(
-      async (position) => {
-        const next = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        setAdminLocation(next);
-        try {
-          const address = await reverseGeocodeLatLng(next.lat, next.lng);
-          if (address) setAdminAddress(address);
-        } catch {
-          /* ignore */
-        }
+      (position) => {
+        void updateFromGeolocation(position);
       },
       () => {},
       {
@@ -227,11 +255,48 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     return () => {
       if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
     };
-  }, []);
+  }, [updateFromGeolocation]);
+
+  /** First fix + permission: runs without a tap; denied → help dialog. */
+  useEffect(() => {
+    if (!mapsReady || typeof navigator === 'undefined' || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void updateFromGeolocation(pos, { focusMap: true });
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED || err.code === 1) {
+          setLocationPermissionHelpOpen(true);
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 },
+    );
+  }, [mapsReady, updateFromGeolocation]);
+
+  const requestLocationOnUserGesture = useCallback(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    setLocationPermissionHelpOpen(false);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void updateFromGeolocation(pos, { focusMap: true });
+        setLocationPermissionHelpOpen(false);
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED || err.code === 1) {
+          setLocationPermissionHelpOpen(true);
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 },
+    );
+  }, [updateFromGeolocation]);
 
   const drawLeg = useCallback(async (origin: { lat: number; lng: number }, dest: DeliveryStop) => {
     if (!mapRef.current || !directionsRendererRef.current) return;
     setErrorText('');
+    if (routeGlowPolylineRef.current) {
+      routeGlowPolylineRef.current.setMap(null);
+      routeGlowPolylineRef.current = null;
+    }
     try {
       const directionsService = new google.maps.DirectionsService();
       const result = await directionsService.route({
@@ -239,12 +304,28 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
         destination: new google.maps.LatLng(dest.lat, dest.lng),
         travelMode: google.maps.TravelMode.DRIVING,
       });
+      const path = result.routes[0]?.overview_path;
+      if (path && path.length > 0 && mapRef.current) {
+        routeGlowPolylineRef.current = new google.maps.Polyline({
+          path,
+          geodesic: true,
+          strokeColor: '#ffffff',
+          strokeOpacity: ROUTE_GLOW_OPACITY,
+          strokeWeight: ROUTE_GLOW_STROKE_WEIGHT,
+          zIndex: 1,
+          map: mapRef.current,
+        });
+      }
       directionsRendererRef.current.setDirections(result);
       const b = new google.maps.LatLngBounds();
       b.extend(origin);
       b.extend({ lat: dest.lat, lng: dest.lng });
       mapRef.current.fitBounds(b, 48);
     } catch (error) {
+      if (routeGlowPolylineRef.current) {
+        routeGlowPolylineRef.current.setMap(null);
+        routeGlowPolylineRef.current = null;
+      }
       setErrorText((error as Error)?.message || 'Failed to draw route');
     }
   }, []);
@@ -278,7 +359,8 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
           map: mapRef.current,
           position: { lat: currentStop.lat, lng: currentStop.lng },
           title: currentStop.userName || currentStop.userEmail || 'Delivery',
-          label: '▶',
+          icon: deliveryMapPinMarkerIcon(),
+          label: { text: '▶', color: '#0f172a', fontSize: '11px', fontWeight: '700' },
         }),
       );
     } else if (!routeStarted && pendingStops.length > 0) {
@@ -288,8 +370,9 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
             map: mapRef.current,
             position: { lat: stop.lat, lng: stop.lng },
             title: stop.userName || stop.userEmail || `Stop ${index + 1}`,
-            label: `${index + 1}`,
-            opacity: 0.85,
+            icon: deliveryMapPinMarkerIcon(),
+            label: { text: `${index + 1}`, color: '#ffffff', fontSize: '10px', fontWeight: '800' },
+            opacity: 0.92,
           }),
         );
       });
@@ -298,7 +381,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
 
   const startOptimizedRoute = async () => {
     if (!adminLocation) {
-      setErrorText('Live location is required. Enable GPS or use the locate button.');
+      setErrorText('Live location is required. Allow location access when prompted, or use Try again in the location dialog.');
       return;
     }
     if (pendingStops.length === 0) {
@@ -367,11 +450,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
   };
 
   if (!getGoogleMapsApiKeyPresent()) {
-    return (
-      <p className={styles.inlineError}>
-        Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY to .env.local (app root) and restart next dev.
-      </p>
-    );
+    return <p className={styles.inlineError}>{getGoogleMapsEnvSetupHint()}</p>;
   }
 
   const productLabel = (s: DeliveryStop) => s.productName?.trim() || 'Milk';
@@ -380,8 +459,152 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     return Number.isFinite(q) && q > 0 ? q : 1;
   };
 
+  /** Before “Generate optimized route” — basket / area icon */
+  const sheetDeliveryHeadlineIcon = (
+    <svg
+      className={styles.sheetHeadlineIcon}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        d="M4.20404 15C3.43827 15.5883 3 16.2714 3 17C3 19.2091 7.02944 21 12 21C16.9706 21 21 19.2091 21 17C21 16.2714 20.5617 15.5883 19.796 15M12 6.5V11.5M9.5 9H14.5M18 9.22222C18 12.6587 15.3137 15.4444 12 17C8.68629 15.4444 6 12.6587 6 9.22222C6 5.78578 8.68629 3 12 3C15.3137 3 18 5.78578 18 9.22222Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+
+  /** After route starts — delivery person silhouette */
+  const sheetRouteHeadlineIcon = (
+    <svg
+      className={styles.sheetHeadlineIconRoute}
+      viewBox="-20 0 190 190"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M94.11 109.87L86.11 85.87L84.82 94L91.71 147.42C91.71 147.42 84.18 149.95 82.85 143.29C81.71 137.56 76.12 112.06 76.12 112.06L73.2 111.89C73.2 111.89 68 135.1 66.42 142.72C64.9 150.19 57.15 147.14 57.15 147.14L64.93 91.36L63.85 85.59L56.05 110.44C56.05 110.44 49.05 110.44 51.05 102.36C53.11 94.03 58.25 72.8 58.25 72.8C66.25 64.8 83.78 64.8 91.69 72.8C91.69 72.8 97.5 96.52 99.02 102.8C100.54 109.08 94.11 109.87 94.11 109.87ZM66.82 53.5C66.82 40.88 85.03 43.11 83.62 54.35C82.27 65.17 66.82 66.29 66.82 53.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+
   return (
     <div className={styles.shell}>
+      <div className={styles.bottomSheet}>
+        {loading ? <p className={styles.sheetMeta}>Loading delivery points…</p> : null}
+        {errorText ? <div className={styles.inlineError}>{errorText}</div> : null}
+
+        {!routeStarted && !flowComplete ? (
+          <div className={styles.sheetStepBlock}>
+            <div className={styles.sheetHeadlineRow}>
+              {sheetDeliveryHeadlineIcon}
+              <div className={styles.sheetTextGroup}>
+                <p className={styles.sheetTitle}>
+                  To Deliver:{' '}
+                  <strong>
+                    {totalPendingLitres > 0 ? `${totalPendingLitres} L` : `${pendingStops.length} stop(s)`}
+                  </strong>
+                </p>
+                <p className={styles.sheetSub}>
+                  Do you want to start delivering for the {slotLabel(slot)} slot?
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`${styles.sheetPrimaryBtn} ${styles.sheetPrimaryBtnWithIcon}`}
+              disabled={generating || loading || pendingStops.length === 0}
+              onClick={() => void startOptimizedRoute()}
+            >
+              <svg
+                className={styles.sheetPrimaryBtnIcon}
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <path
+                  d="M21.3046 4.69335C21.908 3.41959 20.5806 2.09225 19.3069 2.69561L2.83473 10.4982C1.56185 11.1011 1.74664 12.9674 3.11305 13.309L9.17556 14.8247L10.6912 20.8872C11.0328 22.2536 12.8991 22.4384 13.502 21.1655L21.3046 4.69335Z"
+                  fill="currentColor"
+                />
+              </svg>
+              {generating ? 'Generating…' : 'Generate Optimized Route'}
+            </button>
+          </div>
+        ) : null}
+
+        {routeStarted && currentStop && !flowComplete ? (
+          <>
+            <div className={styles.sheetRowTop}>
+              <div className={styles.sheetNameBlock}>
+                <div className={styles.sheetHeadlineRow}>
+                  {sheetRouteHeadlineIcon}
+                  <div className={styles.sheetTextGroup}>
+                    <p className={styles.customerName}>{currentStop.userName || currentStop.userEmail || `User ${currentStop.userId}`}</p>
+                    <p className={styles.sheetSub}>
+                      To deliver {qtyLabel(currentStop)} L of {productLabel(currentStop)} at {formatAddress(currentStop)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.leftPill}
+                onClick={() => setQueuePopupOpen(true)}
+              >
+                <svg
+                  className={styles.leftPillIcon}
+                  viewBox="0 0 100 100"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden
+                >
+                  <path
+                    d="M42 0a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h3v5.295C23.364 15.785 6.5 34.209 6.5 56.5C6.5 80.483 26.017 100 50 100s43.5-19.517 43.5-43.5a43.22 43.22 0 0 0-6.72-23.182l4.238-3.431l1.888 2.332a2 2 0 0 0 2.813.297l3.11-2.518a2 2 0 0 0 .294-2.812L89.055 14.75a2 2 0 0 0-2.813-.297l-3.11 2.518a2 2 0 0 0-.294 2.812l1.889 2.332l-4.22 3.414C73.77 18.891 64.883 14.435 55 13.297V8h3a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H42zm8 20c20.2 0 36.5 16.3 36.5 36.5S70.2 93 50 93S13.5 76.7 13.5 56.5S29.8 20 50 20zm.002 7.443L50 56.5l23.234 17.447a29.056 29.056 0 0 0 2.758-30.433a29.056 29.056 0 0 0-25.99-16.07z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <span className={styles.leftPillLabel}>
+                  {leftCount} left
+                </span>
+              </button>
+            </div>
+            <SwipeToDeliver
+              disabled={!nearCurrentStop || marking}
+              label="Mark as deliver"
+              onConfirm={() => onMarkDeliveredSwipe()}
+            />
+            {!nearCurrentStop ? (
+              <p className={styles.proximityHint}>
+                Move within {PROXIMITY_METERS} m of the pin to enable swipe ({PROXIMITY_METERS} m radius).
+              </p>
+            ) : null}
+          </>
+        ) : null}
+
+        {flowComplete ? (
+          <div className={styles.sheetStepBlock}>
+            <div className={styles.sheetHeadlineRow}>
+              {sheetRouteHeadlineIcon}
+              <div className={styles.sheetTextGroup}>
+                <p className={styles.sheetTitle}>All done!</p>
+                <p className={styles.sheetSub}>You are all set for today&apos;s {slotLabel(slot)} slot.</p>
+              </div>
+            </div>
+            <button type="button" className={styles.sheetPrimaryBtn} onClick={onClose}>
+              Return to deliveries
+            </button>
+          </div>
+        ) : null}
+      </div>
+
       <div className={styles.mapStage}>
         {!flowComplete ? (
           <>
@@ -391,24 +614,21 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
               aria-label="Close"
               onClick={onClose}
             >
-              <span aria-hidden="true">←</span>
+              <svg
+                className={styles.mapBackIcon}
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M11.7071 4.29289C12.0976 4.68342 12.0976 5.31658 11.7071 5.70711L6.41421 11H20C20.5523 11 21 11.4477 21 12C21 12.5523 20.5523 13 20 13H6.41421L11.7071 18.2929C12.0976 18.6834 12.0976 19.3166 11.7071 19.7071C11.3166 20.0976 10.6834 20.0976 10.2929 19.7071L3.29289 12.7071C3.10536 12.5196 3 12.2652 3 12C3 11.7348 3.10536 11.4804 3.29289 11.2929L10.2929 4.29289C10.6834 3.90237 11.3166 3.90237 11.7071 4.29289Z"
+                  fill="currentColor"
+                />
+              </svg>
             </button>
-            <MapCurrentLocationButton
-              className={styles.mapLocateFloating}
-              disabled={!mapsReady || loading}
-              timeoutMs={6500}
-              onLocated={async (r) => {
-                const next = { lat: r.latitude, lng: r.longitude };
-                setAdminLocation(next);
-                if (mapRef.current) {
-                  mapRef.current.panTo(next);
-                  mapRef.current.setZoom(16);
-                }
-                if (r.formattedAddress) {
-                  setAdminAddress(r.formattedAddress);
-                }
-              }}
-            />
             <div ref={mapContainerRef} className={styles.mapFill} />
           </>
         ) : (
@@ -432,74 +652,16 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
         )}
       </div>
 
-      <div className={styles.bottomSheet}>
-        {loading ? <p className={styles.sheetMeta}>Loading delivery points…</p> : null}
-        {errorText ? <div className={styles.inlineError}>{errorText}</div> : null}
-
-        {!routeStarted && !flowComplete ? (
-          <>
-            <p className={styles.sheetTitle}>
-              To Deliver:{' '}
-              <strong>
-                {totalPendingLitres > 0 ? `${totalPendingLitres} L` : `${pendingStops.length} stop(s)`}
-              </strong>
-            </p>
-            <p className={styles.sheetSub}>
-              Do you want to start delivering for the {slotLabel(slot)} slot?
-            </p>
-            <button
-              type="button"
-              className={styles.sheetPrimaryBtn}
-              disabled={generating || loading || pendingStops.length === 0}
-              onClick={() => void startOptimizedRoute()}
-            >
-              {generating ? 'Generating…' : 'Generate Optimized Route'}
-            </button>
-          </>
-        ) : null}
-
-        {routeStarted && currentStop && !flowComplete ? (
-          <>
-            <div className={styles.sheetRowTop}>
-              <div className={styles.sheetNameBlock}>
-                <p className={styles.customerName}>{currentStop.userName || currentStop.userEmail || `User ${currentStop.userId}`}</p>
-                <p className={styles.sheetSub}>
-                  To deliver {qtyLabel(currentStop)} L of {productLabel(currentStop)} at {formatAddress(currentStop)}
-                </p>
-              </div>
-              <button
-                type="button"
-                className={styles.leftPill}
-                onClick={() => setQueuePopupOpen(true)}
-              >
-                {leftCount} left
-              </button>
-            </div>
-            <SwipeToDeliver
-              disabled={!nearCurrentStop || marking}
-              label="Mark as deliver"
-              onConfirm={() => onMarkDeliveredSwipe()}
-            />
-            {!nearCurrentStop ? (
-              <p className={styles.proximityHint}>
-                Move within {PROXIMITY_METERS} m of the pin to enable swipe ({PROXIMITY_METERS} m radius).
-              </p>
-            ) : null}
-          </>
-        ) : null}
-
-        {flowComplete ? (
-          <>
-            <p className={styles.sheetTitle}>All done!</p>
-            <p className={styles.sheetSub}>
-              You are all set for today&apos;s {slotLabel(slot)} slot.
-            </p>
-            <button type="button" className={styles.sheetPrimaryBtn} onClick={onClose}>
-              Return to deliveries
-            </button>
-          </>
-        ) : null}
-      </div>
+      <LocationPermissionHelpDialog
+        open={locationPermissionHelpOpen}
+        onClose={() => setLocationPermissionHelpOpen(false)}
+        onTryAgain={requestLocationOnUserGesture}
+        onReloadPage={() => {
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
+        }}
+      />
 
       {queuePopupOpen ? (
         <div

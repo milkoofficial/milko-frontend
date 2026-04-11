@@ -97,12 +97,17 @@
     0 0 0 2px rgba(255, 255, 255, 0.95);
 }
 
-.knob::after {
-  content: '››';
-  font-size: 1rem;
-  font-weight: 900;
-  letter-spacing: -0.12em;
-  opacity: 0.95;
+.knobIcon {
+  width: 1.05rem;
+  height: 1.35rem;
+  display: block;
+  flex-shrink: 0;
+  opacity: 0.98;
+  pointer-events: none;
+}
+
+.knobIconPath {
+  paint-order: stroke fill;
 }
 
 .knob:disabled {

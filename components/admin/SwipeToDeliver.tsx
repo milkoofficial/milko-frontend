@@ -105,7 +105,33 @@ export default function SwipeToDeliver({ disabled, label, onConfirm }: Props) {
           setDragX(0);
         }}
         aria-label={label}
-      />
+      >
+        <svg
+          className={styles.knobIcon}
+          viewBox="-46.09 -46.09 604.27 604.27"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden
+        >
+          <path
+            className={styles.knobIconPath}
+            fill="currentColor"
+            stroke="currentColor"
+            strokeWidth={68}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            d="M263.641,248.4L18.308,3.067c-4.16-4.053-10.987-3.947-15.04,0.32c-3.947,4.16-3.947,10.667,0,14.827l237.76,237.76 L3.268,493.733c-4.267,4.053-4.373,10.88-0.213,15.04c4.16,4.16,10.88,4.373,15.04,0.213c0.107-0.107,0.213-0.213,0.213-0.213 L263.641,263.44C267.801,259.28,267.801,252.56,263.641,248.4z"
+          />
+          <path
+            className={styles.knobIconPath}
+            fill="currentColor"
+            stroke="currentColor"
+            strokeWidth={68}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            d="M508.974,248.4L263.641,3.067c-4.267-4.053-10.987-3.947-15.04,0.213c-3.947,4.16-3.947,10.667,0,14.827l237.76,237.76 l-237.76,237.867c-4.267,4.053-4.373,10.88-0.213,15.04c4.16,4.16,10.88,4.373,15.04,0.213c0.107-0.107,0.213-0.213,0.213-0.213 L508.974,263.44C513.135,259.28,513.135,252.56,508.974,248.4z"
+          />
+        </svg>
+      </button>
     </div>
   );
 }

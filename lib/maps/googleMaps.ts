@@ -6,12 +6,21 @@ let mapsLibrary: google.maps.MapsLibrary | null = null;
 const reverseGeocodeCache = new Map<string, string>();
 
 function getGoogleMapsApiKey(): string {
-  const raw = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+  const raw =
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
   return String(raw).trim().replace(/^['"]|['"]$/g, '');
 }
 
 export function getGoogleMapsApiKeyPresent(): boolean {
   return Boolean(getGoogleMapsApiKey());
+}
+
+/** User-facing hint when the key is missing (browser + server). */
+export function getGoogleMapsEnvSetupHint(): string {
+  return (
+    'Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY to .env.local next to package.json, save, ' +
+    'then restart: in the terminal running the site, press Ctrl+C, then run npm run dev again.'
+  );
 }
 
 /** User-facing message when `loadGoogleMaps()` or map init fails (key restrictions, APIs, billing). */
@@ -36,7 +45,7 @@ export async function loadGoogleMaps(): Promise<typeof google> {
   const apiKey = getGoogleMapsApiKey();
   if (!apiKey) {
     throw new Error(
-      'Missing Google Maps API key. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (or GOOGLE_MAPS_API_KEY) to .env.local in the app root, then restart `next dev`.',
+      'Missing Google Maps API key. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY to .env.local next to package.json, then stop the dev server (Ctrl+C) and run npm run dev again.',
     );
   }
 

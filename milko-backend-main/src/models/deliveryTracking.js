@@ -1,11 +1,24 @@
 const { query } = require('../config/database');
 
+/** Subscriptions use UUID user_id (Supabase); legacy deliveries.user_id was INTEGER. */
+async function migrateDeliveriesUserIdToUuidIfNeeded() {
+  const result = await query(
+    `SELECT data_type, udt_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'deliveries' AND column_name = 'user_id'`,
+  );
+  const row = result.rows[0];
+  if (!row) return;
+  const isLegacyInt = row.data_type === 'integer' || row.udt_name === 'int4';
+  if (!isLegacyInt) return;
+  await query(`ALTER TABLE deliveries ALTER COLUMN user_id TYPE uuid USING (NULL::uuid)`);
+}
+
 async function ensureDeliveriesTable() {
   await query(`
     CREATE TABLE IF NOT EXISTS deliveries (
       id SERIAL PRIMARY KEY,
       delivery_schedule_id INTEGER NOT NULL REFERENCES delivery_schedules(id) ON DELETE CASCADE,
-      user_id INTEGER,
+      user_id UUID,
       date DATE NOT NULL,
       status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'delivered')),
       delivered_at TIMESTAMP,
@@ -15,6 +28,7 @@ async function ensureDeliveriesTable() {
     );
   `);
   await query(`CREATE INDEX IF NOT EXISTS idx_deliveries_date_status ON deliveries(date, status);`);
+  await migrateDeliveriesUserIdToUuidIfNeeded();
 }
 
 async function getDeliveriesForDate(date, slot) {
