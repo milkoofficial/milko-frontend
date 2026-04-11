@@ -1,8 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useToast } from '@/contexts/ToastContext';
 import styles from './AddressLocationPicker.module.css';
 import MapCurrentLocationButton from '@/components/MapCurrentLocationButton';
+import {
+  approximatePinGroundRadiusMeters,
+  ZOOM_ACCURACY_WARN_THRESHOLD_M,
+} from '@/lib/maps/mapScale';
 import {
   formatGoogleMapsLoadError,
   getGoogleMapsApiKeyPresent,
@@ -14,6 +19,8 @@ type AddressLocationPickerProps = {
   latitude?: number;
   longitude?: number;
   onChange: (coords: { latitude: number; longitude: number }) => void;
+  /** When false, hides the raw lat/lng line (e.g. customer map modals). Default true. */
+  showCoords?: boolean;
 };
 
 const DEFAULT_CENTER: [number, number] = [20.5937, 78.9629];
@@ -46,6 +53,7 @@ export default function AddressLocationPicker({
   latitude,
   longitude,
   onChange,
+  showCoords = true,
 }: AddressLocationPickerProps) {
   const hasSelection = typeof latitude === 'number' && typeof longitude === 'number';
   const center = useMemo<[number, number]>(
@@ -59,6 +67,13 @@ export default function AddressLocationPicker({
   const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
 
   const onChangeRef = useRef(onChange);
+  const zoomAccuracyToastShownRef = useRef(false);
+  const { showToast } = useToast();
+  const showToastRef = useRef(showToast);
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
+
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
@@ -106,6 +121,8 @@ export default function AddressLocationPicker({
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
+      gestureHandling: 'greedy',
+      scrollwheel: true,
     });
     mapInstanceRef.current = map;
 
@@ -117,6 +134,15 @@ export default function AddressLocationPicker({
       if (!c) return;
       const lat = c.lat();
       const lng = c.lng();
+      const z = map.getZoom() ?? 15;
+      const radiusM = approximatePinGroundRadiusMeters(lat, z, 30);
+      if (
+        radiusM > ZOOM_ACCURACY_WARN_THRESHOLD_M &&
+        !zoomAccuracyToastShownRef.current
+      ) {
+        zoomAccuracyToastShownRef.current = true;
+        showToastRef.current('Zoom in closer for a more accurate address.', 'error', 4500);
+      }
       onChangeRef.current({ latitude: lat, longitude: lng });
       void reverseGeocodeLatLng(lat, lng).then((rev) => {
         if (rev) setSearchText(rev);
@@ -158,12 +184,9 @@ export default function AddressLocationPicker({
   useEffect(() => {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
-    const nextCenter = { lat: center[0], lng: center[1] };
-    map.panTo(nextCenter);
-    if (hasSelection) {
-      map.setZoom(16);
-    }
-  }, [center, hasSelection]);
+    map.panTo({ lat: center[0], lng: center[1] });
+    // Do not call setZoom here — it reset zoom after every coordinate sync and broke pinch / Ctrl+scroll zoom.
+  }, [center]);
 
   const onPickPlace = (placeId: string) => {
     if (!placesServiceRef.current) return;
@@ -177,6 +200,11 @@ export default function AddressLocationPicker({
         const latValue = place.geometry.location.lat();
         const lngValue = place.geometry.location.lng();
         onChange({ latitude: latValue, longitude: lngValue });
+        const m = mapInstanceRef.current;
+        if (m) {
+          m.panTo({ lat: latValue, lng: lngValue });
+          m.setZoom(16);
+        }
         setSearchText(place.formatted_address || `${latValue.toFixed(6)}, ${lngValue.toFixed(6)}`);
         setResults([]);
       },
@@ -228,27 +256,40 @@ export default function AddressLocationPicker({
         ) : null}
       </div>
       <div className={styles.mapWrap}>
-        <MapCurrentLocationButton
-          className={styles.mapLocateFloating}
-          disabled={!mapsReady || Boolean(mapsError)}
-          timeoutMs={6500}
-          shouldOpenPermissionHelpOnDeny={shouldOpenPermissionHelpOnDeny}
-          onLocated={async (r) => {
-            onChange({ latitude: r.latitude, longitude: r.longitude });
-            setSearchText(
-              r.formattedAddress || `${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`,
-            );
-            setResults([]);
-          }}
-        />
+        <div className={styles.mapToolbar}>
+          <div className={styles.mapToolbarSpacer} />
+          <span className={styles.dragMapHint}>Drag Map</span>
+          <div className={styles.mapToolbarRight}>
+            <MapCurrentLocationButton
+              className={styles.mapToolbarLocate}
+              disabled={!mapsReady || Boolean(mapsError)}
+              timeoutMs={6500}
+              shouldOpenPermissionHelpOnDeny={shouldOpenPermissionHelpOnDeny}
+              onLocated={async (r) => {
+                onChange({ latitude: r.latitude, longitude: r.longitude });
+                const m = mapInstanceRef.current;
+                if (m) {
+                  m.panTo({ lat: r.latitude, lng: r.longitude });
+                  m.setZoom(16);
+                }
+                setSearchText(
+                  r.formattedAddress || `${r.latitude.toFixed(6)}, ${r.longitude.toFixed(6)}`,
+                );
+                setResults([]);
+              }}
+            />
+          </div>
+        </div>
         <div ref={mapRef} className={styles.map} />
         <MapCenterPin />
       </div>
-      <p className={styles.coords}>
-        {hasSelection
-          ? `Selected: ${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`
-          : 'No location selected yet'}
-      </p>
+      {showCoords ? (
+        <p className={styles.coords}>
+          {hasSelection
+            ? `Selected: ${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`
+            : 'No location selected yet'}
+        </p>
+      ) : null}
     </div>
   );
 }

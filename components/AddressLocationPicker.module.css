@@ -90,11 +90,48 @@
   position: relative;
 }
 
-.mapLocateFloating {
+.mapToolbar {
   position: absolute;
   top: 10px;
+  left: 10px;
   right: 10px;
-  z-index: 2;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.35rem;
+  pointer-events: none;
+}
+
+.mapToolbarSpacer {
+  min-width: 0;
+}
+
+.dragMapHint {
+  justify-self: center;
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1px;
+    text-transform: uppercase;
+    color: #0f172a;
+    BOX-SHADOW: 0 2px 8px rgba(15, 23, 42, 0.12);
+    padding: 0.53rem 0.6rem;
+    border-radius: 8px;
+    background: 1px solid #e2e8f0;
+    border: 1px solid #e2e8f0;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+
+.mapToolbarRight {
+  justify-self: end;
+  pointer-events: auto;
+}
+
+.mapToolbar .mapToolbarLocate {
+  position: static;
+  background: rgba(255, 255, 255, 0.45);
 }
 
 .map {
@@ -103,6 +140,7 @@
   border-radius: 12px;
   border: 1px solid #e5e7eb;
   overflow: hidden;
+  touch-action: auto;
 }
 
 /* Tip of pin sits on geographic centre of map; map drags underneath */

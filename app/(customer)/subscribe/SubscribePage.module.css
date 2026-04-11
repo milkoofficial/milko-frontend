@@ -658,6 +658,15 @@
   cursor: pointer;
 }
 
+.mapModalCancel:hover {
+  background: #e4e4e4;
+}
+
+.mapModalSave:hover {
+  background: #003bb1;
+
+}
+
 .mapModalCancel {
   border: 1px solid #e5e7eb;
   background: #fff;

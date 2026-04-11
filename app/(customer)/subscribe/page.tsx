@@ -849,6 +849,7 @@ export default function SubscribePage() {
                 <AddressLocationPicker
                   latitude={mapDraftLat}
                   longitude={mapDraftLng}
+                  showCoords={false}
                   onChange={({ latitude, longitude }) => {
                     setMapDraftLat(latitude);
                     setMapDraftLng(longitude);
@@ -949,6 +950,7 @@ export default function SubscribePage() {
                 <AddressLocationPicker
                   latitude={newAddressForm.latitude}
                   longitude={newAddressForm.longitude}
+                  showCoords={false}
                   onChange={({ latitude, longitude }) =>
                     setNewAddressForm((p) => ({ ...p, latitude, longitude }))
                   }
