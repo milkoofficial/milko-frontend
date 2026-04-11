@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '@/lib/utils/constants';
 import {
   getGoogleMapsApiKeyPresent,
   getLoadedMapsLibrary,
+  formatGoogleMapsLoadError,
   loadGoogleMaps,
   reverseGeocodeLatLng,
 } from '@/lib/maps/googleMaps';
@@ -67,6 +68,14 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
         await loadGoogleMaps();
         if (cancelled) return;
         setMapsReady(true);
+      } catch (error) {
+        if (cancelled) return;
+        setMapsReady(false);
+        setErrorText(formatGoogleMapsLoadError(error));
+        setLoading(false);
+        return;
+      }
+      try {
         const deliveryData = await apiClient.get<DeliveryStop[]>(
           `${API_ENDPOINTS.DELIVERY_TRACKING.LIST}?date=${encodeURIComponent(date)}&slot=${slot}`,
         );
@@ -74,7 +83,6 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
         setStops(Array.isArray(deliveryData) ? deliveryData : []);
       } catch (error) {
         if (cancelled) return;
-        setMapsReady(false);
         setErrorText((error as { message?: string })?.message || 'Unable to load route data');
       } finally {
         if (!cancelled) setLoading(false);
@@ -255,7 +263,11 @@ export default function DeliveryRoutePlanner({ slot, date }: Props) {
   }
 
   if (!getGoogleMapsApiKeyPresent()) {
-    return <p className={styles.inlineError}>Set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` to use Google Maps route tools.</p>;
+    return (
+      <p className={styles.inlineError}>
+        Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY to .env.local (app root) and restart next dev.
+      </p>
+    );
   }
 
   return (

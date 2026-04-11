@@ -6,17 +6,38 @@ let mapsLibrary: google.maps.MapsLibrary | null = null;
 const reverseGeocodeCache = new Map<string, string>();
 
 function getGoogleMapsApiKey(): string {
-  return process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+  const raw = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+  return String(raw).trim().replace(/^['"]|['"]$/g, '');
 }
 
 export function getGoogleMapsApiKeyPresent(): boolean {
   return Boolean(getGoogleMapsApiKey());
 }
 
+/** User-facing message when `loadGoogleMaps()` or map init fails (key restrictions, APIs, billing). */
+export function formatGoogleMapsLoadError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error || 'Failed to load Google Maps');
+  let out = msg;
+  if (/ReferrerNotAllowed|ApiTargetBlocked|RefererNotAllowed|not allowed for this|referr?er/i.test(msg)) {
+    out +=
+      ' In Google Cloud → APIs & Services → Credentials → your browser key → Application restrictions: add HTTP referrer http://localhost:3000/* (match your dev URL and port).';
+  }
+  if (/ApiNotActivated|not been used in project|InvalidKeyMapError/i.test(msg)) {
+    out +=
+      ' Enable Maps JavaScript API and Places API (and Geocoding if you use address lookup) on the same Cloud project as this key.';
+  }
+  if (/billing|BillingNotEnabled|OVER_QUERY_LIMIT/i.test(msg)) {
+    out += ' Ensure billing is enabled for the Google Cloud project.';
+  }
+  return out;
+}
+
 export async function loadGoogleMaps(): Promise<typeof google> {
   const apiKey = getGoogleMapsApiKey();
   if (!apiKey) {
-    throw new Error('Missing NEXT_PUBLIC_GOOGLE_MAPS_API_KEY');
+    throw new Error(
+      'Missing Google Maps API key. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (or GOOGLE_MAPS_API_KEY) to .env.local in the app root, then restart `next dev`.',
+    );
   }
 
   if (!mapsConfigured) {

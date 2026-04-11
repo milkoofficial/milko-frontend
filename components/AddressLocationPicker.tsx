@@ -1,9 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styles from './AddressLocationPicker.module.css';
 import MapCurrentLocationButton from '@/components/MapCurrentLocationButton';
-import { getGoogleMapsApiKeyPresent, loadGoogleMaps, reverseGeocodeLatLng } from '@/lib/maps/googleMaps';
+import {
+  formatGoogleMapsLoadError,
+  getGoogleMapsApiKeyPresent,
+  loadGoogleMaps,
+  reverseGeocodeLatLng,
+} from '@/lib/maps/googleMaps';
 
 type AddressLocationPickerProps = {
   latitude?: number;
@@ -12,10 +17,30 @@ type AddressLocationPickerProps = {
 };
 
 const DEFAULT_CENTER: [number, number] = [20.5937, 78.9629];
+
 type PlacePrediction = {
   placeId: string;
   description: string;
 };
+
+/** Fixed centre pin (tip at map centre); pointer-events none so the map stays draggable. */
+function MapCenterPin() {
+  return (
+    <div className={styles.centerPin} aria-hidden>
+      <svg
+        viewBox="0 0 12 12"
+        className={styles.centerPinSvg}
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+      >
+        <path
+          d="M6,0C3.2385864,0,1,2.2385864,1,5s2.5,5,5,7c2.5-2,5-4.2385864,5-7S8.7614136,0,6,0z M6,7 C4.8954468,7,4,6.1045532,4,5s0.8954468-2,2-2s2,0.8954468,2,2S7.1045532,7,6,7z"
+          fill="#0062ff"
+        />
+      </svg>
+    </div>
+  );
+}
 
 export default function AddressLocationPicker({
   latitude,
@@ -27,16 +52,29 @@ export default function AddressLocationPicker({
     () => (hasSelection ? [latitude as number, longitude as number] : DEFAULT_CENTER),
     [hasSelection, latitude, longitude],
   );
+
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
-  const markerRef = useRef<google.maps.Marker | null>(null);
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   const [mapsReady, setMapsReady] = useState(false);
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<PlacePrediction[]>([]);
+
+  /** Only show permission help if GPS failed and user still has no address/map fix. */
+  const shouldOpenPermissionHelpOnDeny = useCallback(() => {
+    const hasText = searchText.trim().length > 0;
+    const hasCoords = typeof latitude === 'number' && typeof longitude === 'number';
+    return !hasText && !hasCoords;
+  }, [searchText, latitude, longitude]);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +85,7 @@ export default function AddressLocationPicker({
         setMapsReady(true);
       } catch (error) {
         if (cancelled) return;
-        setMapsError((error as Error)?.message || 'Failed to load Google Maps');
+        setMapsError(formatGoogleMapsLoadError(error));
       }
     })();
     return () => {
@@ -58,34 +96,35 @@ export default function AddressLocationPicker({
   useEffect(() => {
     if (!mapsReady || !mapRef.current || mapInstanceRef.current) return;
 
+    const initialLat = hasSelection ? (latitude as number) : DEFAULT_CENTER[0];
+    const initialLng = hasSelection ? (longitude as number) : DEFAULT_CENTER[1];
+    const zoom = hasSelection ? 16 : 5;
+
     const map = new google.maps.Map(mapRef.current, {
-      center: { lat: center[0], lng: center[1] },
-      zoom: hasSelection ? 16 : 5,
+      center: { lat: initialLat, lng: initialLng },
+      zoom,
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
     });
     mapInstanceRef.current = map;
 
-    markerRef.current = new google.maps.Marker({
-      map,
-      position: hasSelection ? { lat: latitude as number, lng: longitude as number } : undefined,
-      visible: hasSelection,
-    });
-
     placesServiceRef.current = new google.maps.places.PlacesService(document.createElement('div'));
     autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
 
-    map.addListener('click', async (e: google.maps.MapMouseEvent) => {
-      if (!e.latLng) return;
-      const nextLat = e.latLng.lat();
-      const nextLng = e.latLng.lng();
-      onChange({ latitude: nextLat, longitude: nextLng });
-      const rev = await reverseGeocodeLatLng(nextLat, nextLng);
-      if (rev) setSearchText(rev);
+    map.addListener('dragend', () => {
+      const c = map.getCenter();
+      if (!c) return;
+      const lat = c.lat();
+      const lng = c.lng();
+      onChangeRef.current({ latitude: lat, longitude: lng });
+      void reverseGeocodeLatLng(lat, lng).then((rev) => {
+        if (rev) setSearchText(rev);
+      });
       setResults([]);
     });
-  }, [mapsReady, center, hasSelection, latitude, longitude, onChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- create map once; use pan effect for prop updates
+  }, [mapsReady]);
 
   useEffect(() => {
     const trimmed = searchText.trim();
@@ -119,17 +158,12 @@ export default function AddressLocationPicker({
   useEffect(() => {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
-    const marker = markerRef.current;
     const nextCenter = { lat: center[0], lng: center[1] };
     map.panTo(nextCenter);
     if (hasSelection) {
       map.setZoom(16);
-      if (marker) {
-        marker.setPosition({ lat: latitude as number, lng: longitude as number });
-        marker.setVisible(true);
-      }
     }
-  }, [center, hasSelection, latitude, longitude]);
+  }, [center, hasSelection]);
 
   const onPickPlace = (placeId: string) => {
     if (!placesServiceRef.current) return;
@@ -153,10 +187,14 @@ export default function AddressLocationPicker({
     <div className={styles.wrap}>
       <p className={styles.label}>Pin exact location on map</p>
       <p className={styles.helpText}>
-        Zoom and tap the map, search above, or use <strong>Use current location</strong> on the map for a fast GPS fix.
+        Drag the map so the <strong>blue pin</strong> sits on your doorstep, search above, or use{' '}
+        <strong>Use current location</strong>. Coordinates update when you finish dragging.
       </p>
       {!getGoogleMapsApiKeyPresent() ? (
-        <p className={styles.searchStatus}>Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to enable Google Maps.</p>
+        <p className={styles.searchStatus}>
+          Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY to <code>.env.local</code> (app root) and restart{' '}
+          <code>next dev</code>.
+        </p>
       ) : null}
       {mapsError ? <p className={styles.searchStatus}>{mapsError}</p> : null}
       <div className={styles.searchWrap}>
@@ -194,6 +232,7 @@ export default function AddressLocationPicker({
           className={styles.mapLocateFloating}
           disabled={!mapsReady || Boolean(mapsError)}
           timeoutMs={6500}
+          shouldOpenPermissionHelpOnDeny={shouldOpenPermissionHelpOnDeny}
           onLocated={async (r) => {
             onChange({ latitude: r.latitude, longitude: r.longitude });
             setSearchText(
@@ -203,6 +242,7 @@ export default function AddressLocationPicker({
           }}
         />
         <div ref={mapRef} className={styles.map} />
+        <MapCenterPin />
       </div>
       <p className={styles.coords}>
         {hasSelection

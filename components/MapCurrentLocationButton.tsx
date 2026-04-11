@@ -21,6 +21,11 @@ type Props = {
   withAddress?: boolean;
   /** Geolocation timeout in ms (default 7000) */
   timeoutMs?: number;
+  /**
+   * When permission is denied, open the help dialog only if this returns true.
+   * Use to avoid showing the dialog when the user already has coords / address in the form.
+   */
+  shouldOpenPermissionHelpOnDeny?: () => boolean;
 };
 
 const locateIcon = (
@@ -41,8 +46,7 @@ const locateIcon = (
 
 /**
  * Call geolocation synchronously from a click handler so the browser keeps
- * "transient user activation" — required for the permission prompt to appear
- * again (Chrome/Safari/WebView). Async/await before getCurrentPosition often breaks that.
+ * transient user activation for permission prompts.
  */
 export default function MapCurrentLocationButton({
   onLocated,
@@ -50,6 +54,7 @@ export default function MapCurrentLocationButton({
   disabled,
   withAddress = true,
   timeoutMs = 7000,
+  shouldOpenPermissionHelpOnDeny,
 }: Props) {
   const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -57,12 +62,18 @@ export default function MapCurrentLocationButton({
 
   const onLocatedRef = useRef(onLocated);
   const withAddressRef = useRef(withAddress);
+  const shouldOpenHelpRef = useRef(shouldOpenPermissionHelpOnDeny);
+  const locateSessionRef = useRef(0);
+
   useEffect(() => {
     onLocatedRef.current = onLocated;
   }, [onLocated]);
   useEffect(() => {
     withAddressRef.current = withAddress;
   }, [withAddress]);
+  useEffect(() => {
+    shouldOpenHelpRef.current = shouldOpenPermissionHelpOnDeny;
+  }, [shouldOpenPermissionHelpOnDeny]);
 
   const finishWithPosition = useCallback(
     async (pos: GeolocationPosition) => {
@@ -92,30 +103,44 @@ export default function MapCurrentLocationButton({
     [showToast],
   );
 
-  /** Must be invoked directly from onClick (no await before getCurrentPosition). */
   const requestFromUserGesture = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       showToast('Location is not supported on this device.', 'error');
       return;
     }
 
+    const session = ++locateSessionRef.current;
     setPermissionHelpOpen(false);
     setBusy(true);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (session !== locateSessionRef.current) return;
+        setPermissionHelpOpen(false);
         void (async () => {
           try {
             await finishWithPosition(pos);
           } finally {
-            setBusy(false);
+            if (session === locateSessionRef.current) {
+              setBusy(false);
+            }
           }
         })();
       },
       (err) => {
+        if (session !== locateSessionRef.current) return;
         setBusy(false);
         if (err.code === err.PERMISSION_DENIED || err.code === 1) {
-          setPermissionHelpOpen(true);
+          const gate = shouldOpenHelpRef.current;
+          const openHelp = gate === undefined || gate();
+          if (openHelp) {
+            setPermissionHelpOpen(true);
+          } else {
+            showToast(
+              'Location permission denied. You can still drag the map or search for your address.',
+              'error',
+            );
+          }
           return;
         }
         if (err.code === err.POSITION_UNAVAILABLE || err.code === 2) {
