@@ -10,6 +10,8 @@ import styles from '@/components/ProductsSection.module.css';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
 import RatingBadge from '@/components/ui/RatingBadge';
 import { getCardDiscountOff, getCardDisplayPrice } from '@/lib/utils/productCardPricing';
+import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/contexts/ToastContext';
 
 /**
  * Search Results Page
@@ -22,6 +24,8 @@ function SearchContent() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { addItem } = useCart();
+  const { showToast } = useToast();
 
   useEffect(() => {
     const searchProducts = async () => {
@@ -173,18 +177,20 @@ function SearchContent() {
                             <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
                             <span className={styles.priceUnit}>/{product.suffixAfterPrice || 'litre'}</span>
                           </div>
-                          <Link
-                            href={`/subscribe?productId=${product.id}`}
+                          <button
+                            type="button"
                             className={styles.addToCartButton}
                             onClick={(e) => {
-                              e.stopPropagation(); // Prevent card click
+                              e.stopPropagation();
+                              addItem({ productId: product.id, quantity: 1 });
+                              showToast('Added to cart', 'success');
                             }}
-                            aria-label="Subscribe Now"
+                            aria-label="Add to cart"
                           >
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
-                          </Link>
+                          </button>
                         </div>
                       </div>
                     </div>

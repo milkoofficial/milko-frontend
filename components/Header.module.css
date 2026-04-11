@@ -1977,6 +1977,12 @@
   border: 0px solid #f5c6cb;
 }
 
+.deliveryStatusInfo {
+  background: #e7f1ff;
+  color: #0b4f9c;
+  border: 0px solid #b8d4f5;
+}
+
 .statusIcon {
   width: 18px;
   height: 18px;
@@ -1990,10 +1996,10 @@
   color: #fff;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0s;
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   letter-spacing: -0.2px;
 }
@@ -2028,5 +2034,44 @@
 
 .modalDoneButtonError:active:not(:disabled) {
   background: #bd2130;
+}
+
+.modalLocationButton {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  background: #fff;
+  color: #000;
+  border: 1.5px solid #000;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0s, border-color 0s;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  letter-spacing: -0.2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.modalLocationButton:hover:not(:disabled) {
+  background: #eeeeee;
+}
+
+.modalLocationButton:active:not(:disabled) {
+  background: #ebebeb;
+}
+
+.modalLocationButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.modalLocationIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 

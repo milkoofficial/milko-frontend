@@ -66,3 +66,20 @@ export async function reverseGeocodeLatLng(lat: number, lng: number): Promise<st
   return address;
 }
 
+/** Extracts a 6-digit postal code from Google Geocoder results (e.g. India pincodes). */
+export async function getPostalCodeFromLatLng(lat: number, lng: number): Promise<string | null> {
+  const g = await loadGoogleMaps();
+  const geocoder = new g.maps.Geocoder();
+  const result = await geocoder.geocode({
+    location: { lat, lng },
+  });
+  const results = result.results || [];
+  for (const res of results) {
+    const comps = res.address_components || [];
+    const pc = comps.find((c) => c.types.includes('postal_code'));
+    const digits = (pc?.long_name || '').replace(/\D/g, '');
+    if (digits.length >= 6) return digits.slice(-6);
+  }
+  return null;
+}
+

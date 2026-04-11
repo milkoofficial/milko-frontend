@@ -13,6 +13,7 @@ import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import { contentApi, productsApi, walletApi } from '@/lib/api';
 import ProductDetailsModal from './ProductDetailsModal';
 import Logo from './Logo';
+import { getGoogleMapsApiKeyPresent, getPostalCodeFromLatLng } from '@/lib/maps/googleMaps';
 
 /**
  * User Dropdown Component
@@ -513,6 +514,8 @@ export default function Header() {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [pincode, setPincode] = useState(['', '', '', '', '', '']);
   const [deliveryStatus, setDeliveryStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
+  const [isLocationDetecting, setIsLocationDetecting] = useState(false);
+  const [locationNotice, setLocationNotice] = useState<{ type: 'info' | 'error'; text: string } | null>(null);
   const [savedPincode, setSavedPincode] = useState<string | null>(null);
   const [savedDeliveryStatus, setSavedDeliveryStatus] = useState<'available' | 'unavailable' | null>(null);
   const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime?: string }> | null>(null);
@@ -582,6 +585,8 @@ export default function Header() {
       // Reset pincode and delivery status when modal opens
       setPincode(['', '', '', '', '', '']);
       setDeliveryStatus(null);
+      setIsLocationDetecting(false);
+      setLocationNotice(null);
       // Focus first input after a short delay to ensure DOM is ready
       setTimeout(() => {
         pincodeInputRefs.current[0]?.focus();
@@ -601,12 +606,81 @@ export default function Header() {
     const fullPincode = pincode.join('');
     if (fullPincode.length !== 6) return;
 
+    setLocationNotice(null);
     setDeliveryStatus('checking');
-    
+
     setTimeout(() => {
       const isAvailable = isDeliverable(fullPincode);
       setDeliveryStatus(isAvailable ? 'available' : 'unavailable');
     }, 800); // Simulate network delay
+  };
+
+  const handleGetCurrentLocation = () => {
+    if (typeof window === 'undefined') return;
+    setLocationNotice(null);
+
+    if (!getGoogleMapsApiKeyPresent()) {
+      setLocationNotice({
+        type: 'error',
+        text: 'Google Maps is not configured. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, or enter your pincode manually.',
+      });
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationNotice({
+        type: 'error',
+        text: 'Location is not supported on this device. Please enter your pincode manually.',
+      });
+      return;
+    }
+
+    setDeliveryStatus(null);
+    setIsLocationDetecting(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          setDeliveryStatus('checking');
+          const postal = await getPostalCodeFromLatLng(pos.coords.latitude, pos.coords.longitude);
+          if (!postal || !/^\d{6}$/.test(postal)) {
+            setDeliveryStatus(null);
+            setLocationNotice({
+              type: 'error',
+              text: 'Could not find a 6-digit pincode for this location. Enter it manually.',
+            });
+            return;
+          }
+          const digits = postal.split('');
+          setPincode(digits);
+          const isAvailable = isDeliverable(postal);
+          setDeliveryStatus(isAvailable ? 'available' : 'unavailable');
+        } catch {
+          setDeliveryStatus(null);
+          setLocationNotice({
+            type: 'error',
+            text: 'Could not look up your address. Try again or enter your pincode manually.',
+          });
+        } finally {
+          setIsLocationDetecting(false);
+        }
+      },
+      (err) => {
+        setIsLocationDetecting(false);
+        setDeliveryStatus(null);
+        let msg = 'Could not get your location.';
+        if (err.code === 1) {
+          msg =
+            'Location permission denied. Allow location when your browser or app asks, or enable it in settings—then try again. You can also enter your pincode manually.';
+        } else if (err.code === 2) {
+          msg = 'Location unavailable. Try again or enter your pincode manually.';
+        } else if (err.code === 3) {
+          msg = 'Location request timed out. Try again.';
+        }
+        setLocationNotice({ type: 'error', text: msg });
+      },
+      { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 }
+    );
   };
 
   // Handle final done action
@@ -1341,10 +1415,11 @@ export default function Header() {
                     onChange={(e) => {
                       const value = e.target.value.replace(/[^0-9]/g, '');
                       if (value.length <= 1) {
+                        setLocationNotice(null);
                         const newPincode = [...pincode];
                         newPincode[index] = value;
                         setPincode(newPincode);
-                        
+
                         // Auto-focus next box if value entered
                         if (value && index < 5) {
                           pincodeInputRefs.current[index + 1]?.focus();
@@ -1359,6 +1434,7 @@ export default function Header() {
                     }}
                     onPaste={(e) => {
                       e.preventDefault();
+                      setLocationNotice(null);
                       const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
                       const newPincode = [...pincode];
                       for (let i = 0; i < 6; i++) {
@@ -1377,12 +1453,58 @@ export default function Header() {
               </div>
             </div>
 
-            {/* Delivery Status Message */}
-            {deliveryStatus && deliveryStatus !== 'checking' && (
-              <div className={`${styles.deliveryStatusMessage} ${
-                deliveryStatus === 'available' ? styles.deliveryStatusSuccess : styles.deliveryStatusError
-              }`}>
-                {deliveryStatus === 'available' ? (
+            {/* Delivery status: manual check, location flow, errors */}
+            {(locationNotice ||
+              isLocationDetecting ||
+              deliveryStatus === 'checking' ||
+              deliveryStatus === 'available' ||
+              deliveryStatus === 'unavailable') && (
+              <div
+                className={`${styles.deliveryStatusMessage} ${
+                  locationNotice?.type === 'error'
+                    ? styles.deliveryStatusError
+                    : locationNotice?.type === 'info'
+                      ? styles.deliveryStatusInfo
+                      : isLocationDetecting || deliveryStatus === 'checking'
+                        ? styles.deliveryStatusInfo
+                        : deliveryStatus === 'available'
+                          ? styles.deliveryStatusSuccess
+                          : styles.deliveryStatusError
+                }`}
+              >
+                {locationNotice ? (
+                  <>
+                    {locationNotice.type === 'error' ? (
+                      <svg className={styles.statusIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <svg className={styles.statusIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                        <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    )}
+                    <span>{locationNotice.text}</span>
+                  </>
+                ) : isLocationDetecting && deliveryStatus === null ? (
+                  <>
+                    <svg className={styles.statusIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                      <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    <span>
+                      Allow location when your browser or app prompts you—we only use it to detect your pincode.
+                    </span>
+                  </>
+                ) : deliveryStatus === 'checking' ? (
+                  <>
+                    <svg className={styles.statusIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                      <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    <span>{isLocationDetecting ? 'Looking up your pincode…' : 'Checking availability…'}</span>
+                  </>
+                ) : deliveryStatus === 'available' ? (
                   <>
                     <svg className={styles.statusIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1409,21 +1531,64 @@ export default function Header() {
               onClick={() => {
                 const fullPincode = pincode.join('');
                 if (fullPincode.length !== 6) return;
-                
+
                 if (deliveryStatus === null || deliveryStatus === 'checking') {
                   checkPincodeDelivery();
                 } else {
                   handleDone();
                 }
               }}
-              disabled={pincode.join('').length !== 6 || deliveryStatus === 'checking'}
+              disabled={
+                pincode.join('').length !== 6 ||
+                deliveryStatus === 'checking' ||
+                isLocationDetecting
+              }
               style={{
-                opacity: (pincode.join('').length === 6 && deliveryStatus !== 'checking') ? 1 : 0.5,
-                cursor: (pincode.join('').length === 6 && deliveryStatus !== 'checking') ? 'pointer' : 'not-allowed'
+                opacity:
+                  pincode.join('').length === 6 &&
+                  deliveryStatus !== 'checking' &&
+                  !isLocationDetecting
+                    ? 1
+                    : 0.5,
+                cursor:
+                  pincode.join('').length === 6 &&
+                  deliveryStatus !== 'checking' &&
+                  !isLocationDetecting
+                    ? 'pointer'
+                    : 'not-allowed',
               }}
             >
-              {deliveryStatus === 'checking' ? 'Checking...' : 
+              {deliveryStatus === 'checking' ? 'Checking...' :
                deliveryStatus === 'available' || deliveryStatus === 'unavailable' ? 'Done' : 'Check'}
+            </button>
+
+            <button
+              type="button"
+              className={styles.modalLocationButton}
+              onClick={handleGetCurrentLocation}
+              disabled={isLocationDetecting || deliveryStatus === 'checking'}
+              aria-label="Get current location to detect pincode"
+            >
+              <svg
+                className={styles.modalLocationIcon}
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <path
+                  d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path d="M12 3V5M12 19V21M3 12H5M19 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              {isLocationDetecting ? 'Getting location…' : 'Get current location'}
             </button>
           </div>
         </div>

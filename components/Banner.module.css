@@ -167,6 +167,7 @@
   background: rgba(255, 255, 255, 1);
   transform: scale(1.2);
   width: 13px !Important;
+  border-radius: 50px !Important;
 }
 
 /* Responsive Design */
