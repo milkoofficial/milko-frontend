@@ -120,7 +120,7 @@ export interface Subscription {
   autopayFailureReason?: string;
   /** True when first calendar-day delivery was moved to end (bought/renewed after slot ended). */
   firstDayShiftApplied?: boolean;
-  /** `morning_slot_passed` | `evening_slot_passed` (from backend). */
+  /** `morning_slot_passed` | `evening_slot_passed` | `purchased_within_delivery_window` (from backend). */
   firstDayShiftReason?: string;
   createdAt: string;
   updatedAt: string;

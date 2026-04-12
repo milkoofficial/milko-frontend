@@ -60,6 +60,7 @@
 .bottomSheet {
   flex: 0 0 auto;
   max-height: min(48vh, 380px);
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 1rem 1rem 1.1rem;
   background: #fff;
@@ -68,6 +69,34 @@
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.sheetSlideWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  transform: translateX(0);
+  transition: transform 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.sheetSlideWrapOut {
+  transform: translateX(-110%);
+}
+
+.sheetSlideInnerEnter {
+  animation: milkoSheetDeliverIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes milkoSheetDeliverIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0.88;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .sheetTitle {

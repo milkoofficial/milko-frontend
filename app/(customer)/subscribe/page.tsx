@@ -5,6 +5,12 @@ import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { productsApi, subscriptionsApi, contentApi, walletApi, addressesApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  readScopedPincode,
+  scopedPincodeKey,
+  scopedPincodeStatusKey,
+  writeSubscriptionCartJson,
+} from '@/lib/utils/userScopedStorage';
 import { Product, Address } from '@/types';
 import styles from './SubscribePage.module.css';
 import Link from 'next/link';
@@ -22,7 +28,8 @@ const DEFAULT_DELIVERY_TIME_OPTIONS = [
 export default function SubscribePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const pinUserId = user?.id ?? null;
   const productId = searchParams.get('productId');
   const isCartFlow = searchParams.get('from') === 'cart';
   const isRenewFlow = searchParams.get('renew') === '1';
@@ -220,7 +227,7 @@ export default function SubscribePage() {
       }
 
       const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
-      const pin = (selectedAddress?.postalCode || localStorage.getItem('milko_delivery_pincode') || '').trim();
+      const pin = (selectedAddress?.postalCode || readScopedPincode(pinUserId) || '').trim();
       setSavedPincode(pin);
       if (pin.length !== 6) {
         setPincodeStatus('missing');
@@ -237,7 +244,12 @@ export default function SubscribePage() {
     syncPincodeState();
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'milko_delivery_pincode' || e.key === 'milko_delivery_status') {
+      if (
+        e.key === scopedPincodeKey(pinUserId)
+        || e.key === scopedPincodeStatusKey(pinUserId)
+        || e.key === 'milko_delivery_pincode'
+        || e.key === 'milko_delivery_status'
+      ) {
         syncPincodeState();
       }
     };
@@ -249,7 +261,7 @@ export default function SubscribePage() {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('milko:pincode-updated', onPincodeUpdated as EventListener);
     };
-  }, [savedAddresses, selectedAddressId]);
+  }, [savedAddresses, selectedAddressId, pinUserId]);
 
   useEffect(() => {
     if (!deliveryTimeOptions.some((slot) => slot.value === deliveryTime)) {
@@ -276,6 +288,25 @@ export default function SubscribePage() {
     if (!resolvedProductId) return;
     if (isCartFlow && !isRenewFlow) {
       if (!product) return;
+      if (!isAuthenticated || !user?.id) {
+        const returnPath = `/subscribe?${searchParams.toString()}`;
+        localStorage.setItem('milko_return_after_auth', returnPath);
+        router.replace(`/auth/login?redirect=${encodeURIComponent(returnPath)}`);
+        return;
+      }
+      if (!selectedAddressId) {
+        alert('Please select a delivery address to add this subscription to your cart.');
+        return;
+      }
+      const addr = savedAddresses.find((a) => a.id === selectedAddressId);
+      if (!addr || typeof addr.latitude !== 'number' || typeof addr.longitude !== 'number') {
+        alert('Please set your exact location on the map for the selected address before continuing.');
+        return;
+      }
+      if (pincodeStatus !== 'available') {
+        alert('Delivery is not available for this address pincode. Please choose a serviceable address.');
+        return;
+      }
       const durationMonths = Math.max(1, Math.round(durationDays / 30));
       const subscriptionCartItem = {
         type: 'subscription',
@@ -289,7 +320,7 @@ export default function SubscribePage() {
         totalAmount: Number((product.pricePerLitre * litresPerDay * durationDays).toFixed(2)),
         updatedAt: new Date().toISOString(),
       };
-      localStorage.setItem('milko_subscription_cart_item_v1', JSON.stringify(subscriptionCartItem));
+      writeSubscriptionCartJson(user.id, JSON.stringify(subscriptionCartItem));
       router.push('/cart');
       return;
     }

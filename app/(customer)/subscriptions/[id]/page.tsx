@@ -384,7 +384,8 @@ export default function SubscriptionDetailsPage() {
     );
   }
 
-  const orderId = subscription.razorpaySubscriptionId || subscription.id;
+  /** Same numeric id as admin subscription deliveries (`#subscriptionId`). */
+  const orderId = subscription.id;
   const paidAmount = subscription.totalAmountPaid ?? subscription.totalAmount ?? 0;
   const canManage = subscription.status === 'active' || subscription.status === 'paused';
   const hasAutopayMandate = String(subscription.razorpaySubscriptionId || '').startsWith('sub_');

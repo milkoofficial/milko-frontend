@@ -92,9 +92,15 @@ async function computeFirstDayShiftBonus({ deliveryTime, activationInstant }) {
   const slot = slots.find((s) => s.value === startKey);
   if (!slot) return { bonusDays: 0, reason: null };
 
+  const startMin = hhmmToMinutes(slot.value);
   const endMin = hhmmToMinutes(slot.end);
   const nowMin = calendarTzMinutesFromMidnight(activationInstant);
   if (endMin == null || nowMin == null) return { bonusDays: 0, reason: null };
+
+  // Purchased during the same-day morning/evening window → extend plan by 1 day at the end.
+  if (startMin != null && nowMin >= startMin && nowMin <= endMin) {
+    return { bonusDays: 1, reason: 'purchased_within_delivery_window' };
+  }
 
   if (nowMin > endMin) {
     return { bonusDays: 1, reason: shiftReasonForSlot(slot) };

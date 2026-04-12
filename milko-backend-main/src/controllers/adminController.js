@@ -690,15 +690,35 @@ const getCustomerStats = async (req, res, next) => {
           u.id,
           u.name,
           u.email,
-          COALESCE(COUNT(pmt.id), 0) AS orders_count,
-          COALESCE(SUM(pmt.amount), 0) AS amount_spent
+          (
+            COALESCE(sub_pay.payment_events, 0)
+            + COALESCE(chk.checkout_orders, 0)
+          ) AS orders_count,
+          (
+            COALESCE(sub_pay.amount_spent, 0)
+            + COALESCE(chk.checkout_spent, 0)
+          ) AS amount_spent
         FROM users u
-        LEFT JOIN subscriptions s ON s.user_id = u.id
-        LEFT JOIN payments pmt
-          ON pmt.subscription_id = s.id
-         AND pmt.status = 'captured'
+        LEFT JOIN (
+          SELECT
+            s.user_id,
+            COUNT(pmt.id) AS payment_events,
+            COALESCE(SUM(pmt.amount), 0) AS amount_spent
+          FROM payments pmt
+          INNER JOIN subscriptions s ON s.id = pmt.subscription_id
+          WHERE pmt.status = 'captured'
+          GROUP BY s.user_id
+        ) sub_pay ON sub_pay.user_id = u.id
+        LEFT JOIN (
+          SELECT
+            o.user_id,
+            COUNT(o.id) AS checkout_orders,
+            COALESCE(SUM(o.total), 0) AS checkout_spent
+          FROM orders o
+          WHERE o.payment_status IN ('paid', 'cod')
+          GROUP BY o.user_id
+        ) chk ON chk.user_id = u.id
         WHERE LOWER(u.role) = 'customer'
-        GROUP BY u.id, u.name, u.email
         ORDER BY amount_spent DESC, orders_count DESC, u.created_at DESC
         `
       );

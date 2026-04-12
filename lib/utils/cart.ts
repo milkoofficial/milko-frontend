@@ -1,10 +1,12 @@
+import { scopedCartKey } from '@/lib/utils/userScopedStorage';
+
 export interface CartItem {
   productId: string;
   variationId?: string;
   quantity: number;
 }
 
-const CART_KEY = 'milko_cart_v1';
+const LEGACY_CART_KEY = 'milko_cart_v1';
 
 function safeParse(json: string | null): CartItem[] {
   if (!json) return [];
@@ -24,55 +26,73 @@ function safeParse(json: string | null): CartItem[] {
   }
 }
 
-function read(): CartItem[] {
+function readRaw(key: string): CartItem[] {
   if (typeof window === 'undefined') return [];
-  return safeParse(window.localStorage.getItem(CART_KEY));
+  return safeParse(window.localStorage.getItem(key));
 }
 
-function write(items: CartItem[]) {
+function writeRaw(key: string, items: CartItem[]) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(CART_KEY, JSON.stringify(items));
+  window.localStorage.setItem(key, JSON.stringify(items));
 }
 
-export const cartStorage = {
-  get(): CartItem[] {
-    return read();
-  },
+/**
+ * Cart storage scoped by logged-in user id (guest uses a separate key).
+ */
+export function getCartStorage(userId: string | null) {
+  const storageKey = scopedCartKey(userId);
 
-  add(item: CartItem) {
-    const qty = Math.max(1, Math.min(99, item.quantity));
-    const items = read();
-    const idx = items.findIndex(
-      (x) => x.productId === item.productId && (x.variationId || '') === (item.variationId || '')
-    );
-    if (idx >= 0) {
-      items[idx] = { ...items[idx], quantity: Math.min(99, items[idx].quantity + qty) };
-    } else {
-      items.push({ productId: item.productId, variationId: item.variationId, quantity: qty });
+  function read(): CartItem[] {
+    let items = readRaw(storageKey);
+    if (items.length === 0 && !userId && typeof window !== 'undefined') {
+      const legacy = window.localStorage.getItem(LEGACY_CART_KEY);
+      if (legacy) {
+        items = safeParse(legacy);
+        writeRaw(storageKey, items);
+        window.localStorage.removeItem(LEGACY_CART_KEY);
+      }
     }
-    write(items);
-  },
+    return items;
+  }
 
-  setQuantity(productId: string, quantity: number, variationId?: string) {
-    const qty = Math.max(1, Math.min(99, quantity));
-    const items = read().map((x) =>
-      x.productId === productId && (x.variationId || '') === (variationId || '')
-        ? { ...x, quantity: qty }
-        : x
-    );
-    write(items);
-  },
+  return {
+    storageKey,
 
-  remove(productId: string, variationId?: string) {
-    const items = read().filter(
-      (x) => !(x.productId === productId && (x.variationId || '') === (variationId || ''))
-    );
-    write(items);
-  },
+    get(): CartItem[] {
+      return read();
+    },
 
-  clear() {
-    write([]);
-  },
-};
+    add(item: CartItem) {
+      const qty = Math.max(1, Math.min(99, item.quantity));
+      const items = read();
+      const idx = items.findIndex(
+        (x) => x.productId === item.productId && (x.variationId || '') === (item.variationId || ''),
+      );
+      if (idx >= 0) {
+        items[idx] = { ...items[idx], quantity: Math.min(99, items[idx].quantity + qty) };
+      } else {
+        items.push({ productId: item.productId, variationId: item.variationId, quantity: qty });
+      }
+      writeRaw(storageKey, items);
+    },
 
+    setQuantity(productId: string, quantity: number, variationId?: string) {
+      const qty = Math.max(1, Math.min(99, quantity));
+      const items = read().map((x) =>
+        x.productId === productId && (x.variationId || '') === (variationId || '') ? { ...x, quantity: qty } : x,
+      );
+      writeRaw(storageKey, items);
+    },
 
+    remove(productId: string, variationId?: string) {
+      const items = read().filter(
+        (x) => !(x.productId === productId && (x.variationId || '') === (variationId || '')),
+      );
+      writeRaw(storageKey, items);
+    },
+
+    clear() {
+      writeRaw(storageKey, []);
+    },
+  };
+}

@@ -10,6 +10,11 @@ import { Product, Address } from '@/types';
 import Link from 'next/link';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
 import { readCheckoutCouponCode, saveCheckoutCouponCode } from '@/lib/utils/checkoutCoupon';
+import {
+  readSubscriptionCartJson,
+  clearSubscriptionCart,
+  scopedSubscriptionCartKey,
+} from '@/lib/utils/userScopedStorage';
 import styles from './checkout.module.css';
 
 const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
@@ -37,12 +42,11 @@ type SubscriptionCartItem = {
   totalAmount: number;
   updatedAt: string;
 };
-const SUBSCRIPTION_CART_KEY = 'milko_subscription_cart_item_v1';
-
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, clearCart } = useCart();
   const { user, isAuthenticated, login, loginWithGoogle, loading: authLoading } = useAuth();
+  const subCartUserId = user?.id ?? null;
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('address');
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [loading, setLoading] = useState(true);
@@ -139,7 +143,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     const loadSubscriptionItem = () => {
       try {
-        const raw = localStorage.getItem(SUBSCRIPTION_CART_KEY);
+        const raw = readSubscriptionCartJson(subCartUserId);
         if (!raw) {
           setSubscriptionCartItem(null);
           return;
@@ -168,11 +172,13 @@ export default function CheckoutPage() {
 
     loadSubscriptionItem();
     const onStorage = (e: StorageEvent) => {
-      if (e.key === SUBSCRIPTION_CART_KEY) loadSubscriptionItem();
+      if (e.key === scopedSubscriptionCartKey(subCartUserId) || e.key === 'milko_subscription_cart_item_v1') {
+        loadSubscriptionItem();
+      }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  }, [subCartUserId]);
 
   // Initialize step - always start at address step (which will show login if needed)
   useEffect(() => {
@@ -668,7 +674,7 @@ export default function CheckoutPage() {
                 localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
               }
               clearCart();
-              localStorage.removeItem(SUBSCRIPTION_CART_KEY);
+              clearSubscriptionCart(subCartUserId);
               saveCheckoutCouponCode(null);
               router.push('/order-success');
             } catch (e) {
@@ -691,7 +697,7 @@ export default function CheckoutPage() {
         localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
       }
       clearCart();
-      localStorage.removeItem(SUBSCRIPTION_CART_KEY);
+      clearSubscriptionCart(subCartUserId);
       saveCheckoutCouponCode(null);
       router.push('/order-success');
     } catch (error) {

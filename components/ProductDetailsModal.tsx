@@ -4,7 +4,14 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, type CSSProp
 import { Product, ProductVariation, ProductReview } from '@/types';
 import { productsApi, contentApi } from '@/lib/api';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import {
+  readScopedPincode,
+  scopedPincodeKey,
+  scopedPincodeStatusKey,
+  writeScopedPincode,
+} from '@/lib/utils/userScopedStorage';
 import { animateToCart } from '@/lib/utils/cartAnimation';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import Image from 'next/image';
@@ -28,6 +35,8 @@ interface ProductDetailsModalProps {
  */
 export default function ProductDetailsModal({ product, isOpen, onClose, onRelatedProductClick }: ProductDetailsModalProps) {
   const { addItem } = useCart();
+  const { user } = useAuth();
+  const pinUserId = user?.id ?? null;
   const { showToast } = useToast();
   const addToCartButtonRef = useRef<HTMLButtonElement>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -116,8 +125,8 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
         }
       })();
 
-      const savedPincode = localStorage.getItem('milko_delivery_pincode');
-      
+      const savedPincode = readScopedPincode(pinUserId);
+
       if (savedPincode && savedPincode.length === 6) {
         setPincode(savedPincode);
         setIsPincodeAvailable(null);
@@ -128,7 +137,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
         setShowDeliveryInfo(false);
       }
     }
-  }, [isOpen]);
+  }, [isOpen, pinUserId]);
 
   // Auto-evaluate availability once we have both pincode + config
   useEffect(() => {
@@ -144,8 +153,9 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     if (!isOpen) return;
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'milko_delivery_pincode') {
-        setPincode(e.newValue || '');
+      const pk = scopedPincodeKey(pinUserId);
+      if (e.key === pk || e.key === 'milko_delivery_pincode') {
+        setPincode((e.newValue || readScopedPincode(pinUserId) || '').trim());
       }
     };
 
@@ -154,7 +164,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [isOpen]);
+  }, [isOpen, pinUserId]);
 
   // Save pincode to localStorage when changed
   const handlePincodeChange = (val: string) => {
@@ -165,10 +175,13 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
     setIsPincodeAvailable(null);
     // Save to localStorage (use setTimeout to avoid blocking input)
     setTimeout(() => {
+      const pk = scopedPincodeKey(pinUserId);
+      const sk = scopedPincodeStatusKey(pinUserId);
       if (val.length > 0) {
-        localStorage.setItem('milko_delivery_pincode', val);
+        localStorage.setItem(pk, val);
       } else {
-        localStorage.removeItem('milko_delivery_pincode');
+        localStorage.removeItem(pk);
+        localStorage.removeItem(sk);
       }
     }, 0);
   };
@@ -186,6 +199,9 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
       setIsPincodeAvailable(isAvailable);
       setShowDeliveryInfo(isAvailable);
       setIsCheckingPincode(false);
+      if (pincode.length === 6) {
+        writeScopedPincode(pinUserId, pincode, isAvailable ? 'available' : 'unavailable');
+      }
     }, 800); // Simulate network delay
   };
 
@@ -601,11 +617,6 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
         ? baseCompare * unitMultiplier
         : null;
   const unitOff = originalUnitPrice !== null ? (originalUnitPrice - unitPrice) : 0;
-  
-  // Base discount (without multiplier) to match product card display
-  const baseDiscount = baseCompare !== null && baseSelling !== null 
-    ? (baseCompare - baseSelling) 
-    : 0;
 
   if (!isOpen) return null;
 
@@ -780,9 +791,9 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                   ₹{unitPrice.toFixed(0)} <span className={styles.priceUnit}>/{unitLabel}</span>
                 </div>
               </div>
-              {baseCompare !== null && baseDiscount > 0 && (
+              {originalUnitPrice !== null && unitOff > 0 && (
                 <div className={styles.discountBadge}>
-                  ₹{baseDiscount.toFixed(0)} OFF
+                  ₹{unitOff.toFixed(0)} OFF
                 </div>
               )}
             </div>

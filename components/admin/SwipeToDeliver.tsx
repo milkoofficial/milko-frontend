@@ -15,9 +15,10 @@ export default function SwipeToDeliver({ disabled, label, onConfirm }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragX, setDragX] = useState(0);
   const dragXRef = useRef(0);
-  const [dragging, setDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
+  const [showDone, setShowDone] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const maxDrag = useCallback(() => {
     const el = trackRef.current;
@@ -34,8 +35,9 @@ export default function SwipeToDeliver({ disabled, label, onConfirm }: Props) {
     if (disabled) {
       setDragX(0);
       dragXRef.current = 0;
-      setDragging(false);
       isDraggingRef.current = false;
+      setShowDone(false);
+      setBusy(false);
     }
   }, [disabled]);
 
@@ -44,17 +46,18 @@ export default function SwipeToDeliver({ disabled, label, onConfirm }: Props) {
     return max > 0 ? Math.min(1, dragX / max) : 0;
   })();
 
+  const proximityReady = !disabled && !busy;
+
   const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (disabled) return;
+    if (disabled || busy) return;
     e.preventDefault();
     (e.currentTarget as HTMLButtonElement).setPointerCapture(e.pointerId);
     isDraggingRef.current = true;
-    setDragging(true);
     startXRef.current = e.clientX - dragXRef.current;
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (!isDraggingRef.current || disabled) return;
+    if (!isDraggingRef.current || disabled || busy) return;
     const max = maxDrag();
     const x = Math.max(0, Math.min(max, e.clientX - startXRef.current));
     dragXRef.current = x;
@@ -62,9 +65,8 @@ export default function SwipeToDeliver({ disabled, label, onConfirm }: Props) {
   };
 
   const finishDrag = async (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (!isDraggingRef.current || disabled) return;
+    if (!isDraggingRef.current || disabled || busy) return;
     isDraggingRef.current = false;
-    setDragging(false);
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
@@ -74,35 +76,48 @@ export default function SwipeToDeliver({ disabled, label, onConfirm }: Props) {
     const lastX = dragXRef.current;
     const p = max > 0 ? lastX / max : 0;
     if (p >= SWIPE_COMPLETE_RATIO) {
-      await Promise.resolve(onConfirm());
+      setDragX(max);
+      dragXRef.current = max;
+      setShowDone(true);
+      setBusy(true);
+      try {
+        await Promise.resolve(onConfirm());
+      } finally {
+        setShowDone(false);
+        setBusy(false);
+        dragXRef.current = 0;
+        setDragX(0);
+      }
+    } else {
+      dragXRef.current = 0;
+      setDragX(0);
     }
-    dragXRef.current = 0;
-    setDragX(0);
   };
 
   return (
     <div
       ref={trackRef}
-      className={`${styles.track} ${disabled ? styles.trackDisabled : ''}`}
+      className={`${styles.track} ${disabled ? styles.trackDisabled : ''} ${proximityReady ? styles.trackProximityReady : ''}`}
       style={{ '--swipe-progress': String(progress) } as React.CSSProperties}
     >
       <div className={styles.trackBg}>
-        <span className={styles.trackLabel}>{label}</span>
+        <span className={styles.trackLabel}>{showDone ? 'Done!' : label}</span>
       </div>
       <div className={styles.fill} style={{ width: `${dragX + 52}px` }} />
       <button
         type="button"
         className={styles.knob}
-        disabled={disabled}
+        disabled={disabled || busy}
         style={{ transform: `translateX(${dragX}px)` }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={finishDrag}
         onPointerCancel={() => {
           isDraggingRef.current = false;
-          setDragging(false);
-          dragXRef.current = 0;
-          setDragX(0);
+          if (!busy) {
+            dragXRef.current = 0;
+            setDragX(0);
+          }
         }}
         aria-label={label}
       >

@@ -10,6 +10,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import styles from './Header.module.css';
 import { User, Product } from '@/types';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
+import { readScopedPincode, writeScopedPincode, scopedPincodeStatusKey } from '@/lib/utils/userScopedStorage';
 import { contentApi, productsApi, walletApi } from '@/lib/api';
 import ProductDetailsModal from './ProductDetailsModal';
 import Logo from './Logo';
@@ -518,13 +519,13 @@ export default function Header() {
   const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime?: string }> | null>(null);
   const pincodeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Load saved pincode from localStorage on mount
+  const pinUserId = user?.id ?? null;
+
+  // Load saved pincode for the current account (guest vs logged-in)
   useEffect(() => {
-    const saved = localStorage.getItem('milko_delivery_pincode');
-    if (saved) {
-      setSavedPincode(saved);
-    }
-  }, []);
+    const saved = readScopedPincode(pinUserId);
+    setSavedPincode(saved.length === 6 ? saved : null);
+  }, [pinUserId]);
 
   // Load serviceable pincode(s) and delivery time from admin-configured site content
   useEffect(() => {
@@ -573,8 +574,8 @@ export default function Header() {
     if (!savedPincode || savedPincode.length !== 6) return;
     const ok = isDeliverable(savedPincode);
     setSavedDeliveryStatus(ok ? 'available' : 'unavailable');
-    localStorage.setItem('milko_delivery_status', ok ? 'available' : 'unavailable');
-  }, [savedPincode, serviceablePincodes]);
+    localStorage.setItem(scopedPincodeStatusKey(pinUserId), ok ? 'available' : 'unavailable');
+  }, [savedPincode, serviceablePincodes, pinUserId]);
 
   // Focus first pincode input when modal opens
   useEffect(() => {
@@ -614,8 +615,7 @@ export default function Header() {
     const fullPincode = pincode.join('');
     if (deliveryStatus === 'available') {
       // Save pincode and status to localStorage and state
-      localStorage.setItem('milko_delivery_pincode', fullPincode);
-      localStorage.setItem('milko_delivery_status', 'available');
+      writeScopedPincode(pinUserId, fullPincode, 'available');
       setSavedPincode(fullPincode);
       setSavedDeliveryStatus('available');
       window.dispatchEvent(
@@ -626,8 +626,7 @@ export default function Header() {
       setIsAddressModalOpen(false);
     } else if (deliveryStatus === 'unavailable') {
       // Save unavailable status
-      localStorage.setItem('milko_delivery_pincode', fullPincode);
-      localStorage.setItem('milko_delivery_status', 'unavailable');
+      writeScopedPincode(pinUserId, fullPincode, 'unavailable');
       setSavedPincode(fullPincode);
       setSavedDeliveryStatus('unavailable');
       window.dispatchEvent(
@@ -675,13 +674,13 @@ export default function Header() {
   // Until the user has saved a pincode (deliverable or not), open the pincode modal on every route
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const raw = localStorage.getItem('milko_delivery_pincode');
+    const raw = readScopedPincode(pinUserId);
     const pin = (raw || '').trim();
     const hasSavedPincode = pin.length === 6 && /^\d{6}$/.test(pin);
     if (!hasSavedPincode) {
       setIsAddressModalOpen(true);
     }
-  }, [pathname]);
+  }, [pathname, pinUserId]);
 
   // Simulate initial loading (show shimmer for first load)
   useEffect(() => {

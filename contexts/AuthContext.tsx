@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthResponse, User } from '@/types';
 import { userStorage, tokenStorage, adminCookie } from '@/lib/utils/storage';
+import { getCartStorage } from '@/lib/utils/cart';
+import { clearSubscriptionCart, clearScopedPincode } from '@/lib/utils/userScopedStorage';
 import { authApi } from '@/lib/api';
 import { supabase } from '@/lib/supabase/client';
 
@@ -122,6 +124,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     await authApi.logout();
+    if (typeof window !== 'undefined') {
+      getCartStorage(null).clear();
+      clearSubscriptionCart(null);
+      clearScopedPincode(null);
+      window.dispatchEvent(new CustomEvent('milko:pincode-updated'));
+    }
     setUser(null);
   };
 

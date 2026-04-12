@@ -48,11 +48,8 @@ const PROXIMITY_METERS = 20;
 
 const MAP_PIN_PX = 48;
 
-/** Match customer map pin; white halo drawn underneath via `routeGlowPolylineRef`. */
 const ROUTE_STROKE_COLOR = '#0062ff';
 const ROUTE_STROKE_WEIGHT = 5;
-const ROUTE_GLOW_STROKE_WEIGHT = 14;
-const ROUTE_GLOW_OPACITY = 0.82;
 
 function deliveryMapPinMarkerIcon(): google.maps.Icon {
   return {
@@ -110,8 +107,10 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
-  const routeGlowPolylineRef = useRef<google.maps.Polyline | null>(null);
-  const markersRef = useRef<google.maps.Marker[]>([]);
+  const adminMarkerRef = useRef<google.maps.Marker | null>(null);
+  const deliveryMarkersRef = useRef<google.maps.Marker[]>([]);
+  const sheetSlideWrapRef = useRef<HTMLDivElement | null>(null);
+  const pendingDeliveryCommitRef = useRef<(() => void) | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -131,6 +130,8 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
   const [marking, setMarking] = useState(false);
   const [queuePopupOpen, setQueuePopupOpen] = useState(false);
   const [locationPermissionHelpOpen, setLocationPermissionHelpOpen] = useState(false);
+  const [sheetExiting, setSheetExiting] = useState(false);
+  const [sheetEnterNonce, setSheetEnterNonce] = useState(0);
 
   const pendingStops = useMemo(() => stops.filter(isPendingStop), [stops]);
   const totalPendingLitres = useMemo(
@@ -208,15 +209,16 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
+      gestureHandling: 'greedy',
     });
     mapRef.current = map;
     directionsRendererRef.current = new google.maps.DirectionsRenderer({
       map,
       suppressMarkers: true,
       polylineOptions: {
-        strokeColor: '#0c4a6e',
-        strokeOpacity: 0.9,
-        strokeWeight: 5,
+        strokeColor: ROUTE_STROKE_COLOR,
+        strokeOpacity: 1,
+        strokeWeight: ROUTE_STROKE_WEIGHT,
       },
     });
   }, [mapsReady]);
@@ -293,10 +295,6 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
   const drawLeg = useCallback(async (origin: { lat: number; lng: number }, dest: DeliveryStop) => {
     if (!mapRef.current || !directionsRendererRef.current) return;
     setErrorText('');
-    if (routeGlowPolylineRef.current) {
-      routeGlowPolylineRef.current.setMap(null);
-      routeGlowPolylineRef.current = null;
-    }
     try {
       const directionsService = new google.maps.DirectionsService();
       const result = await directionsService.route({
@@ -304,80 +302,117 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
         destination: new google.maps.LatLng(dest.lat, dest.lng),
         travelMode: google.maps.TravelMode.DRIVING,
       });
-      const path = result.routes[0]?.overview_path;
-      if (path && path.length > 0 && mapRef.current) {
-        routeGlowPolylineRef.current = new google.maps.Polyline({
-          path,
-          geodesic: true,
-          strokeColor: '#ffffff',
-          strokeOpacity: ROUTE_GLOW_OPACITY,
-          strokeWeight: ROUTE_GLOW_STROKE_WEIGHT,
-          zIndex: 1,
-          map: mapRef.current,
-        });
-      }
       directionsRendererRef.current.setDirections(result);
       const b = new google.maps.LatLngBounds();
       b.extend(origin);
       b.extend({ lat: dest.lat, lng: dest.lng });
       mapRef.current.fitBounds(b, 48);
     } catch (error) {
-      if (routeGlowPolylineRef.current) {
-        routeGlowPolylineRef.current.setMap(null);
-        routeGlowPolylineRef.current = null;
-      }
       setErrorText((error as Error)?.message || 'Failed to draw route');
     }
   }, []);
 
+  /** Admin live marker: update position only (avoids blink on every GPS tick). */
   useEffect(() => {
-    if (!mapRef.current || !mapsReady) return;
-    markersRef.current.forEach((m) => m.setMap(null));
-    markersRef.current = [];
+    if (!mapRef.current || !mapsReady || flowComplete) {
+      if (adminMarkerRef.current) {
+        adminMarkerRef.current.setMap(null);
+        adminMarkerRef.current = null;
+      }
+      return;
+    }
+    if (!adminLocation) return;
+    const adminIconSize = 56;
+    if (!adminMarkerRef.current) {
+      adminMarkerRef.current = new google.maps.Marker({
+        map: mapRef.current,
+        position: adminLocation,
+        title: 'Your location',
+        optimized: true,
+        icon: {
+          url: '/icons/admin-live-location-marker.svg',
+          scaledSize: new google.maps.Size(adminIconSize, adminIconSize),
+          anchor: new google.maps.Point(adminIconSize / 2, adminIconSize),
+        },
+      });
+    } else {
+      adminMarkerRef.current.setPosition(adminLocation);
+    }
+  }, [mapsReady, adminLocation, flowComplete]);
 
-    if (flowComplete) return;
-
-    if (adminLocation) {
-      const adminIconSize = 56;
-      markersRef.current.push(
-        new google.maps.Marker({
-          map: mapRef.current,
-          position: adminLocation,
-          title: 'Your location',
-          icon: {
-            url: '/icons/admin-live-location-marker.svg',
-            scaledSize: new google.maps.Size(adminIconSize, adminIconSize),
-            anchor: new google.maps.Point(adminIconSize / 2, adminIconSize),
-          },
-        }),
-      );
+  /** Customer / stop pins: rebuild only when route shape changes (not on admin GPS updates). */
+  useEffect(() => {
+    if (!mapRef.current || !mapsReady || flowComplete) {
+      deliveryMarkersRef.current.forEach((m) => m.setMap(null));
+      deliveryMarkersRef.current = [];
+      return;
     }
 
+    deliveryMarkersRef.current.forEach((m) => m.setMap(null));
+    deliveryMarkersRef.current = [];
+
     if (routeStarted && currentStop) {
-      markersRef.current.push(
+      deliveryMarkersRef.current.push(
         new google.maps.Marker({
           map: mapRef.current,
           position: { lat: currentStop.lat, lng: currentStop.lng },
           title: currentStop.userName || currentStop.userEmail || 'Delivery',
+          optimized: true,
           icon: deliveryMapPinMarkerIcon(),
-          label: { text: '▶', color: '#0f172a', fontSize: '11px', fontWeight: '700' },
         }),
       );
     } else if (!routeStarted && pendingStops.length > 0) {
-      pendingStops.forEach((stop, index) => {
-        markersRef.current.push(
+      pendingStops.forEach((stop, i) => {
+        deliveryMarkersRef.current.push(
           new google.maps.Marker({
             map: mapRef.current,
             position: { lat: stop.lat, lng: stop.lng },
-            title: stop.userName || stop.userEmail || `Stop ${index + 1}`,
+            title: stop.userName || stop.userEmail || `Stop ${i + 1}`,
+            optimized: true,
             icon: deliveryMapPinMarkerIcon(),
-            label: { text: `${index + 1}`, color: '#ffffff', fontSize: '10px', fontWeight: '800' },
             opacity: 0.92,
           }),
         );
       });
     }
-  }, [mapsReady, adminLocation, routeStarted, currentStop, pendingStops, flowComplete]);
+  }, [mapsReady, routeStarted, currentStop, pendingStops, flowComplete]);
+
+  useEffect(() => {
+    return () => {
+      if (adminMarkerRef.current) {
+        adminMarkerRef.current.setMap(null);
+        adminMarkerRef.current = null;
+      }
+      deliveryMarkersRef.current.forEach((m) => m.setMap(null));
+      deliveryMarkersRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sheetExiting) return;
+    const el = sheetSlideWrapRef.current;
+    const fallback = window.setTimeout(() => {
+      const fn = pendingDeliveryCommitRef.current;
+      pendingDeliveryCommitRef.current = null;
+      fn?.();
+      setSheetExiting(false);
+      setSheetEnterNonce((n) => n + 1);
+    }, 420);
+    const onEnd = (e: TransitionEvent) => {
+      if (e.propertyName !== 'transform') return;
+      window.clearTimeout(fallback);
+      const fn = pendingDeliveryCommitRef.current;
+      pendingDeliveryCommitRef.current = null;
+      fn?.();
+      setSheetExiting(false);
+      setSheetEnterNonce((n) => n + 1);
+    };
+    el?.addEventListener('transitionend', onEnd, { once: true });
+    return () => {
+      window.clearTimeout(fallback);
+      el?.removeEventListener('transitionend', onEnd);
+    };
+  }, [sheetExiting]);
 
   const startOptimizedRoute = async () => {
     if (!adminLocation) {
@@ -420,28 +455,29 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
         date,
       });
       const done = currentStop;
-      setStops((prev) =>
-        prev.map((s) => (s.id === done.id ? { ...s, status: 'delivered' } : s)),
-      );
-      setSessionDelivered((prev) => [...prev, done]);
+      pendingDeliveryCommitRef.current = () => {
+        setStops((prev) => prev.map((s) => (s.id === done.id ? { ...s, status: 'delivered' } : s)));
+        setSessionDelivered((prev) => [...prev, done]);
 
-      const rest = remainingStops.filter((s) => s.id !== done.id);
-      if (rest.length === 0) {
-        setFlowComplete(true);
-        setRouteStarted(false);
-        setCurrentStop(null);
-        setRemainingStops([]);
-        return;
-      }
+        const rest = remainingStops.filter((s) => s.id !== done.id);
+        if (rest.length === 0) {
+          setFlowComplete(true);
+          setRouteStarted(false);
+          setCurrentStop(null);
+          setRemainingStops([]);
+          return;
+        }
 
-      const newOrigin = { lat: done.lat, lng: done.lng };
-      setRouteOrigin(newOrigin);
-      setRemainingStops(rest);
-      const next = pickNearestStop(newOrigin, rest);
-      setCurrentStop(next);
-      if (next) {
-        await drawLeg(newOrigin, next);
-      }
+        const newOrigin = { lat: done.lat, lng: done.lng };
+        setRouteOrigin(newOrigin);
+        setRemainingStops(rest);
+        const next = pickNearestStop(newOrigin, rest);
+        setCurrentStop(next);
+        if (next) {
+          void drawLeg(newOrigin, next);
+        }
+      };
+      setSheetExiting(true);
     } catch (e) {
       setErrorText((e as { message?: string })?.message || 'Could not mark delivered');
     } finally {
@@ -542,51 +578,59 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
         ) : null}
 
         {routeStarted && currentStop && !flowComplete ? (
-          <>
-            <div className={styles.sheetRowTop}>
-              <div className={styles.sheetNameBlock}>
-                <div className={styles.sheetHeadlineRow}>
-                  {sheetRouteHeadlineIcon}
-                  <div className={styles.sheetTextGroup}>
-                    <p className={styles.customerName}>{currentStop.userName || currentStop.userEmail || `User ${currentStop.userId}`}</p>
-                    <p className={styles.sheetSub}>
-                      To deliver {qtyLabel(currentStop)} L of {productLabel(currentStop)} at {formatAddress(currentStop)}
-                    </p>
+          <div
+            ref={sheetSlideWrapRef}
+            className={`${styles.sheetSlideWrap} ${sheetExiting ? styles.sheetSlideWrapOut : ''}`}
+          >
+            <div
+              key={`${currentStop.id}-${sheetEnterNonce}`}
+              className={sheetEnterNonce > 0 ? styles.sheetSlideInnerEnter : undefined}
+            >
+              <div className={styles.sheetRowTop}>
+                <div className={styles.sheetNameBlock}>
+                  <div className={styles.sheetHeadlineRow}>
+                    {sheetRouteHeadlineIcon}
+                    <div className={styles.sheetTextGroup}>
+                      <p className={styles.customerName}>{currentStop.userName || currentStop.userEmail || `User ${currentStop.userId}`}</p>
+                      <p className={styles.sheetSub}>
+                        To deliver {qtyLabel(currentStop)} L of {productLabel(currentStop)} at {formatAddress(currentStop)}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <button
-                type="button"
-                className={styles.leftPill}
-                onClick={() => setQueuePopupOpen(true)}
-              >
-                <svg
-                  className={styles.leftPillIcon}
-                  viewBox="0 0 100 100"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden
+                <button
+                  type="button"
+                  className={styles.leftPill}
+                  onClick={() => setQueuePopupOpen(true)}
                 >
-                  <path
-                    d="M42 0a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h3v5.295C23.364 15.785 6.5 34.209 6.5 56.5C6.5 80.483 26.017 100 50 100s43.5-19.517 43.5-43.5a43.22 43.22 0 0 0-6.72-23.182l4.238-3.431l1.888 2.332a2 2 0 0 0 2.813.297l3.11-2.518a2 2 0 0 0 .294-2.812L89.055 14.75a2 2 0 0 0-2.813-.297l-3.11 2.518a2 2 0 0 0-.294 2.812l1.889 2.332l-4.22 3.414C73.77 18.891 64.883 14.435 55 13.297V8h3a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H42zm8 20c20.2 0 36.5 16.3 36.5 36.5S70.2 93 50 93S13.5 76.7 13.5 56.5S29.8 20 50 20zm.002 7.443L50 56.5l23.234 17.447a29.056 29.056 0 0 0 2.758-30.433a29.056 29.056 0 0 0-25.99-16.07z"
-                    fill="currentColor"
-                  />
-                </svg>
-                <span className={styles.leftPillLabel}>
-                  {leftCount} left
-                </span>
-              </button>
+                  <svg
+                    className={styles.leftPillIcon}
+                    viewBox="0 0 100 100"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden
+                  >
+                    <path
+                      d="M42 0a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h3v5.295C23.364 15.785 6.5 34.209 6.5 56.5C6.5 80.483 26.017 100 50 100s43.5-19.517 43.5-43.5a43.22 43.22 0 0 0-6.72-23.182l4.238-3.431l1.888 2.332a2 2 0 0 0 2.813.297l3.11-2.518a2 2 0 0 0 .294-2.812L89.055 14.75a2 2 0 0 0-2.813-.297l-3.11 2.518a2 2 0 0 0-.294 2.812l1.889 2.332l-4.22 3.414C73.77 18.891 64.883 14.435 55 13.297V8h3a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H42zm8 20c20.2 0 36.5 16.3 36.5 36.5S70.2 93 50 93S13.5 76.7 13.5 56.5S29.8 20 50 20zm.002 7.443L50 56.5l23.234 17.447a29.056 29.056 0 0 0 2.758-30.433a29.056 29.056 0 0 0-25.99-16.07z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <span className={styles.leftPillLabel}>
+                    {leftCount} left
+                  </span>
+                </button>
+              </div>
+              <SwipeToDeliver
+                disabled={!nearCurrentStop || marking}
+                label="Mark as deliver"
+                onConfirm={() => onMarkDeliveredSwipe()}
+              />
+              {!nearCurrentStop ? (
+                <p className={styles.proximityHint}>
+                  Move within {PROXIMITY_METERS} m of the pin to enable swipe ({PROXIMITY_METERS} m radius).
+                </p>
+              ) : null}
             </div>
-            <SwipeToDeliver
-              disabled={!nearCurrentStop || marking}
-              label="Mark as deliver"
-              onConfirm={() => onMarkDeliveredSwipe()}
-            />
-            {!nearCurrentStop ? (
-              <p className={styles.proximityHint}>
-                Move within {PROXIMITY_METERS} m of the pin to enable swipe ({PROXIMITY_METERS} m radius).
-              </p>
-            ) : null}
-          </>
+          </div>
         ) : null}
 
         {flowComplete ? (

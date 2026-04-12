@@ -5,6 +5,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  readSubscriptionCartJson,
+  clearSubscriptionCart,
+  scopedSubscriptionCartKey,
+} from '@/lib/utils/userScopedStorage';
 import { productsApi, couponsApi } from '@/lib/api';
 import type { Coupon } from '@/lib/api';
 import { Product } from '@/types';
@@ -24,10 +30,10 @@ type SubscriptionCartItem = {
   updatedAt: string;
 };
 
-const SUBSCRIPTION_CART_KEY = 'milko_subscription_cart_item_v1';
-
 export default function CartPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const subCartUserId = user?.id ?? null;
   const { items, setItemQuantity, removeItem } = useCart();
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [couponCode, setCouponCode] = useState('');
@@ -64,7 +70,7 @@ export default function CartPage() {
   useEffect(() => {
     const loadSubscriptionItem = () => {
       try {
-        const raw = localStorage.getItem(SUBSCRIPTION_CART_KEY);
+        const raw = readSubscriptionCartJson(subCartUserId);
         if (!raw) {
           setSubscriptionCartItem(null);
           return;
@@ -93,11 +99,13 @@ export default function CartPage() {
     };
     loadSubscriptionItem();
     const onStorage = (e: StorageEvent) => {
-      if (e.key === SUBSCRIPTION_CART_KEY) loadSubscriptionItem();
+      if (e.key === scopedSubscriptionCartKey(subCartUserId) || e.key === 'milko_subscription_cart_item_v1') {
+        loadSubscriptionItem();
+      }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  }, [subCartUserId]);
 
   const formatINR = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -184,7 +192,7 @@ export default function CartPage() {
   };
 
   const handleRemoveSubscriptionCartItem = () => {
-    localStorage.removeItem(SUBSCRIPTION_CART_KEY);
+    clearSubscriptionCart(subCartUserId);
     setSubscriptionCartItem(null);
   };
 

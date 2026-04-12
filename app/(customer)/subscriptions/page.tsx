@@ -230,7 +230,6 @@ export default function SubscriptionsPage() {
               : isExpired
                 ? 'Remaining: No days remaining'
                 : `Remaining: ${daysLeft} days left`;
-            const orderId = s.razorpaySubscriptionId || s.id;
             let planTotal: number | null = null;
             if (s.totalAmount != null) {
               const t = Number(s.totalAmount);
