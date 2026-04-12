@@ -1,3 +1,24 @@
+.swipeStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.doneBanner {
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #047857;
+  padding: 0.45rem 0.85rem;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid rgba(5, 150, 105, 0.35);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.12);
+}
+
 .track {
   position: relative;
   width: 100%;
@@ -77,6 +98,22 @@
   background: linear-gradient(273deg, #008c42, #ecf0f4);
 }
 
+.trackSuccessLocked {
+  pointer-events: none;
+}
+
+.trackSuccessLocked .trackBg {
+  background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.trackSuccessLocked .fill {
+  background: linear-gradient(273deg, #008c42, #6ee7b7);
+}
+
+.trackSuccessLocked .trackLabel {
+  opacity: 0;
+}
+
 .knob {
   position: absolute;
   left: 4px;
@@ -120,7 +157,46 @@
   overflow: hidden;
 }
 
-.trackProximityReady:not(.trackDisabled) .knob::after {
+.knobChevrons {
+  transition: opacity 0.28s ease;
+}
+
+.knobTick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-left: -0.6rem;
+  margin-top: -0.6rem;
+  opacity: 0;
+  transition: opacity 0.35s ease 0.08s;
+  pointer-events: none;
+}
+
+.knobSuccess .knobChevrons {
+  opacity: 0;
+}
+
+.knobSuccess .knobTick {
+  opacity: 1;
+}
+
+.knobSuccess {
+  cursor: default;
+  background: #008c42 !important;
+  filter: none !important;
+  box-shadow:
+    0 2px 12px rgba(0, 140, 66, 0.35),
+    0 0 0 2px rgba(255, 255, 255, 0.95) !important;
+}
+
+.trackSuccessLocked .knob::after,
+.knobSuccess::after {
+  display: none;
+}
+
+.trackProximityReady:not(.trackDisabled) .knob:not(.knobSuccess)::after {
   content: '';
   position: absolute;
   inset: -40% -60%;

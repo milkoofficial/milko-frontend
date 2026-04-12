@@ -31,6 +31,7 @@ export type DeliveryStop = {
   status: string;
   litresPerDay?: number | null;
   productName?: string | null;
+  addressName?: string | null;
   street?: string | null;
   city?: string | null;
   state?: string | null;
@@ -44,7 +45,9 @@ type Props = {
   onClose: () => void;
 };
 
-const PROXIMITY_METERS = 20;
+const PROXIMITY_METERS = 40;
+
+const DELIVERY_COMPLETE_HOLD_MS = 2000;
 
 const MAP_PIN_PX = 48;
 
@@ -63,9 +66,11 @@ function slotLabel(slot: SlotKey): string {
   return slot === 'morning' ? 'morning' : 'evening';
 }
 
-function formatAddress(s: DeliveryStop): string {
-  const parts = [s.street, s.city, s.state, s.postalCode].filter((p) => p && String(p).trim());
-  return parts.length > 0 ? parts.join(', ') : 'Address on file';
+/** DB-backed lines only (no geocode); used for queue list + fallback label. */
+function formatStopAddressSync(s: DeliveryStop): string {
+  const parts = [s.addressName, s.street, s.city, s.state, s.postalCode].filter((p) => p && String(p).trim());
+  if (parts.length > 0) return parts.join(', ');
+  return `Pin: ${Number(s.lat).toFixed(5)}, ${Number(s.lng).toFixed(5)}`;
 }
 
 function isPendingStop(s: DeliveryStop): boolean {
@@ -132,6 +137,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
   const [locationPermissionHelpOpen, setLocationPermissionHelpOpen] = useState(false);
   const [sheetExiting, setSheetExiting] = useState(false);
   const [sheetEnterNonce, setSheetEnterNonce] = useState(0);
+  const [sheetAddressLine, setSheetAddressLine] = useState('');
 
   const pendingStops = useMemo(() => stops.filter(isPendingStop), [stops]);
   const totalPendingLitres = useMemo(
@@ -151,6 +157,44 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     if (!routeOrigin || remainingStops.length === 0) return [];
     return greedySequenceFrom(routeOrigin, remainingStops);
   }, [routeOrigin, remainingStops]);
+
+  useEffect(() => {
+    if (!currentStop) {
+      setSheetAddressLine('');
+      return;
+    }
+    const sync = formatStopAddressSync(currentStop);
+    const hasDbLines = [currentStop.addressName, currentStop.street, currentStop.city, currentStop.state, currentStop.postalCode].some(
+      (p) => p && String(p).trim(),
+    );
+    if (hasDbLines) {
+      setSheetAddressLine(sync);
+      return;
+    }
+    let cancelled = false;
+    setSheetAddressLine(sync);
+    (async () => {
+      try {
+        const geo = await reverseGeocodeLatLng(currentStop.lat, currentStop.lng);
+        if (cancelled) return;
+        if (geo && geo.trim()) setSheetAddressLine(geo.trim());
+      } catch {
+        /* keep Pin: line */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    currentStop?.id,
+    currentStop?.lat,
+    currentStop?.lng,
+    currentStop?.addressName,
+    currentStop?.street,
+    currentStop?.city,
+    currentStop?.state,
+    currentStop?.postalCode,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -477,6 +521,9 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
           void drawLeg(newOrigin, next);
         }
       };
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, DELIVERY_COMPLETE_HOLD_MS);
+      });
       setSheetExiting(true);
     } catch (e) {
       setErrorText((e as { message?: string })?.message || 'Could not mark delivered');
@@ -593,7 +640,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
                     <div className={styles.sheetTextGroup}>
                       <p className={styles.customerName}>{currentStop.userName || currentStop.userEmail || `User ${currentStop.userId}`}</p>
                       <p className={styles.sheetSub}>
-                        To deliver {qtyLabel(currentStop)} L of {productLabel(currentStop)} at {formatAddress(currentStop)}
+                        To deliver {qtyLabel(currentStop)} L of {productLabel(currentStop)} at {sheetAddressLine || formatStopAddressSync(currentStop)}
                       </p>
                     </div>
                   </div>
@@ -740,7 +787,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
                     <div>
                       <div className={styles.queueName}>{s.userName || s.userEmail || `User ${s.userId}`}</div>
                       <div className={styles.queueDetail}>
-                        {qtyLabel(s)} L · {productLabel(s)} · {formatAddress(s)}
+                        {qtyLabel(s)} L · {productLabel(s)} · {formatStopAddressSync(s)}
                       </div>
                     </div>
                   </li>
@@ -759,7 +806,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
                     <div>
                       <div className={styles.queueName}>{s.userName || s.userEmail || `User ${s.userId}`}</div>
                       <div className={styles.queueDetail}>
-                        {qtyLabel(s)} L · {productLabel(s)} · {formatAddress(s)}
+                        {qtyLabel(s)} L · {productLabel(s)} · {formatStopAddressSync(s)}
                       </div>
                     </div>
                   </li>
