@@ -60,6 +60,7 @@ async function getDeliveriesForDate(date, slot) {
         a.state,
         a.postal_code,
         a.country,
+        a.phone AS address_phone,
         COALESCE(d.status, ds.status) AS status,
         COALESCE(d.delivered_at, ds.delivered_at) AS delivered_at
       FROM delivery_schedules ds
@@ -98,6 +99,7 @@ async function getDeliveriesForDate(date, slot) {
     state: row.state || null,
     postalCode: row.postal_code || null,
     country: row.country || null,
+    userPhone: row.address_phone || null,
   }));
 }
 
