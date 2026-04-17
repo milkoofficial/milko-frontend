@@ -17,19 +17,20 @@ import { mapLocationPinIconDataUrl } from '@/components/icons/MapLocationPinIcon
 import SwipeToDeliver from '@/components/admin/SwipeToDeliver';
 import styles from './DeliveryRoutePlanner.module.css';
 
-type SlotKey = 'morning' | 'evening';
+
 
 export type DeliveryStop = {
-  id: number;
+  id: number | string;   // number for subscription stops, UUID string for order stops
   userId: number;
   userName: string | null;
   userEmail: string | null;
-  date: string;
+  date: string | null;
   lat: number;
   lng: number;
+  noCoords?: boolean;    // true = no GPS coords available; stop appears in list but may not be pinned
   deliveryTime: string | null;
   status: string;
-  litresPerDay?: number | null;
+  litresPerDay?: number | null;  // also used as totalQty for orders mode
   productName?: string | null;
   addressName?: string | null;
   street?: string | null;
@@ -40,10 +41,13 @@ export type DeliveryStop = {
   userPhone?: string | null;
 };
 
+type Mode = 'subscriptions' | 'orders';
+
 type Props = {
-  slot: SlotKey;
+  slot: 'morning' | 'evening';
   date: string;
   onClose: () => void;
+  mode?: Mode;
 };
 
 const PROXIMITY_METERS = 40;
@@ -63,7 +67,7 @@ function deliveryMapPinMarkerIcon(): google.maps.Icon {
   };
 }
 
-function slotLabel(slot: SlotKey): string {
+function slotLabel(slot: 'morning' | 'evening'): string {
   return slot === 'morning' ? 'morning' : 'evening';
 }
 
@@ -123,7 +127,7 @@ function computeBearing(from: { lat: number; lng: number }, to: { lat: number; l
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
+export default function DeliveryRoutePlanner({ slot, date, onClose, mode = 'subscriptions' }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
@@ -252,9 +256,16 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
         return;
       }
       try {
-        const deliveryData = await apiClient.get<DeliveryStop[]>(
-          `${API_ENDPOINTS.DELIVERY_TRACKING.LIST}?date=${encodeURIComponent(date)}&slot=${slot}`,
-        );
+        let deliveryData: DeliveryStop[];
+        if (mode === 'orders') {
+          deliveryData = await apiClient.get<DeliveryStop[]>(
+            API_ENDPOINTS.ADMIN.ORDER_DELIVERIES.ORDER_DELIVERY_STOPS,
+          );
+        } else {
+          deliveryData = await apiClient.get<DeliveryStop[]>(
+            `${API_ENDPOINTS.DELIVERY_TRACKING.LIST}?date=${encodeURIComponent(date)}&slot=${slot}`,
+          );
+        }
         if (cancelled) return;
         setStops(Array.isArray(deliveryData) ? deliveryData : []);
       } catch (error) {
@@ -267,7 +278,33 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [date, slot]);
+  }, [date, slot, mode]);
+
+  /**
+   * ORDERS MODE — live poll while pre-route screen is showing.
+   * Every 10 s, silently re-fetch stops so any order newly marked
+   * "out for delivery" from the list appears immediately in the count.
+   */
+  useEffect(() => {
+    if (mode !== 'orders') return;           // only in orders mode
+    if (routeStarted || flowComplete) return; // stop polling once route is in progress
+
+    const poll = async () => {
+      try {
+        const fresh = await apiClient.get<DeliveryStop[]>(
+          API_ENDPOINTS.ADMIN.ORDER_DELIVERIES.ORDER_DELIVERY_STOPS,
+        );
+        if (Array.isArray(fresh)) {
+          setStops(fresh);
+        }
+      } catch {
+        // silent — don't disrupt UX
+      }
+    };
+
+    const id = window.setInterval(() => void poll(), 10_000);
+    return () => window.clearInterval(id);
+  }, [mode, routeStarted, flowComplete]);
 
   useEffect(() => {
     if (!mapsReady || !mapContainerRef.current || mapRef.current) return;
@@ -507,7 +544,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     deliveryMarkersRef.current.forEach((m) => m.setMap(null));
     deliveryMarkersRef.current = [];
 
-    if (routeStarted && currentStop) {
+    if (routeStarted && currentStop && !currentStop.noCoords) {
       deliveryMarkersRef.current.push(
         new google.maps.Marker({
           map: mapRef.current,
@@ -519,6 +556,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
       );
     } else if (!routeStarted && pendingStops.length > 0) {
       pendingStops.forEach((stop, i) => {
+        if (stop.noCoords) return; // no GPS — skip map pin, still counted in list
         deliveryMarkersRef.current.push(
           new google.maps.Marker({
             map: mapRef.current,
@@ -593,7 +631,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
       setRemainingStops(list);
       setCurrentStop(next);
       setRouteStarted(true);
-      await drawLeg(origin, next);
+      if (!next.noCoords) await drawLeg(origin, next);
     } catch (error) {
       setErrorText((error as Error)?.message || 'Failed to start route');
     } finally {
@@ -606,10 +644,15 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     setMarking(true);
     setErrorText('');
     try {
-      await apiClient.post(API_ENDPOINTS.DELIVERY_TRACKING.MARK_DELIVERED, {
-        deliveryId: currentStop.id,
-        date,
-      });
+      if (mode === 'orders') {
+        // Mark order as delivered via the orders API
+        await apiClient.post(API_ENDPOINTS.ADMIN.ORDER_DELIVERIES.MARK_DELIVERED(String(currentStop.id)));
+      } else {
+        await apiClient.post(API_ENDPOINTS.DELIVERY_TRACKING.MARK_DELIVERED, {
+          deliveryId: currentStop.id,
+          date,
+        });
+      }
       const done = currentStop;
       pendingDeliveryCommitRef.current = () => {
         setStops((prev) => prev.map((s) => (s.id === done.id ? { ...s, status: 'delivered' } : s)));
@@ -629,7 +672,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
         setRemainingStops(rest);
         const next = pickNearestStop(newOrigin, rest);
         setCurrentStop(next);
-        if (next) {
+        if (next && !next.noCoords) {
           void drawLeg(newOrigin, next);
         }
       };
@@ -648,11 +691,13 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     return <p className={styles.inlineError}>{getGoogleMapsEnvSetupHint()}</p>;
   }
 
-  const productLabel = (s: DeliveryStop) => s.productName?.trim() || 'Milk';
+  const productLabel = (s: DeliveryStop) => s.productName?.trim() || (mode === 'orders' ? 'Order' : 'Milk');
   const qtyLabel = (s: DeliveryStop) => {
     const q = Number(s.litresPerDay);
     return Number.isFinite(q) && q > 0 ? q : 1;
   };
+  const qtyUnit = mode === 'orders' ? '' : 'L';    // no unit suffix for orders (qty is item count)
+  const summaryCardUnitLabel = mode === 'orders' ? 'items' : 'L';
 
   /** Before “Generate optimized route” — basket / area icon */
   const sheetDeliveryHeadlineIcon = (
@@ -703,13 +748,16 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
               {sheetDeliveryHeadlineIcon}
               <div className={styles.sheetTextGroup}>
                 <p className={styles.sheetTitle}>
-                  To Deliver:{' '}
-                  <strong>
-                    {totalPendingLitres > 0 ? `${totalPendingLitres} L` : `${pendingStops.length} stop(s)`}
-                  </strong>
+                  {mode === 'orders' ? (
+                    <><strong>{pendingStops.length}</strong> order{pendingStops.length !== 1 ? 's' : ''} out for delivery</>
+                  ) : (
+                    <>To Deliver:{' '}<strong>{totalPendingLitres > 0 ? `${totalPendingLitres} L` : `${pendingStops.length} stop(s)`}</strong></>
+                  )}
                 </p>
                 <p className={styles.sheetSub}>
-                  Do you want to start delivering for the {slotLabel(slot)} slot?
+                  {mode === 'orders'
+                    ? 'Ready to start your order delivery route?'
+                    : `Do you want to start delivering for the ${slotLabel(slot)} slot?`}
                 </p>
               </div>
             </div>
@@ -753,7 +801,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
                       <p className={styles.customerName}>
                         {currentStop.userName || currentStop.userEmail || `User ${currentStop.userId}`}
                         {' · '}
-                        {qtyLabel(currentStop)} L
+                        {qtyLabel(currentStop)}{qtyUnit ? ` ${qtyUnit}` : ''}
                         {' · '}
                         {productLabel(currentStop)}
                       </p>
@@ -827,7 +875,11 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
               {sheetRouteHeadlineIcon}
               <div className={styles.sheetTextGroup}>
                 <p className={styles.sheetTitle}>All done!</p>
-                <p className={styles.sheetSub}>You are all set for today&apos;s {slotLabel(slot)} slot.</p>
+                <p className={styles.sheetSub}>
+                  {mode === 'orders'
+                    ? 'All orders delivered successfully!'
+                    : `You are all set for today\u2019s ${slotLabel(slot)} slot.`}
+                </p>
               </div>
             </div>
             <button type="button" className={styles.sheetPrimaryBtn} onClick={onClose}>

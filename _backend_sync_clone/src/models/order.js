@@ -944,141 +944,9 @@ async function markAsFulfilled(orderId) {
 }
 
 /**
- * List out-for-delivery orders as DeliveryStop objects for the route planner.
- * Includes ALL out_for_delivery orders — never skips due to missing coordinates.
- * Falls back to the user's default saved address for coords, and uses 0,0 + noCoords=true as last resort.
+ * List order-deliveries for admin deliveries section
+ * (orders that have reached package prepared or beyond)
  */
-async function listOutForDeliveryStops() {
-  await ensureOrdersSchema();
-
-  const res = await query(
-    `
-    SELECT
-      o.id          AS order_id,
-      o.user_id,
-      u.name        AS user_name,
-      u.email       AS user_email,
-      o.delivery_address,
-      o.status,
-      o.created_at
-    FROM orders o
-    LEFT JOIN users u ON u.id = o.user_id
-    WHERE o.status = 'out_for_delivery'
-    ORDER BY COALESCE(o.out_for_delivery_at, o.created_at) ASC
-    `
-  );
-
-  if (res.rows.length === 0) return [];
-
-  const orderIds = res.rows.map((r) => r.order_id);
-
-  // Fetch items for all orders at once
-  const itemRes = await query(
-    `
-    SELECT order_id, product_name, variation_size, quantity
-    FROM order_items
-    WHERE order_id = ANY($1)
-    ORDER BY order_id, created_at
-    `,
-    [orderIds]
-  );
-
-  // Group items by order
-  const itemsByOrder = {};
-  for (const row of itemRes.rows) {
-    if (!itemsByOrder[row.order_id]) itemsByOrder[row.order_id] = [];
-    itemsByOrder[row.order_id].push(row);
-  }
-
-  // Collect user IDs whose delivery_address is missing coordinates
-  const missingCoordUserIds = [];
-  for (const row of res.rows) {
-    const addr = row.delivery_address || {};
-    const lat = addr.latitude != null ? parseFloat(addr.latitude) : null;
-    const lng = addr.longitude != null ? parseFloat(addr.longitude) : null;
-    if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) {
-      if (row.user_id) missingCoordUserIds.push(row.user_id);
-    }
-  }
-
-  // Fall back to user's saved address with coordinates
-  const fallbackCoordsMap = {};
-  if (missingCoordUserIds.length > 0) {
-    try {
-      const addrRes = await query(
-        `
-        SELECT DISTINCT ON (user_id) user_id, latitude, longitude
-        FROM addresses
-        WHERE user_id = ANY($1)
-          AND latitude IS NOT NULL
-          AND longitude IS NOT NULL
-        ORDER BY user_id, is_default DESC, created_at DESC
-        `,
-        [missingCoordUserIds]
-      );
-      for (const a of addrRes.rows) {
-        const lat = parseFloat(a.latitude);
-        const lng = parseFloat(a.longitude);
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          fallbackCoordsMap[a.user_id] = { lat, lng };
-        }
-      }
-    } catch {
-      // addresses table may not exist — skip fallback silently
-    }
-  }
-
-  // Return ALL orders — never filter out due to missing coords
-  return res.rows.map((row) => {
-    const addr = row.delivery_address || {};
-    let lat = addr.latitude != null ? parseFloat(addr.latitude) : null;
-    let lng = addr.longitude != null ? parseFloat(addr.longitude) : null;
-    let noCoords = false;
-
-    if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) {
-      const fb = fallbackCoordsMap[row.user_id];
-      if (fb) {
-        lat = fb.lat;
-        lng = fb.lng;
-      } else {
-        lat = 0;
-        lng = 0;
-        noCoords = true; // No GPS available — show in list; mark-as-delivered swipe still works
-      }
-    }
-
-    const items = itemsByOrder[row.order_id] || [];
-    const totalQty = items.reduce((sum, it) => sum + (parseInt(it.quantity, 10) || 1), 0);
-    const firstItem = items[0];
-    const productName = firstItem
-      ? `${firstItem.product_name}${firstItem.variation_size ? ' ' + firstItem.variation_size : ''}`
-      : 'Order';
-
-    return {
-      id: row.order_id,
-      userId: row.user_id,
-      userName: row.user_name || null,
-      userEmail: row.user_email || null,
-      userPhone: addr.phone || null,
-      date: row.created_at ? new Date(row.created_at).toISOString().slice(0, 10) : null,
-      lat,
-      lng,
-      noCoords,
-      deliveryTime: null,
-      status: 'pending',
-      litresPerDay: totalQty,
-      productName,
-      addressName: addr.name || null,
-      street: addr.street || null,
-      city: addr.city || null,
-      state: addr.state || null,
-      postalCode: addr.postalCode || addr.postal_code || null,
-      country: addr.country || null,
-    };
-  });
-}
-
-
 async function listOrderDeliveriesAdmin() {
   await ensureOrdersSchema();
 
@@ -1144,7 +1012,6 @@ module.exports = {
   markAsDelivered,
   markAsFulfilled,
   listOrderDeliveriesAdmin,
-  listOutForDeliveryStops,
   submitOrderFeedback,
   submitDetailedFeedback,
   getFeedbackStats,

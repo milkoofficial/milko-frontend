@@ -631,19 +631,6 @@ const listOrderDeliveries = async (req, res, next) => {
 };
 
 /**
- * List out-for-delivery orders as route planner stops
- * GET /api/admin/order-delivery-stops
- */
-const listOutForDeliveryStops = async (req, res, next) => {
-  try {
-    const stops = await orderModel.listOutForDeliveryStops();
-    res.json({ success: true, data: stops });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
  * Mark order as out for delivery
  * POST /api/admin/orders/:id/mark-out-for-delivery
  */
@@ -871,22 +858,16 @@ const resumeSubscription = async (req, res, next) => {
  */
 const getDeliveries = async (req, res, next) => {
   try {
-    await subscriptionModel.ensureSubscriptionSchema();
     const { date } = req.query;
-    const deliveryDate = date
-      || (
-        await query(`SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date::text AS ymd`)
-      ).rows[0]?.ymd;
+    const deliveryDate = date || new Date().toISOString().split('T')[0];
 
     const result = await query(
-      `SELECT ds.*, s.user_id, s.litres_per_day, s.delivery_time, s.product_id,
-              p.name as product_name, u.name as user_name, u.email as user_email,
-              pv.size as product_variation_size
+      `SELECT ds.*, s.user_id, s.litres_per_day, s.delivery_time,
+              p.name as product_name, u.name as user_name, u.email as user_email
        FROM delivery_schedules ds
        LEFT JOIN subscriptions s ON ds.subscription_id = s.id
        LEFT JOIN products p ON s.product_id = p.id
        LEFT JOIN users u ON s.user_id = u.id
-       LEFT JOIN product_variations pv ON s.product_variation_id = pv.id
        WHERE ds.delivery_date = $1
          AND (s.id IS NULL OR s.status = 'active')
        ORDER BY COALESCE(s.delivery_time, '23:59'), ds.id`,
@@ -942,12 +923,10 @@ const updateDeliveryStatus = async (req, res, next) => {
 
       result = await client.query(
         `UPDATE delivery_schedules 
-         SET status = $1,
-             delivered_at = CASE WHEN $3 THEN NOW() ELSE delivered_at END,
-             updated_at = NOW() 
+         SET status = $1, updated_at = NOW() 
          WHERE id = $2
          RETURNING *`,
-        [status, id, status === 'delivered']
+        [status, id]
       );
 
       if (subscriptionId) {
@@ -1548,7 +1527,6 @@ module.exports = {
   getCartAbandonment,
   markOrderAsPackagePrepared,
   listOrderDeliveries,
-  listOutForDeliveryStops,
   markOrderAsOutForDelivery,
   markOrderAsDelivered,
   markOrderAsFulfilled,

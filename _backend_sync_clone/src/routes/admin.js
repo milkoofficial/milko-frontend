@@ -65,7 +65,6 @@ router.post('/orders/:id/mark-out-for-delivery', adminController.markOrderAsOutF
 router.post('/orders/:id/mark-delivered', adminController.markOrderAsDelivered);
 router.post('/orders/:id/mark-fulfilled', adminController.markOrderAsFulfilled);
 router.get('/order-deliveries', adminController.listOrderDeliveries);
-router.get('/order-delivery-stops', adminController.listOutForDeliveryStops);
 router.get('/customers', adminController.getCustomerStats);
 router.get('/feedback', adminController.getFeedback);
 

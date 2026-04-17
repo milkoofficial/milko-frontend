@@ -133,6 +133,7 @@ export const API_ENDPOINTS = {
       MARK_OUT_FOR_DELIVERY: (id: string) => `/api/admin/orders/${id}/mark-out-for-delivery`,
       MARK_DELIVERED: (id: string) => `/api/admin/orders/${id}/mark-delivered`,
       MARK_FULFILLED: (id: string) => `/api/admin/orders/${id}/mark-fulfilled`,
+      ORDER_DELIVERY_STOPS: '/api/admin/order-delivery-stops',
     },
     BANNERS: {
       LIST: '/api/admin/banners',
