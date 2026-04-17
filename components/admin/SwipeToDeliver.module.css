@@ -3,6 +3,8 @@
   flex-direction: column;
   gap: 0.5rem;
   width: 100%;
+  margin-top: 8px;
+
 }
 
 .doneBanner {
@@ -41,11 +43,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(
-    180deg,
-    #e2e8f0 0%,
-    #cbd5e1 100%
-  );
+  background: linear-gradient(180deg,
+      #e2e8f0 0%,
+      #cbd5e1 100%);
   border-radius: 999px;
 }
 
@@ -67,11 +67,9 @@
   max-width: 100%;
   box-sizing: border-box;
   border-radius: 999px 1000px 1000px 999px;
-  background: linear-gradient(
-    90deg,
-    rgba(12, 74, 110, 0.15),
-    rgba(12, 74, 110, calc(0.25 + var(--swipe-progress) * 0.55))
-  );
+  background: linear-gradient(90deg,
+      rgba(12, 74, 110, 0.15),
+      rgba(12, 74, 110, calc(0.25 + var(--swipe-progress) * 0.55)));
   pointer-events: none;
   transition: opacity 0.15s ease;
 }
@@ -158,7 +156,8 @@
 }
 
 .knobChevrons {
-  transition: opacity 0.28s ease;
+  opacity: 0.98;
+  transition: opacity 0.25s ease;
 }
 
 .knobTick {
@@ -169,17 +168,19 @@
   height: 1.2rem;
   margin-left: -0.6rem;
   margin-top: -0.6rem;
-  opacity: 0;
-  transition: opacity 0.35s ease 0.08s;
+  opacity: 0 !important;
+  transition: opacity 0.35s ease 0.15s;
   pointer-events: none;
 }
 
 .knobSuccess .knobChevrons {
-  opacity: 0;
+  opacity: 0 !important;
+  transition: opacity 0.2s ease;
 }
 
 .knobSuccess .knobTick {
-  opacity: 1;
+  opacity: 1 !important;
+  transition: opacity 0.35s ease 0.2s;
 }
 
 .knobSuccess {
@@ -200,12 +201,10 @@
   content: '';
   position: absolute;
   inset: -40% -60%;
-  background: linear-gradient(
-    105deg,
-    transparent 35%,
-    rgba(255, 255, 255, 0.45) 50%,
-    transparent 65%
-  );
+  background: linear-gradient(105deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.45) 50%,
+      transparent 65%);
   animation: milkoKnobShimmer 1.8s ease-in-out infinite;
   pointer-events: none;
 }
@@ -215,9 +214,11 @@
     transform: translateX(-100%) skewX(-18deg);
     opacity: 0;
   }
+
   20% {
     opacity: 1;
   }
+
   100% {
     transform: translateX(200%) skewX(-18deg);
     opacity: 0;
@@ -229,10 +230,10 @@
   height: 1.35rem;
   display: block;
   flex-shrink: 0;
-  opacity: 0.98;
   pointer-events: none;
   position: relative;
   z-index: 1;
+  margin-right: -4px;
 }
 
 .knobIconPath {

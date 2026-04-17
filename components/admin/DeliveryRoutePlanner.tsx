@@ -37,6 +37,7 @@ export type DeliveryStop = {
   state?: string | null;
   postalCode?: string | null;
   country?: string | null;
+  userPhone?: string | null;
 };
 
 type Props = {
@@ -108,15 +109,31 @@ function greedySequenceFrom(origin: { lat: number; lng: number }, stops: Deliver
   return ordered;
 }
 
+/**
+ * Compute compass bearing (0 = North, 90 = East, 180 = South, 270 = West)
+ * from point A to point B using the standard spherical formula.
+ */
+function computeBearing(from: { lat: number; lng: number }, to: { lat: number; lng: number }): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLng = toRad(to.lng - from.lng);
+  const latA = toRad(from.lat);
+  const latB = toRad(to.lat);
+  const y = Math.sin(dLng) * Math.cos(latB);
+  const x = Math.cos(latA) * Math.sin(latB) - Math.sin(latA) * Math.cos(latB) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
 export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
-  const adminMarkerRef = useRef<google.maps.Marker | null>(null);
+  const adminMarkerRef = useRef<google.maps.OverlayView | null>(null);
   const deliveryMarkersRef = useRef<google.maps.Marker[]>([]);
   const sheetSlideWrapRef = useRef<HTMLDivElement | null>(null);
   const pendingDeliveryCommitRef = useRef<(() => void) | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const prevLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+  const bearingRef = useRef<number>(0);
 
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -157,6 +174,28 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     if (!routeOrigin || remainingStops.length === 0) return [];
     return greedySequenceFrom(routeOrigin, remainingStops);
   }, [routeOrigin, remainingStops]);
+
+  /** Straight-line distance admin → current stop in metres (live, updates with GPS). */
+  const distanceMeters = useMemo(() => {
+    if (!adminLocation || !currentStop || !routeStarted || flowComplete) return null;
+    return calculateDistance(adminLocation.lat, adminLocation.lng, currentStop.lat, currentStop.lng);
+  }, [adminLocation, currentStop, routeStarted, flowComplete]);
+
+  /** ETA in minutes (30 km/h average city speed, straight-line × 1.35 road-factor). */
+  const etaMinutes = useMemo(() => {
+    if (distanceMeters === null) return null;
+    const roadDistanceM = distanceMeters * 1.35;          // road-factor
+    const speedMps = (30 * 1000) / 3600;                  // 30 km/h → m/s
+    return Math.max(1, Math.round(roadDistanceM / speedMps / 60));
+  }, [distanceMeters]);
+
+  /** Human-readable distance label. */
+  const distanceLabel = useMemo(() => {
+    if (distanceMeters === null) return null;
+    return distanceMeters >= 1000
+      ? `${(distanceMeters / 1000).toFixed(1)} km`
+      : `${Math.round(distanceMeters)} m`;
+  }, [distanceMeters]);
 
   useEffect(() => {
     if (!currentStop) {
@@ -272,6 +311,17 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
       lat: position.coords.latitude,
       lng: position.coords.longitude,
     };
+    // Update bearing if we've moved at least 8 m (avoids jitter when stationary)
+    const prev = prevLocationRef.current;
+    if (prev) {
+      const moved = calculateDistance(prev.lat, prev.lng, next.lat, next.lng);
+      if (moved >= 8) {
+        bearingRef.current = computeBearing(prev, next);
+        prevLocationRef.current = next;
+      }
+    } else {
+      prevLocationRef.current = next;
+    }
     setAdminLocation(next);
     try {
       const address = await reverseGeocodeLatLng(next.lat, next.lng);
@@ -291,7 +341,7 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
       (position) => {
         void updateFromGeolocation(position);
       },
-      () => {},
+      () => { },
       {
         enableHighAccuracy: true,
         maximumAge: 10000,
@@ -356,7 +406,11 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
     }
   }, []);
 
-  /** Admin live marker: update position only (avoids blink on every GPS tick). */
+  /**
+   * Admin live marker — OverlayView wrapping the original SVG icon.
+   * CSS transform:rotate() is applied on every GPS update so the icon
+   * always points in the direction of travel without swapping the image.
+   */
   useEffect(() => {
     if (!mapRef.current || !mapsReady || flowComplete) {
       if (adminMarkerRef.current) {
@@ -366,21 +420,79 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
       return;
     }
     if (!adminLocation) return;
-    const adminIconSize = 56;
+
+    const ICON_SIZE = 56; // px — same visual size as before
+
     if (!adminMarkerRef.current) {
-      adminMarkerRef.current = new google.maps.Marker({
-        map: mapRef.current,
-        position: adminLocation,
-        title: 'Your location',
-        optimized: true,
-        icon: {
-          url: '/icons/admin-live-location-marker.svg',
-          scaledSize: new google.maps.Size(adminIconSize, adminIconSize),
-          anchor: new google.maps.Point(adminIconSize / 2, adminIconSize),
-        },
-      });
+      // Define a one-off OverlayView subclass that hosts <img> with CSS rotation
+      class AdminIconOverlay extends google.maps.OverlayView {
+        private _latlng: google.maps.LatLng;
+        private _bearing: number;
+        private _div: HTMLDivElement | null = null;
+
+        constructor(latlng: google.maps.LatLng, bearing: number) {
+          super();
+          this._latlng = latlng;
+          this._bearing = bearing;
+        }
+
+        onAdd() {
+          const div = document.createElement('div');
+          div.style.cssText = 'position:absolute;pointer-events:none;';
+          const img = document.createElement('img');
+          img.src = '/icons/admin-live-location-marker.svg';
+          img.width = ICON_SIZE;
+          img.height = ICON_SIZE;
+          img.style.cssText = [
+            'display:block',
+            'transform-origin:50% 100%',          // pin anchor = bottom-centre
+            `transform:rotate(${this._bearing}deg)`,
+            'transition:transform 0.35s ease-out', // smooth rotation
+            'will-change:transform',
+          ].join(';');
+          div.appendChild(img);
+          this._div = div;
+          this.getPanes()!.overlayMouseTarget.appendChild(div);
+        }
+
+        draw() {
+          if (!this._div) return;
+          const pt = this.getProjection().fromLatLngToDivPixel(this._latlng);
+          if (!pt) return;
+          // Offset so the bottom-centre of the icon sits on the coordinate
+          this._div.style.left = `${pt.x - ICON_SIZE / 2}px`;
+          this._div.style.top  = `${pt.y - ICON_SIZE}px`;
+          const img = this._div.querySelector('img') as HTMLImageElement | null;
+          if (img) img.style.transform = `rotate(${this._bearing}deg)`;
+        }
+
+        onRemove() {
+          this._div?.parentNode?.removeChild(this._div);
+          this._div = null;
+        }
+
+        /** Call this on each GPS update instead of recreating the overlay. */
+        update(latlng: google.maps.LatLng, bearing: number) {
+          this._latlng = latlng;
+          this._bearing = bearing;
+          this.draw();
+        }
+      }
+
+      const overlay = new AdminIconOverlay(
+        new google.maps.LatLng(adminLocation.lat, adminLocation.lng),
+        bearingRef.current,
+      );
+      overlay.setMap(mapRef.current);
+      adminMarkerRef.current = overlay;
     } else {
-      adminMarkerRef.current.setPosition(adminLocation);
+      // Overlay already exists — just update position + bearing
+      (adminMarkerRef.current as unknown as {
+        update: (latlng: google.maps.LatLng, bearing: number) => void;
+      }).update(
+        new google.maps.LatLng(adminLocation.lat, adminLocation.lng),
+        bearingRef.current,
+      );
     }
   }, [mapsReady, adminLocation, flowComplete]);
 
@@ -638,9 +750,38 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
                   <div className={styles.sheetHeadlineRow}>
                     {sheetRouteHeadlineIcon}
                     <div className={styles.sheetTextGroup}>
-                      <p className={styles.customerName}>{currentStop.userName || currentStop.userEmail || `User ${currentStop.userId}`}</p>
+                      <p className={styles.customerName}>
+                        {currentStop.userName || currentStop.userEmail || `User ${currentStop.userId}`}
+                        {' · '}
+                        {qtyLabel(currentStop)} L
+                        {' · '}
+                        {productLabel(currentStop)}
+                      </p>
                       <p className={styles.sheetSub}>
-                        To deliver {qtyLabel(currentStop)} L of {productLabel(currentStop)} at {sheetAddressLine || formatStopAddressSync(currentStop)}
+                        {sheetAddressLine || formatStopAddressSync(currentStop)}
+                        {currentStop.userPhone ? (
+                          <>
+                            {' · '}
+                            <a
+                              href={`tel:${currentStop.userPhone}`}
+                              style={{ color: 'black', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', verticalAlign: 'middle' }}
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                                style={{ width: '0.85em', height: '0.85em', display: 'inline-block', flexShrink: 0, verticalAlign: 'middle' }}
+                                aria-hidden
+                              >
+                                <path
+                                  d="M9 16C2.814 9.813 3.11 5.134 5.94 3.012l.627-.467a1.483 1.483 0 0 1 2.1.353l1.579 2.272a1.5 1.5 0 0 1-.25 1.99L8.476 8.474c-.38.329-.566.828-.395 1.301.316.88 1.083 2.433 2.897 4.246 1.814 1.814 3.366 2.581 4.246 2.898.474.17.973-.015 1.302-.396l1.314-1.518a1.5 1.5 0 0 1 1.99-.25l2.276 1.58a1.48 1.48 0 0 1 .354 2.096l-.47.633C19.869 21.892 15.188 22.187 9 16z"
+                                  fill="currentColor"
+                                />
+                              </svg>
+                              {currentStop.userPhone}
+                            </a>
+                          </>
+                        ) : null}
                       </p>
                     </div>
                   </div>
@@ -720,6 +861,41 @@ export default function DeliveryRoutePlanner({ slot, date, onClose }: Props) {
                 />
               </svg>
             </button>
+
+            {/* Distance + ETA pills — top-right of map */}
+            {routeStarted && currentStop && distanceLabel !== null && etaMinutes !== null ? (
+              <div className={styles.mapInfoPills}>
+                <div className={styles.mapInfoPill}>
+                  <svg
+                    className={styles.mapInfoPillIcon}
+                    viewBox="0 0 48 48"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden
+                  >
+                    <path
+                      d="M24,2C14.1,2,7,10.1,7,20S18.5,41.3,22.6,45.4a1.9,1.9,0,0,0,2.8,0C29.5,41.3,41,30.1,41,20S33.9,2,24,2Zm0,8a8.7,8.7,0,0,1,4.8,1.4L16.4,23.8A8.7,8.7,0,0,1,15,19,9,9,0,0,1,24,10Zm0,18a8.7,8.7,0,0,1-4.8-1.4L31.6,14.2A8.7,8.7,0,0,1,33,19,9,9,0,0,1,24,28Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <span className={styles.mapInfoPillValue}>{distanceLabel}</span>
+                </div>
+                <div className={styles.mapInfoPill}>
+                  <svg
+                    className={styles.mapInfoPillIcon}
+                    viewBox="0 0 48 48"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden
+                  >
+                    <path
+                      d="M24,2A22,22,0,1,0,46,24,21.9,21.9,0,0,0,24,2ZM35.7,31A2.1,2.1,0,0,1,34,32a1.9,1.9,0,0,1-1-.3L22,25.1V14a2,2,0,0,1,4,0v8.9l9,5.4A1.9,1.9,0,0,1,35.7,31Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <span className={styles.mapInfoPillValue}>{etaMinutes} min</span>
+                </div>
+              </div>
+            ) : null}
+
             <div ref={mapContainerRef} className={styles.mapFill} />
           </>
         ) : (

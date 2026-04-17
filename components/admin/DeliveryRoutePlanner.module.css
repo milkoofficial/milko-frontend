@@ -33,17 +33,17 @@
   border: none;
   border-radius: 12px;
   background: #ffffff7d;
-    color: #0f172a;
-    font-size: 1.25rem;
-    font-weight: 800;
-    cursor: pointer;
-    box-shadow: 0 0px 9px rgba(15, 23, 42, 0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    backdrop-filter: blur(10px);
-    border: 1px solid white;
+  color: #0f172a;
+  font-size: 1.25rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 0px 9px rgba(15, 23, 42, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  backdrop-filter: blur(10px);
+  border: 1px solid white;
 }
 
 .mapBackBtn:hover {
@@ -56,6 +56,52 @@
   display: block;
   color: #0f172a;
 }
+
+/* Distance + ETA pills — top-right of map */
+.mapInfoPills {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 13px;
+  height: 41px;
+}
+
+.mapInfoPill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: #ffffff7d;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  min-width: 72px;
+  backdrop-filter: blur(10px);
+}
+
+.mapInfoPillIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #0c4a6e;
+}
+
+.mapInfoPillValue {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
 
 .bottomSheet {
   flex: 0 0 auto;
@@ -93,6 +139,7 @@
     transform: translateX(100%);
     opacity: 0.88;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -152,7 +199,7 @@
 .sheetTextGroup {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.2rem;
   flex: 1;
   min-width: 0;
 }
@@ -220,7 +267,7 @@
   color: #0c4a6e;
   font-weight: 900;
   font-size: 0.78rem;
-  padding:7px 12px;
+  padding: 7px 12px;
   border-radius: 14px;
   cursor: pointer;
   line-height: 1.15;
@@ -247,7 +294,7 @@
 }
 
 .proximityHint {
-  margin: 0;
+  margin-top: 7px !important;
   font-size: 0.75rem;
   color: #94a3b8;
   text-align: center;
