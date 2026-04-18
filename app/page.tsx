@@ -1,25 +1,24 @@
 import Banner from '@/components/Banner';
 import ProductsSection from '@/components/ProductsSection';
 import MembershipSection from '@/components/MembershipSection';
+import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/seo';
 
 export const metadata = {
-  title: 'Milko.in - Fresh Milk Delivery & Subscriptions',
-  description:
-    'Daily fresh milk delivery and subscription plans. Explore products and become a subscriber for convenient doorstep service.',
+  title: 'Fresh Milk Delivery & Subscriptions',
+  description: SITE_DESCRIPTION,
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'Milko.in - Fresh Milk Delivery & Subscriptions',
-    description:
-      'Daily fresh milk delivery and subscription plans. Explore products and become a subscriber for convenient doorstep service.',
+    title: `${SITE_NAME} | Fresh Milk Delivery & Subscriptions`,
+    description: SITE_DESCRIPTION,
     type: 'website',
+    url: '/',
   },
   twitter: {
-    card: 'summary',
-    title: 'Milko.in - Fresh Milk Delivery & Subscriptions',
-    description:
-      'Daily fresh milk delivery and subscription plans. Explore products and become a subscriber for convenient doorstep service.',
+    card: 'summary_large_image',
+    title: `${SITE_NAME} | Fresh Milk Delivery & Subscriptions`,
+    description: SITE_DESCRIPTION,
   },
 };
 
@@ -28,8 +27,36 @@ export const metadata = {
  * Shows banner, products, and membership subscription
  */
 export default function HomePage() {
+  const structuredData = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: SITE_NAME,
+      url: SITE_URL,
+      description: SITE_DESCRIPTION,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: `${absoluteUrl('/search')}?q={search_term_string}`,
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      name: SITE_NAME,
+      url: SITE_URL,
+      description: SITE_DESCRIPTION,
+      areaServed: 'India',
+      sameAs: [SITE_URL],
+    },
+  ];
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       {/* Banner */}
       <Banner />
       

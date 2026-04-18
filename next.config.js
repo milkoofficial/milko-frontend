@@ -23,9 +23,27 @@ const nextConfig = {
   // Avoid stale admin UI after deploy (browser / CDN keeping old HTML or JS chunks)
   async headers() {
     const adminNoStore = [{ key: 'Cache-Control', value: 'private, no-store, must-revalidate' }];
+    const noIndexHeaders = [{ key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' }];
+    const adminHeaders = [...adminNoStore, ...noIndexHeaders];
+
     return [
-      { source: '/admin', headers: adminNoStore },
-      { source: '/admin/:path*', headers: adminNoStore },
+      { source: '/admin', headers: adminHeaders },
+      { source: '/admin/:path*', headers: adminHeaders },
+      { source: '/auth', headers: noIndexHeaders },
+      { source: '/auth/:path*', headers: noIndexHeaders },
+      { source: '/account', headers: noIndexHeaders },
+      { source: '/dashboard', headers: noIndexHeaders },
+      { source: '/orders', headers: noIndexHeaders },
+      { source: '/orders/:path*', headers: noIndexHeaders },
+      { source: '/subscriptions', headers: noIndexHeaders },
+      { source: '/subscriptions/:path*', headers: noIndexHeaders },
+      { source: '/cart', headers: noIndexHeaders },
+      { source: '/checkout', headers: noIndexHeaders },
+      { source: '/coming-soon', headers: noIndexHeaders },
+      { source: '/order-success', headers: noIndexHeaders },
+      { source: '/reviews', headers: noIndexHeaders },
+      { source: '/search', headers: noIndexHeaders },
+      { source: '/subscribe', headers: noIndexHeaders },
     ];
   },
 
