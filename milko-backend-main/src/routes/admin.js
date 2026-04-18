@@ -93,6 +93,7 @@ router.patch('/content/:type/status', adminController.toggleContentStatus);
 
 // Logo (upload to Cloudinary, store in site_content type 'logo')
 router.post('/logo', upload.single('image'), adminController.upsertLogo);
+router.post('/favicon', upload.single('image'), adminController.upsertFavicon);
 
 // Categories
 router.get('/categories', adminController.getAllCategories);

@@ -1,7 +1,8 @@
-export const SITE_NAME = 'Milko.in';
+export const SITE_NAME = 'Milko';
+export const SITE_ALTERNATE_NAME = 'Milko.in';
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://milko.in').trim();
 export const SITE_DESCRIPTION =
-  'Fresh milk delivery, dairy products, and subscription plans delivered to your doorstep by Milko.in.';
+  'Fresh milk delivery, dairy products, and subscription plans delivered to your doorstep by Milko.';
 
 export const DEFAULT_KEYWORDS = [
   'milk delivery',

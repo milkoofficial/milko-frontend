@@ -75,6 +75,7 @@ export interface Product {
   isMembershipEligible?: boolean;
   quantity?: number;
   lowStockThreshold?: number;
+  maxQuantity?: number;
   categoryId?: string | null;
   suffixAfterPrice?: string;
   createdAt: string;

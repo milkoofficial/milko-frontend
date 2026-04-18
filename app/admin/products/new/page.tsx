@@ -37,6 +37,7 @@ export default function AdminCreateProductPage() {
   const [taxPercent, setTaxPercent] = useState('');
   const [quantity, setQuantity] = useState('0');
   const [lowStockThreshold, setLowStockThreshold] = useState('10');
+  const [maxQuantity, setMaxQuantity] = useState('99');
   const [categoryId, setCategoryId] = useState('');
   const [suffixAfterPrice, setSuffixAfterPrice] = useState('Litres');
   const [isActive, setIsActive] = useState(true);
@@ -85,7 +86,7 @@ export default function AdminCreateProductPage() {
     if (!files || files.length === 0) return;
 
     const newImages: Array<{ file: File; preview: string }> = [];
-    
+
     Array.from(files).forEach((file) => {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
@@ -94,7 +95,7 @@ export default function AdminCreateProductPage() {
             file,
             preview: reader.result as string,
           });
-          
+
           // Update state when all files are read
           if (newImages.length === Array.from(files).length) {
             setImagePreviews((prev) => [...prev, ...newImages]);
@@ -202,20 +203,21 @@ export default function AdminCreateProductPage() {
       }
       formData.append('quantity', quantity);
       formData.append('lowStockThreshold', lowStockThreshold);
+      formData.append('maxQuantity', maxQuantity);
       if (categoryId) {
         formData.append('categoryId', categoryId);
       }
       formData.append('suffixAfterPrice', suffixAfterPrice);
       formData.append('isActive', isActive.toString());
       formData.append('isMembershipEligible', isMembershipEligible.toString());
-      
+
       // Use first image as main product image
       if (imagePreviews.length > 0) {
         formData.append('image', imagePreviews[0].file);
       }
 
       const product = await adminProductsApi.create(formData);
-      
+
       // Upload additional images (skip first one as it's already uploaded as main image)
       if (imagePreviews.length > 1) {
         for (let i = 1; i < imagePreviews.length; i++) {
@@ -226,7 +228,7 @@ export default function AdminCreateProductPage() {
           }
         }
       }
-      
+
       // Create variations if any
       if (variations.length > 0) {
         for (const variation of variations) {
@@ -248,7 +250,7 @@ export default function AdminCreateProductPage() {
           }
         }
       }
-      
+
       alert('Product created successfully!');
       router.push(`/admin/products/${product.id}`);
     } catch (err: any) {
@@ -262,8 +264,8 @@ export default function AdminCreateProductPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <button 
-          onClick={() => router.back()} 
+        <button
+          onClick={() => router.back()}
           className={styles.backButton}
         >
           ← Back to Products
@@ -281,7 +283,7 @@ export default function AdminCreateProductPage() {
         {/* Basic Information Section */}
         <div className={styles.formSection}>
           <h2 className={styles.formSectionTitle}>Basic Information</h2>
-          
+
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>
               Product Name<span className={styles.formLabelRequired}>*</span>
@@ -345,13 +347,13 @@ export default function AdminCreateProductPage() {
               </div>
             </div>
           )}
-          
+
           {variations.length > 0 && (
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <div style={{ 
-                  padding: '0.75rem 1rem', 
-                  background: '#eff6ff', 
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  background: '#eff6ff',
                   borderRadius: '8px',
                   border: '1px solid #bfdbfe',
                   color: '#1e40af',
@@ -363,7 +365,7 @@ export default function AdminCreateProductPage() {
               </div>
             </div>
           )}
-          
+
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label className={styles.formLabel}>Suffix After Price</label>
@@ -400,7 +402,7 @@ export default function AdminCreateProductPage() {
         {/* Inventory & Category Section */}
         <div className={styles.formSection}>
           <h2 className={styles.formSectionTitle}>Inventory & Category</h2>
-          
+
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label className={styles.formLabel}>Quantity in Stock</label>
@@ -431,6 +433,20 @@ export default function AdminCreateProductPage() {
                 Show &quot;Low in stock&quot; when quantity falls below this number
               </p>
             </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Max Quantity Per Order</label>
+              <input
+                type="number"
+                value={maxQuantity}
+                onChange={(e) => setMaxQuantity(e.target.value)}
+                min="1"
+                className={styles.formInput}
+                placeholder="99"
+              />
+              <p className={styles.formHelpText}>
+                Admin-set maximum quantity allowed for this product.
+              </p>
+            </div>
           </div>
 
           <div className={styles.formGroup}>
@@ -458,7 +474,7 @@ export default function AdminCreateProductPage() {
         {/* Product Images Section */}
         <div className={styles.formSection}>
           <h2 className={styles.formSectionTitle}>Product Images</h2>
-          
+
           <div className={styles.imageUploadSection}>
             <div
               className={`${styles.imageUploadArea} ${isDragging ? styles.dragover : ''}`}
@@ -495,12 +511,12 @@ export default function AdminCreateProductPage() {
               onChange={handleFileInputChange}
               className={styles.fileInput}
             />
-            
+
             {imagePreviews.length > 0 && (
               <>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   marginTop: '1.5rem',
                   marginBottom: '1rem'
@@ -618,12 +634,12 @@ export default function AdminCreateProductPage() {
         {/* Product Variations Section */}
         <div className={styles.formSection}>
           <h2 className={styles.formSectionTitle}>Product Variations</h2>
-          
+
           <div className={styles.variationsSection}>
             <p className={styles.formHelpText} style={{ marginBottom: '1.5rem' }}>
               Add different sizes/variations with their own prices (e.g., 1L for ₹50, 2L for ₹95)
             </p>
-            
+
             {variations.length > 0 && (
               <div className={styles.variationsList}>
                 {variations.map((variation, index) => (
@@ -648,7 +664,7 @@ export default function AdminCreateProductPage() {
                 ))}
               </div>
             )}
-            
+
             <div className={styles.variationInputs}>
               <div className={styles.variationInputGroup}>
                 <label className={styles.variationInputLabel}>Size</label>

@@ -187,6 +187,7 @@ const createProduct = async (productData, imageFile = null) => {
     isActive, 
     quantity, 
     lowStockThreshold, 
+    maxQuantity,
     categoryId, 
     suffixAfterPrice,
     sellingPrice,
@@ -249,6 +250,7 @@ const createProduct = async (productData, imageFile = null) => {
     isActive: isActive !== undefined ? isActive : true,
     quantity: quantity !== undefined ? parseInt(quantity) : 0,
     lowStockThreshold: lowStockThreshold !== undefined ? parseInt(lowStockThreshold) : 10,
+    maxQuantity: maxQuantity !== undefined ? Math.max(1, parseInt(maxQuantity, 10) || 99) : 99,
     categoryId: categoryId || null,
     suffixAfterPrice: suffixAfterPrice || 'Litres',
     sellingPrice: parsedSelling,
@@ -268,6 +270,11 @@ const updateProduct = async (productId, updates, imageFile = null) => {
   const product = await productModel.getProductById(productId);
   if (!product) {
     throw new NotFoundError('Product');
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'maxQuantity')) {
+    const parsedMaxQuantity = parseInt(updates.maxQuantity, 10);
+    updates.maxQuantity = Number.isFinite(parsedMaxQuantity) && parsedMaxQuantity > 0 ? parsedMaxQuantity : 99;
   }
 
   // Handle image upload if new image provided

@@ -52,7 +52,9 @@ type Props = {
 
 const PROXIMITY_METERS = 40;
 
-const DELIVERY_COMPLETE_HOLD_MS = 2000;
+const DELIVERY_COMPLETE_HOLD_MS = 5000;
+const LIVE_REROUTE_MIN_MOVE_METERS = 12;
+const LIVE_REROUTE_DEBOUNCE_MS = 900;
 
 const MAP_PIN_PX = 48;
 
@@ -138,6 +140,9 @@ export default function DeliveryRoutePlanner({ slot, date, onClose, mode = 'subs
   const watchIdRef = useRef<number | null>(null);
   const prevLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const bearingRef = useRef<number>(0);
+  const lastRouteOriginRef = useRef<{ lat: number; lng: number } | null>(null);
+  const liveRerouteTimerRef = useRef<number | null>(null);
+  const liveRouteRequestSeqRef = useRef(0);
 
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -423,9 +428,15 @@ export default function DeliveryRoutePlanner({ slot, date, onClose, mode = 'subs
     );
   }, [updateFromGeolocation]);
 
-  const drawLeg = useCallback(async (origin: { lat: number; lng: number }, dest: DeliveryStop) => {
+  const drawLeg = useCallback(async (
+    origin: { lat: number; lng: number },
+    dest: DeliveryStop,
+    opts?: { fitBounds?: boolean }
+  ) => {
     if (!mapRef.current || !directionsRendererRef.current) return;
     setErrorText('');
+    const fitBounds = opts?.fitBounds ?? true;
+    const requestSeq = ++liveRouteRequestSeqRef.current;
     try {
       const directionsService = new google.maps.DirectionsService();
       const result = await directionsService.route({
@@ -433,15 +444,68 @@ export default function DeliveryRoutePlanner({ slot, date, onClose, mode = 'subs
         destination: new google.maps.LatLng(dest.lat, dest.lng),
         travelMode: google.maps.TravelMode.DRIVING,
       });
+      if (requestSeq !== liveRouteRequestSeqRef.current) return;
+      directionsRendererRef.current.setOptions({ preserveViewport: !fitBounds });
       directionsRendererRef.current.setDirections(result);
-      const b = new google.maps.LatLngBounds();
-      b.extend(origin);
-      b.extend({ lat: dest.lat, lng: dest.lng });
-      mapRef.current.fitBounds(b, 48);
+      lastRouteOriginRef.current = { ...origin };
+      if (fitBounds) {
+        const b = new google.maps.LatLngBounds();
+        b.extend(origin);
+        b.extend({ lat: dest.lat, lng: dest.lng });
+        mapRef.current.fitBounds(b, 48);
+      }
     } catch (error) {
+      if (requestSeq !== liveRouteRequestSeqRef.current) return;
       setErrorText((error as Error)?.message || 'Failed to draw route');
     }
   }, []);
+
+  useEffect(() => {
+    if (
+      !routeStarted ||
+      !currentStop ||
+      currentStop.noCoords ||
+      !adminLocation ||
+      flowComplete ||
+      marking ||
+      nearCurrentStop
+    ) {
+      if (liveRerouteTimerRef.current != null) {
+        window.clearTimeout(liveRerouteTimerRef.current);
+        liveRerouteTimerRef.current = null;
+      }
+      return;
+    }
+
+    const lastOrigin = lastRouteOriginRef.current;
+    if (lastOrigin) {
+      const moved = calculateDistance(
+        lastOrigin.lat,
+        lastOrigin.lng,
+        adminLocation.lat,
+        adminLocation.lng,
+      );
+      if (moved < LIVE_REROUTE_MIN_MOVE_METERS) {
+        return;
+      }
+    }
+
+    if (liveRerouteTimerRef.current != null) {
+      window.clearTimeout(liveRerouteTimerRef.current);
+    }
+
+    liveRerouteTimerRef.current = window.setTimeout(() => {
+      liveRerouteTimerRef.current = null;
+      void drawLeg(adminLocation, currentStop, { fitBounds: false });
+    }, LIVE_REROUTE_DEBOUNCE_MS);
+
+    return () => {
+      if (liveRerouteTimerRef.current != null) {
+        window.clearTimeout(liveRerouteTimerRef.current);
+        liveRerouteTimerRef.current = null;
+      }
+    };
+  }, [adminLocation, currentStop, drawLeg, flowComplete, marking, nearCurrentStop, routeStarted]);
 
   /**
    * Admin live marker — OverlayView wrapping the original SVG icon.
@@ -573,6 +637,10 @@ export default function DeliveryRoutePlanner({ slot, date, onClose, mode = 'subs
 
   useEffect(() => {
     return () => {
+      if (liveRerouteTimerRef.current != null) {
+        window.clearTimeout(liveRerouteTimerRef.current);
+        liveRerouteTimerRef.current = null;
+      }
       if (adminMarkerRef.current) {
         adminMarkerRef.current.setMap(null);
         adminMarkerRef.current = null;

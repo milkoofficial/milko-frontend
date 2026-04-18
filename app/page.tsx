@@ -1,7 +1,7 @@
 import Banner from '@/components/Banner';
 import ProductsSection from '@/components/ProductsSection';
 import MembershipSection from '@/components/MembershipSection';
-import { absoluteUrl, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/seo';
+import { absoluteUrl, SITE_ALTERNATE_NAME, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/seo';
 
 export const metadata = {
   title: 'Fresh Milk Delivery & Subscriptions',
@@ -32,6 +32,7 @@ export default function HomePage() {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       name: SITE_NAME,
+      alternateName: SITE_ALTERNATE_NAME,
       url: SITE_URL,
       description: SITE_DESCRIPTION,
       potentialAction: {
@@ -44,6 +45,7 @@ export default function HomePage() {
       '@context': 'https://schema.org',
       '@type': 'LocalBusiness',
       name: SITE_NAME,
+      alternateName: SITE_ALTERNATE_NAME,
       url: SITE_URL,
       description: SITE_DESCRIPTION,
       areaServed: 'India',

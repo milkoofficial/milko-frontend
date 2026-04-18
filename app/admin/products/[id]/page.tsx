@@ -73,6 +73,7 @@ export default function AdminProductEditPage() {
   const [taxPercent, setTaxPercent] = useState('');
   const [quantity, setQuantity] = useState('0');
   const [lowStockThreshold, setLowStockThreshold] = useState('10');
+  const [maxQuantity, setMaxQuantity] = useState('99');
   const [categoryId, setCategoryId] = useState('');
   const [suffixAfterPrice, setSuffixAfterPrice] = useState('Litres');
   const [isActive, setIsActive] = useState(true);
@@ -122,6 +123,7 @@ export default function AdminProductEditPage() {
         setTaxPercent(data.taxPercent !== null && data.taxPercent !== undefined ? String(data.taxPercent) : '');
         setQuantity(String(data.quantity ?? 0));
         setLowStockThreshold(String(data.lowStockThreshold ?? 10));
+        setMaxQuantity(String(data.maxQuantity ?? 99));
         setCategoryId(data.categoryId ?? '');
         setSuffixAfterPrice(data.suffixAfterPrice || 'Litres');
         setIsActive(data.isActive);
@@ -182,6 +184,7 @@ export default function AdminProductEditPage() {
         taxPercent: taxPercent ? parseFloat(taxPercent) : 0,
         quantity: quantity ? parseInt(quantity) : 0,
         lowStockThreshold: lowStockThreshold ? parseInt(lowStockThreshold) : 10,
+        maxQuantity: maxQuantity ? parseInt(maxQuantity) : 99,
         categoryId: categoryId || null,
         suffixAfterPrice: suffixAfterPrice || 'Litres',
         isActive,
@@ -408,10 +411,10 @@ export default function AdminProductEditPage() {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         minHeight: '50vh',
         padding: '2rem'
       }}>
@@ -573,8 +576,20 @@ export default function AdminProductEditPage() {
                     min="0"
                     value={lowStockThreshold}
                     onChange={(e) => setLowStockThreshold(e.target.value)}
-                className={styles.input}
-              />
+                    className={styles.input}
+                  />
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className={styles.formGroup}>
+                  <label>Max Quantity Per Order</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={maxQuantity}
+                    onChange={(e) => setMaxQuantity(e.target.value)}
+                    className={styles.input}
+                  />
                 </div>
               </div>
             </div>

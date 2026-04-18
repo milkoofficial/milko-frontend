@@ -16,6 +16,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import Toast from '@/components/Toast';
 import GoogleAnalytics from '@/components/GoogleAnalytics';
 import NativeGoogleBridge from '@/components/NativeGoogleBridge';
+import FaviconManager from '@/components/FaviconManager';
 import { DEFAULT_KEYWORDS, SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from '@/lib/seo';
 
 const inter = Inter({
@@ -82,6 +83,7 @@ export default function RootLayout({
               <Suspense fallback={null}>
                 <OAuthErrorHandler />
               </Suspense>
+              <FaviconManager />
               <NativeGoogleBridge />
               <ConditionalHeader />
               {children}

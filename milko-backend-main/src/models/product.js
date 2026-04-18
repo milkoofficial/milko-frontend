@@ -1,11 +1,18 @@
 const { query } = require('../config/database');
 const { transformProduct } = require('../utils/transform');
 let taxColumnEnsured = false;
+let maxQuantityColumnEnsured = false;
 
 const ensureTaxColumn = async () => {
   if (taxColumnEnsured) return;
   await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_percent DECIMAL(5, 2) NOT NULL DEFAULT 0;`);
   taxColumnEnsured = true;
+};
+
+const ensureMaxQuantityColumn = async () => {
+  if (maxQuantityColumnEnsured) return;
+  await query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS max_quantity INTEGER NOT NULL DEFAULT 99;`);
+  maxQuantityColumnEnsured = true;
 };
 
 /**
@@ -20,15 +27,17 @@ const ensureTaxColumn = async () => {
  */
 const createProduct = async (productData) => {
   await ensureTaxColumn();
-  const { 
-    name, 
-    description, 
-    pricePerLitre, 
-    imageUrl, 
+  await ensureMaxQuantityColumn();
+  const {
+    name,
+    description,
+    pricePerLitre,
+    imageUrl,
     isActive = true,
     isMembershipEligible = false,
     quantity = 0,
     lowStockThreshold = 10,
+    maxQuantity = 99,
     categoryId = null,
     suffixAfterPrice = 'Litres',
     sellingPrice = null,
@@ -40,12 +49,12 @@ const createProduct = async (productData) => {
     `INSERT INTO products (
       name, description, price_per_litre, image_url, is_active, 
       is_membership_eligible, quantity, low_stock_threshold, category_id, suffix_after_price,
-      selling_price, compare_at_price, tax_percent,
+      selling_price, compare_at_price, tax_percent, max_quantity,
       created_at, updated_at
     )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
      RETURNING *`,
-    [name, description, pricePerLitre, imageUrl, isActive, isMembershipEligible, quantity, lowStockThreshold, categoryId, suffixAfterPrice, sellingPrice, compareAtPrice, taxPercent]
+    [name, description, pricePerLitre, imageUrl, isActive, isMembershipEligible, quantity, lowStockThreshold, categoryId, suffixAfterPrice, sellingPrice, compareAtPrice, taxPercent, maxQuantity]
   );
 
   return transformProduct(result.rows[0]);
@@ -57,6 +66,7 @@ const createProduct = async (productData) => {
  */
 const getActiveProducts = async () => {
   await ensureTaxColumn();
+  await ensureMaxQuantityColumn();
   const result = await query(
     'SELECT * FROM products WHERE is_active = true ORDER BY created_at DESC'
   );
@@ -70,6 +80,7 @@ const getActiveProducts = async () => {
  */
 const getAllProducts = async () => {
   await ensureTaxColumn();
+  await ensureMaxQuantityColumn();
   const result = await query(
     'SELECT * FROM products ORDER BY created_at DESC'
   );
@@ -84,6 +95,7 @@ const getAllProducts = async () => {
  */
 const getProductById = async (productId) => {
   await ensureTaxColumn();
+  await ensureMaxQuantityColumn();
   const result = await query(
     'SELECT * FROM products WHERE id = $1',
     [productId]
@@ -100,23 +112,25 @@ const getProductById = async (productId) => {
  */
 const updateProduct = async (productId, updates) => {
   await ensureTaxColumn();
+  await ensureMaxQuantityColumn();
   const fields = [];
   const values = [];
   let paramCount = 1;
 
   Object.keys(updates).forEach((key) => {
     // Map camelCase to snake_case
-    const dbKey = key === 'pricePerLitre' ? 'price_per_litre' : 
-                  key === 'imageUrl' ? 'image_url' : 
-                  key === 'isActive' ? 'is_active' : 
-                  key === 'isMembershipEligible' ? 'is_membership_eligible' :
-                  key === 'lowStockThreshold' ? 'low_stock_threshold' : 
-                  key === 'categoryId' ? 'category_id' : 
-                  key === 'suffixAfterPrice' ? 'suffix_after_price' :
+    const dbKey = key === 'pricePerLitre' ? 'price_per_litre' :
+      key === 'imageUrl' ? 'image_url' :
+          key === 'isActive' ? 'is_active' :
+          key === 'isMembershipEligible' ? 'is_membership_eligible' :
+            key === 'lowStockThreshold' ? 'low_stock_threshold' :
+              key === 'maxQuantity' ? 'max_quantity' :
+              key === 'categoryId' ? 'category_id' :
+                key === 'suffixAfterPrice' ? 'suffix_after_price' :
                   key === 'sellingPrice' ? 'selling_price' :
-                  key === 'compareAtPrice' ? 'compare_at_price' :
-                  key === 'taxPercent' ? 'tax_percent' : key;
-    
+                    key === 'compareAtPrice' ? 'compare_at_price' :
+                      key === 'taxPercent' ? 'tax_percent' : key;
+
     fields.push(`${dbKey} = $${paramCount}`);
     values.push(updates[key]);
     paramCount++;

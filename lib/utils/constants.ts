@@ -6,7 +6,7 @@ function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     return process.env.NEXT_PUBLIC_API_BASE_URL;
   }
-  
+
   // Auto-detect local dev in browser
   // - If running on localhost, use localhost backend port (3001)
   // - If running on LAN IP/hostname (e.g. testing on phone), use same host with backend port
@@ -17,7 +17,7 @@ function getApiBaseUrl(): string {
     // "localhost" would point to the phone itself — so use the same host for backend.
     if (host) return `http://${host}:3001`;
   }
-  
+
   // Default to production
   return 'https://milko-backend.onrender.com';
 }
@@ -149,6 +149,9 @@ export const API_ENDPOINTS = {
     },
     LOGO: {
       UPLOAD: '/api/admin/logo',
+    },
+    FAVICON: {
+      UPLOAD: '/api/admin/favicon',
     },
     COUPONS: {
       LIST: '/api/admin/coupons',

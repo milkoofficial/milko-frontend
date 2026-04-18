@@ -116,6 +116,18 @@ export default function AdminMorePage() {
         </>
       ),
     },
+    {
+      title: 'Favicon',
+      href: '/admin/favicon',
+      description: 'Update browser tab icon',
+      icon: (
+        <>
+          <path d="M6 4H14L18 8V20H6V4Z" />
+          <path d="M14 4V8H18" />
+          <circle cx="12" cy="13" r="3" />
+        </>
+      ),
+    },
   ];
 
   return (

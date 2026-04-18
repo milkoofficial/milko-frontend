@@ -583,7 +583,7 @@ const getOrderById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const order = await orderModel.getOrderByIdForAdmin(id);
-    
+
     if (!order) {
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
@@ -601,16 +601,16 @@ const getOrderById = async (req, res, next) => {
 const markOrderAsPackagePrepared = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     // Update order status
     await orderModel.markAsPackagePrepared(id);
-    
+
     // TODO: Create delivery entry in deliveries table
     // This will be implemented when we have the deliveries schema ready
-    
-    res.json({ 
-      success: true, 
-      message: 'Order marked as package prepared successfully' 
+
+    res.json({
+      success: true,
+      message: 'Order marked as package prepared successfully'
     });
   } catch (error) {
     next(error);
@@ -1086,17 +1086,17 @@ const createBanner = async (req, res, next) => {
 const updateBanner = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     // Extract files from multer fields
     const desktopImage = req.files?.image?.[0] || null;
     const mobileImage = req.files?.mobileImage?.[0] || null;
-    
+
     // Parse form data - handle link field
     const updates = { ...req.body };
     if (updates.link !== undefined) {
       updates.link = updates.link || null; // Convert empty string to null
     }
-    
+
     const banner = await bannerService.updateBanner(id, updates, desktopImage, mobileImage);
 
     res.json({
@@ -1424,7 +1424,7 @@ const upsertLogo = async (req, res, next) => {
     const widthPxRaw = req.body.widthPx;
     const widthPx = widthPxRaw != null && widthPxRaw !== '' ? parseInt(String(widthPxRaw), 10) : null;
     const numWidth = typeof widthPx === 'number' && !Number.isNaN(widthPx) ? Math.max(40, Math.min(320, widthPx)) : null;
-    
+
     const widthPxMobileRaw = req.body.widthPxMobile;
     const widthPxMobile = widthPxMobileRaw != null && widthPxMobileRaw !== '' ? parseInt(String(widthPxMobileRaw), 10) : null;
     const numWidthMobile = typeof widthPxMobile === 'number' && !Number.isNaN(widthPxMobile) ? Math.max(40, Math.min(320, widthPxMobile)) : null;
@@ -1476,6 +1476,53 @@ const upsertLogo = async (req, res, next) => {
       metadata,
     });
     return res.json({ success: true, data: updated, message: 'Logo width updated' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Upload or update favicon (Cloudinary + site_content type 'favicon')
+ * POST /api/admin/favicon
+ * Body: FormData with required 'image'
+ */
+const upsertFavicon = async (req, res, next) => {
+  try {
+    let existing = null;
+    try {
+      existing = await siteContentModel.getContentByTypeAdmin('favicon');
+    } catch {
+      // ignore
+    }
+
+    if (!req.file || !req.file.buffer) {
+      if (existing) {
+        return res.json({ success: true, data: existing, message: 'Existing favicon returned' });
+      }
+      return res.status(400).json({
+        success: false,
+        error: 'Upload an image first to set the favicon.',
+      });
+    }
+
+    const uploadResult = await uploadImage(req.file.buffer, { folder: 'milko/favicon' });
+    if (existing?.metadata?.imagePublicId) {
+      try {
+        await deleteImage(existing.metadata.imagePublicId);
+      } catch (e) {
+        console.warn('[FAVICON] Could not delete old Cloudinary image:', e?.message);
+      }
+    }
+
+    const updated = await siteContentModel.upsertContent('favicon', {
+      title: 'Favicon',
+      content: '',
+      metadata: {
+        imageUrl: uploadResult.url,
+        imagePublicId: uploadResult.publicId,
+      },
+    });
+    return res.json({ success: true, data: updated, message: 'Favicon uploaded successfully' });
   } catch (error) {
     next(error);
   }
@@ -1573,6 +1620,7 @@ module.exports = {
   upsertSiteContent,
   toggleContentStatus,
   upsertLogo,
+  upsertFavicon,
   // Categories
   getAllCategories,
   createCategory,

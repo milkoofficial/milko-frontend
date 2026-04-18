@@ -110,6 +110,7 @@ const transformProduct = (row) => {
     isMembershipEligible: row.is_membership_eligible || false,
     quantity: row.quantity !== null ? parseInt(row.quantity) : 0,
     lowStockThreshold: row.low_stock_threshold !== null ? parseInt(row.low_stock_threshold) : 10,
+    maxQuantity: row.max_quantity !== null && row.max_quantity !== undefined ? parseInt(row.max_quantity) : 99,
     categoryId: row.category_id ? String(row.category_id) : null,
     suffixAfterPrice: row.suffix_after_price || 'Litres',
     createdAt: row.created_at?.toISOString(),
