@@ -141,6 +141,19 @@ export default function AdminMorePage() {
         </>
       ),
     },
+    {
+      title: 'Delivery rates',
+      href: '/admin/content/delivery_rates',
+      description: 'Warehouse distance-based checkout charges',
+      icon: (
+        <>
+          <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z" />
+          <circle cx="12" cy="10" r="2.5" />
+          <path d="M16 17h5" />
+          <path d="M18.5 14.5v5" />
+        </>
+      ),
+    },
   ];
 
   return (

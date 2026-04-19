@@ -102,6 +102,7 @@ export interface Subscription {
   startDate: string;
   endDate: string;
   razorpaySubscriptionId?: string;
+  autopayStatus?: 'created' | 'authenticated' | 'active' | 'halted' | 'cancelled' | string;
   /** Set when subscription was created from cart checkout (UUID of orders row). */
   checkoutOrderId?: string;
   addressId?: string;

@@ -16,6 +16,7 @@ import type { Coupon } from '@/lib/api';
 import { Product } from '@/types';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
 import { saveCheckoutCouponCode } from '@/lib/utils/checkoutCoupon';
+import { useToast } from '@/contexts/ToastContext';
 import styles from './cart.module.css';
 
 type SubscriptionCartItem = {
@@ -32,6 +33,7 @@ type SubscriptionCartItem = {
 
 export default function CartPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const { user } = useAuth();
   const subCartUserId = user?.id ?? null;
   const { items, setItemQuantity, removeItem } = useCart();
@@ -138,9 +140,13 @@ export default function CartPage() {
 
   const handleQuantityChange = (productId: string, variationId: string | undefined, delta: number) => {
     const item = items.find(it => it.productId === productId && it.variationId === variationId);
+    const product = products[productId];
     if (item) {
       const newQuantity = Math.max(1, item.quantity + delta);
-      setItemQuantity(productId, newQuantity, variationId);
+      const result = setItemQuantity(productId, newQuantity, variationId, product?.maxQuantity);
+      if (!result.ok && delta > 0 && product?.maxQuantity) {
+        showToast(`Maximum order quantity is ${product.maxQuantity}`, 'error');
+      }
     }
   };
 
@@ -390,6 +396,11 @@ export default function CartPage() {
                       <button
                         onClick={() => handleQuantityChange(it.productId, it.variationId, 1)}
                         className={styles.quantityButton}
+                        disabled={(() => {
+                          const product = products[it.productId];
+                          const maxQty = product?.maxQuantity;
+                          return Number.isFinite(maxQty) && Number(maxQty) > 0 && it.quantity >= Number(maxQty);
+                        })()}
                       >
                         +
                       </button>
@@ -551,7 +562,7 @@ export default function CartPage() {
               {platformFee > 0 && (
                 <div className={styles.priceRow}>
                   <span>Platform fee</span>
-                  <span>â‚¹{platformFee.toFixed(2)}</span>
+                  <span>₹{platformFee.toFixed(2)}</span>
                 </div>
               )}
               <div className={styles.priceRow}>

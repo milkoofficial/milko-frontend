@@ -15,6 +15,7 @@ import {
   clearSubscriptionCart,
   scopedSubscriptionCartKey,
 } from '@/lib/utils/userScopedStorage';
+import { normalizeDeliveryRatesConfig, resolveDeliveryRate } from '@/lib/utils/deliveryRates';
 import styles from './checkout.module.css';
 
 const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
@@ -99,6 +100,7 @@ export default function CheckoutPage() {
   const [walletLoading, setWalletLoading] = useState(false);
   const [subscriptionCartItem, setSubscriptionCartItem] = useState<SubscriptionCartItem | null>(null);
   const [platformFee, setPlatformFee] = useState(0);
+  const [deliveryRatesConfig, setDeliveryRatesConfig] = useState<{ warehouseLatitude?: number; warehouseLongitude?: number; ranges: Array<{ startMeters: number; endMeters: number; rate: number }> }>({ ranges: [] });
 
   // Load products
   useEffect(() => {
@@ -211,6 +213,28 @@ export default function CheckoutPage() {
     };
 
     loadPlatformFee();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDeliveryRates = async () => {
+      try {
+        const data = await contentApi.getByType('delivery_rates');
+        if (!cancelled) {
+          setDeliveryRatesConfig(normalizeDeliveryRatesConfig(data.metadata || {}));
+        }
+      } catch {
+        if (!cancelled) {
+          setDeliveryRatesConfig({ ranges: [] });
+        }
+      }
+    };
+
+    loadDeliveryRates();
     return () => {
       cancelled = true;
     };
@@ -491,7 +515,12 @@ export default function CheckoutPage() {
   };
 
   const discount = calculateDiscount();
-  const deliveryCharges = 0; // Free delivery
+  const deliveryRateResult = resolveDeliveryRate(
+    deliveryRatesConfig,
+    addressForm.latitude,
+    addressForm.longitude,
+  );
+  const deliveryCharges = deliveryRateResult.charge;
   const total = subtotal - discount + deliveryCharges + platformFee;
 
   const walletExtraToPay =
@@ -1150,12 +1179,14 @@ export default function CheckoutPage() {
                 {platformFee > 0 && (
                   <div className={styles.priceRow}>
                     <span>Platform fee</span>
-                    <span>â‚¹{platformFee.toFixed(2)}</span>
+                    <span>₹{platformFee.toFixed(2)}</span>
                   </div>
                 )}
                 <div className={styles.priceRow}>
                   <span>Delivery</span>
-                  <span className={styles.freeDelivery}>Free</span>
+                  <span className={deliveryCharges > 0 ? '' : styles.freeDelivery}>
+                    {deliveryCharges > 0 ? `₹${deliveryCharges.toFixed(2)}` : 'Free'}
+                  </span>
                 </div>
                 <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
                   <span>Total</span>

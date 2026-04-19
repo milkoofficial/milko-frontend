@@ -182,8 +182,11 @@ function SearchContent() {
                             className={styles.addToCartButton}
                             onClick={(e) => {
                               e.stopPropagation();
-                              addItem({ productId: product.id, quantity: 1 });
-                              showToast('Added to cart', 'success');
+                              const result = addItem({ productId: product.id, quantity: 1 }, product.maxQuantity);
+                              showToast(
+                                result.appliedQuantity > 0 && result.ok ? 'Added to cart' : `Maximum order quantity is ${product.maxQuantity ?? 99}`,
+                                result.appliedQuantity > 0 && result.ok ? 'success' : 'error',
+                              );
                             }}
                             aria-label="Add to cart"
                           >

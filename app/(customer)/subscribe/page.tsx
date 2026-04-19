@@ -776,6 +776,7 @@ export default function SubscribePage() {
                 <option value={7}>7 days</option>
                 <option value={15}>15 days</option>
                 <option value={30}>1 month</option>
+                <option value={60}>2 months</option>
                 <option value={90}>3 months</option>
                 <option value={180}>6 months</option>
                 <option value={365}>12 months (365 days)</option>

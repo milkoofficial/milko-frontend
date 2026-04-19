@@ -19,6 +19,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   app_download: 'Download our App',
   homepage_products: 'Homepage Products Rows',
   platform_fee: 'Platform fees',
+  delivery_rates: 'Delivery rates',
 };
 
 /**
@@ -46,6 +47,7 @@ export default function AdminContentEditPage() {
     { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
     { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
   ]);
+  const [deliveryRateRows, setDeliveryRateRows] = useState<Array<{ startMeters: string; endMeters: string; rate: string }>>([]);
   const [newSlotValue, setNewSlotValue] = useState('06:00');
   const [newSlotEnd, setNewSlotEnd] = useState('09:00');
 
@@ -86,6 +88,23 @@ export default function AdminContentEditPage() {
         setTitle(String(resolvedAmount));
         setContentText('Flat platform fee charged once per order.');
         setMetadata({ ...(data.metadata || {}), amount: resolvedAmount });
+      }
+      if (contentType === 'delivery_rates') {
+        const rows = Array.isArray(data.metadata?.ranges) && data.metadata.ranges.length > 0
+          ? data.metadata.ranges.map((row: any) => ({
+              startMeters: String(row?.startMeters ?? ''),
+              endMeters: String(row?.endMeters ?? ''),
+              rate: String(row?.rate ?? ''),
+            }))
+          : [{ startMeters: '0', endMeters: '1000', rate: '0' }];
+        setTitle('Delivery rates');
+        setContentText('Distance-based delivery charges from warehouse to customer.');
+        setMetadata({
+          warehouseLatitude: data.metadata?.warehouseLatitude ?? '',
+          warehouseLongitude: data.metadata?.warehouseLongitude ?? '',
+          ranges: data.metadata?.ranges ?? [],
+        });
+        setDeliveryRateRows(rows);
       }
       if (contentType === 'pincodes') {
         // Support: {pincode, deliveryTime}[], legacy string[], or single string
@@ -172,6 +191,14 @@ export default function AdminContentEditPage() {
         setTitle('0');
         setContentText('Flat platform fee charged once per order.');
         setMetadata({ amount: 0 });
+        setIsActive(true);
+      } else if (contentType === 'delivery_rates') {
+        setError('');
+        setContent(null);
+        setTitle('Delivery rates');
+        setContentText('Distance-based delivery charges from warehouse to customer.');
+        setMetadata({ warehouseLatitude: '', warehouseLongitude: '', ranges: [] });
+        setDeliveryRateRows([{ startMeters: '0', endMeters: '1000', rate: '0' }]);
         setIsActive(true);
       } else {
         setError(error.message || 'Failed to load content');
@@ -277,6 +304,53 @@ export default function AdminContentEditPage() {
         finalMetadata = { ...(metadata || {}), amount: Math.round(raw * 100) / 100 };
       }
 
+      if (contentType === 'delivery_rates') {
+        const warehouseLatitude = Number(metadata.warehouseLatitude);
+        const warehouseLongitude = Number(metadata.warehouseLongitude);
+        if (!Number.isFinite(warehouseLatitude) || warehouseLatitude < -90 || warehouseLatitude > 90) {
+          setError('Warehouse latitude must be between -90 and 90.');
+          setSaving(false);
+          return;
+        }
+        if (!Number.isFinite(warehouseLongitude) || warehouseLongitude < -180 || warehouseLongitude > 180) {
+          setError('Warehouse longitude must be between -180 and 180.');
+          setSaving(false);
+          return;
+        }
+        const parsedRows = deliveryRateRows.map((row, index) => {
+          const startMeters = Number(row.startMeters);
+          const endMeters = Number(row.endMeters);
+          const rate = Number(row.rate);
+          if (!Number.isFinite(startMeters) || startMeters < 0) {
+            throw new Error(`Row ${index + 1}: Start distance must be 0 or more.`);
+          }
+          if (!Number.isFinite(endMeters) || endMeters < 0) {
+            throw new Error(`Row ${index + 1}: End distance must be 0 or more.`);
+          }
+          if (endMeters < startMeters) {
+            throw new Error(`Row ${index + 1}: End distance must be greater than or equal to start distance.`);
+          }
+          if (!Number.isFinite(rate) || rate < 0) {
+            throw new Error(`Row ${index + 1}: Delivery rate must be 0 or more.`);
+          }
+          return {
+            startMeters: Math.round(startMeters),
+            endMeters: Math.round(endMeters),
+            rate: Math.round(rate * 100) / 100,
+          };
+        });
+        if (parsedRows.length === 0) {
+          setError('Please add at least one delivery-rate row.');
+          setSaving(false);
+          return;
+        }
+        finalMetadata = {
+          warehouseLatitude,
+          warehouseLongitude,
+          ranges: parsedRows.sort((a, b) => a.startMeters - b.startMeters || a.endMeters - b.endMeters),
+        };
+      }
+
       await adminContentApi.update(contentType, {
         title:
           contentType === 'pincodes'
@@ -287,6 +361,8 @@ export default function AdminContentEditPage() {
                 ? 'Download our App'
                 : contentType === 'platform_fee'
                   ? String(finalMetadata.amount ?? 0)
+                  : contentType === 'delivery_rates'
+                    ? 'Delivery rates'
                 : title,
         content:
           contentType === 'pincodes'
@@ -297,6 +373,8 @@ export default function AdminContentEditPage() {
                 ? 'Mobile app store link for Account page.'
                 : contentType === 'platform_fee'
                   ? 'Flat platform fee charged once per order.'
+                  : contentType === 'delivery_rates'
+                    ? 'Distance-based delivery charges from warehouse to customer.'
                 : contentText,
         metadata: finalMetadata,
       });
@@ -352,7 +430,7 @@ export default function AdminContentEditPage() {
       )}
 
       <form onSubmit={handleSubmit} className={styles.form}>
-        {contentType !== 'pincodes' && contentType !== 'help_support' && contentType !== 'app_download' && (
+        {contentType !== 'pincodes' && contentType !== 'help_support' && contentType !== 'app_download' && contentType !== 'delivery_rates' && (
           <div className={styles.formGroup}>
             <label className={styles.label}>
               {contentType === 'platform_fee' ? 'Platform fee (INR) *' : 'Title *'}
@@ -373,6 +451,112 @@ export default function AdminContentEditPage() {
               </div>
             )}
           </div>
+        )}
+
+        {contentType === 'delivery_rates' && (
+          <>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Warehouse latitude *</label>
+              <input
+                type="number"
+                step="any"
+                value={metadata.warehouseLatitude ?? ''}
+                onChange={(e) => setMetadata({ ...metadata, warehouseLatitude: e.target.value })}
+                className={styles.input}
+                placeholder="e.g. 22.5726"
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Warehouse longitude *</label>
+              <input
+                type="number"
+                step="any"
+                value={metadata.warehouseLongitude ?? ''}
+                onChange={(e) => setMetadata({ ...metadata, warehouseLongitude: e.target.value })}
+                className={styles.input}
+                placeholder="e.g. 88.3639"
+              />
+              <div className={styles.helpText}>
+                Customers are charged by the straight-line distance from this warehouse location to the selected checkout address.
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Delivery rate ranges</label>
+              <div className={styles.helpText}>
+                If a customer distance is above the last row&apos;s end distance, the last row&apos;s delivery rate will be used automatically.
+              </div>
+              <div className={styles.deliveryRateList}>
+                {deliveryRateRows.map((row, index) => (
+                  <div key={`rate-${index}`} className={styles.deliveryRateRow}>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className={styles.input}
+                      value={row.startMeters}
+                      onChange={(e) => {
+                        const next = [...deliveryRateRows];
+                        next[index] = { ...next[index], startMeters: e.target.value };
+                        setDeliveryRateRows(next);
+                      }}
+                      placeholder="Start (m)"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className={styles.input}
+                      value={row.endMeters}
+                      onChange={(e) => {
+                        const next = [...deliveryRateRows];
+                        next[index] = { ...next[index], endMeters: e.target.value };
+                        setDeliveryRateRows(next);
+                      }}
+                      placeholder="End (m)"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className={styles.input}
+                      value={row.rate}
+                      onChange={(e) => {
+                        const next = [...deliveryRateRows];
+                        next[index] = { ...next[index], rate: e.target.value };
+                        setDeliveryRateRows(next);
+                      }}
+                      placeholder="Delivery rate (INR)"
+                    />
+                    <button
+                      type="button"
+                      className={styles.removePincodeButton}
+                      onClick={() => {
+                        if (deliveryRateRows.length === 1) return;
+                        setDeliveryRateRows(deliveryRateRows.filter((_, rowIndex) => rowIndex !== index));
+                      }}
+                      disabled={deliveryRateRows.length === 1}
+                      aria-label={`Remove delivery rate row ${index + 1}`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className={styles.addPincodeButton}
+                onClick={() => {
+                  setDeliveryRateRows([...deliveryRateRows, { startMeters: '', endMeters: '', rate: '' }]);
+                }}
+              >
+                Add row
+              </button>
+            </div>
+          </>
         )}
 
         {contentType === 'contact' && (

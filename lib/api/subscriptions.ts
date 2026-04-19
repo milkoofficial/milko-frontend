@@ -53,10 +53,14 @@ export const subscriptionsApi = {
     return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.CANCEL_TODAY(id));
   },
 
-  setupAutopay: async (id: string): Promise<{ razorpaySubscriptionId: string; shortUrl: string | null; alreadyLinked: boolean }> => {
-    return apiClient.post<{ razorpaySubscriptionId: string; shortUrl: string | null; alreadyLinked: boolean }>(
+  setupAutopay: async (id: string): Promise<{ razorpaySubscriptionId: string; shortUrl: string | null; alreadyLinked: boolean; autopayStatus?: string; key?: string | null }> => {
+    return apiClient.post<{ razorpaySubscriptionId: string; shortUrl: string | null; alreadyLinked: boolean; autopayStatus?: string; key?: string | null }>(
       API_ENDPOINTS.SUBSCRIPTIONS.SETUP_AUTOPAY(id)
     );
+  },
+
+  verifyAutopaySetup: async (id: string, payload: { razorpay_payment_id: string }): Promise<Subscription> => {
+    return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.VERIFY_AUTOPAY_SETUP(id), payload);
   },
 
   removeAutopay: async (id: string): Promise<Subscription> => {

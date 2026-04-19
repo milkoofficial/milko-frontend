@@ -321,6 +321,16 @@
   border-radius: 5px;
 }
 
+.qtyButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #f3f4f6;
+}
+
+.qtyButton:disabled svg {
+  opacity: 0.55;
+}
+
 .qtyInput {
   width: 56px;
   height: 40px;

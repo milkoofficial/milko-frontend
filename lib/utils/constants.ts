@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
     CANCEL: (id: string) => `/api/subscriptions/${id}/cancel`,
     CANCEL_TODAY: (id: string) => `/api/subscriptions/${id}/cancel-today`,
     SETUP_AUTOPAY: (id: string) => `/api/subscriptions/${id}/setup-autopay`,
+    VERIFY_AUTOPAY_SETUP: (id: string) => `/api/subscriptions/${id}/verify-autopay-setup`,
     REMOVE_AUTOPAY: (id: string) => `/api/subscriptions/${id}/remove-autopay`,
     RENEW_INIT: (id: string) => `/api/subscriptions/${id}/renew-init`,
     RENEW_VERIFY: (id: string) => `/api/subscriptions/${id}/renew-verify`,

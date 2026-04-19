@@ -388,7 +388,9 @@ export default function SubscriptionDetailsPage() {
   const orderId = subscription.id;
   const paidAmount = subscription.totalAmountPaid ?? subscription.totalAmount ?? 0;
   const canManage = subscription.status === 'active' || subscription.status === 'paused';
-  const hasAutopayMandate = String(subscription.razorpaySubscriptionId || '').startsWith('sub_');
+  const hasAutopayMandate =
+    subscription.autopayStatus === 'authenticated'
+    || subscription.autopayStatus === 'active';
   const nextAutopayDateDisplay = formatNextAutopayAtIst(subscription.endDate);
   const subscriptionItemName = subscription.product?.name || 'this item';
   const formatInr = (value: number) =>
@@ -824,6 +826,21 @@ export default function SubscriptionDetailsPage() {
                       className={styles.autoPayButton}
                       disabled={autopayBusy || autopayActionsDisabled}
                       onClick={async () => {
+                        let openedRazorpay = false;
+                        const loadRazorpayScript = (): Promise<void> => {
+                          if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
+                            return Promise.resolve();
+                          }
+                          return new Promise((resolve, reject) => {
+                            const s = document.createElement('script');
+                            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                            s.async = true;
+                            s.onload = () => resolve();
+                            s.onerror = () => reject(new Error('Failed to load Razorpay'));
+                            document.head.appendChild(s);
+                          });
+                        };
+
                         try {
                           setAutopayBusy(true);
                           const resp = await subscriptionsApi.setupAutopay(subscription.id);
@@ -831,13 +848,52 @@ export default function SubscriptionDetailsPage() {
                             window.location.href = resp.shortUrl;
                             return;
                           }
-                          showToast('AutoPay is already linked', 'success');
-                          await fetchSubscription();
+                          if (resp.alreadyLinked) {
+                            showToast('AutoPay is already linked', 'success');
+                            await fetchSubscription();
+                            return;
+                          }
+                          if (!resp.razorpaySubscriptionId || !resp.key) {
+                            throw new Error('AutoPay setup is incomplete. Razorpay subscription ID was not returned.');
+                          }
+
+                          await loadRazorpayScript();
+                          const Razorpay = (window as unknown as { Razorpay: new (o: unknown) => { open: () => void } }).Razorpay;
+                          const rzp = new Razorpay({
+                            key: resp.key,
+                            subscription_id: resp.razorpaySubscriptionId,
+                            name: 'Milko',
+                            description: 'Authenticate AutoPay mandate',
+                            handler: async function (rzpResp: { razorpay_payment_id: string }) {
+                              try {
+                                await subscriptionsApi.verifyAutopaySetup(subscription.id, {
+                                  razorpay_payment_id: rzpResp.razorpay_payment_id,
+                                });
+                                showToast('AutoPay linked successfully', 'success');
+                                await fetchSubscription();
+                              } catch (e) {
+                                showToast((e as { message?: string })?.message || 'Failed to verify AutoPay', 'error');
+                                await fetchSubscription();
+                              } finally {
+                                setAutopayBusy(false);
+                              }
+                            },
+                            modal: {
+                              ondismiss: async () => {
+                                setAutopayBusy(false);
+                                await fetchSubscription();
+                              },
+                            },
+                          });
+                          openedRazorpay = true;
+                          rzp.open();
                         } catch (e) {
                           showToast((e as { message?: string })?.message || 'Failed to setup AutoPay', 'error');
                           await fetchSubscription();
                         } finally {
-                          setAutopayBusy(false);
+                          if (!openedRazorpay) {
+                            setAutopayBusy(false);
+                          }
                         }
                       }}
                     >

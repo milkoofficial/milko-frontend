@@ -272,13 +272,17 @@ export default function ProductsSection() {
                       e.stopPropagation(); // Prevent card click
                       
                       // Add to cart
-                      addItem({
+                      const result = addItem({
                         productId: product.id,
                         quantity: 1,
-                      });
+                      }, product.maxQuantity);
+                      if (result.appliedQuantity <= 0) {
+                        showToast(`Maximum order quantity is ${product.maxQuantity ?? 99}`, 'error');
+                        return;
+                      }
                       
                       // Show notification
-                      showToast('Added to cart', 'success');
+                      showToast(result.ok ? 'Added to cart' : `Maximum order quantity is ${product.maxQuantity ?? 99}`, result.ok ? 'success' : 'error');
 
                       // Get product image URL for animation
                       const imageUrl = product.imageUrl || '';

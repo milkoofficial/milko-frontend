@@ -1,16 +1,16 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { getCartStorage, CartItem } from '@/lib/utils/cart';
+import { getCartStorage, CartItem, CartMutationResult } from '@/lib/utils/cart';
 import { trackCartEvent } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface CartContextType {
   items: CartItem[];
   itemCount: number;
-  addItem: (item: CartItem) => void;
+  addItem: (item: CartItem, maxQuantity?: number) => CartMutationResult;
   removeItem: (productId: string, variationId?: string) => void;
-  setItemQuantity: (productId: string, quantity: number, variationId?: string) => void;
+  setItemQuantity: (productId: string, quantity: number, variationId?: string, maxQuantity?: number) => CartMutationResult;
   clearCart: () => void;
   refreshCart: () => void;
 }
@@ -59,15 +59,18 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   }, [cart, refreshCart]);
 
   const addItem = useCallback(
-    (item: CartItem) => {
-      cart.add(item);
+    (item: CartItem, maxQuantity?: number) => {
+      const result = cart.add(item, maxQuantity);
       refreshCart();
-      void trackCartEvent({
-        eventType: 'add',
-        cartItemCount: getCartItemCount(),
-        productId: item.productId,
-        variationId: item.variationId,
-      });
+      if (result.appliedQuantity > 0) {
+        void trackCartEvent({
+          eventType: 'add',
+          cartItemCount: getCartItemCount(),
+          productId: item.productId,
+          variationId: item.variationId,
+        });
+      }
+      return result;
     },
     [cart, refreshCart, getCartItemCount],
   );
@@ -87,9 +90,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   );
 
   const setItemQuantity = useCallback(
-    (productId: string, quantity: number, variationId?: string) => {
-      cart.setQuantity(productId, quantity, variationId);
+    (productId: string, quantity: number, variationId?: string, maxQuantity?: number) => {
+      const result = cart.setQuantity(productId, quantity, variationId, maxQuantity);
       refreshCart();
+      return result;
     },
     [cart, refreshCart],
   );

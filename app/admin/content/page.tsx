@@ -20,6 +20,7 @@ const OTHER_OPTIONS = [
   { type: 'logo', label: 'Logo', path: '/admin/logo', description: 'Upload logo, set width' },
   { type: 'favicon', label: 'Favicon', path: '/admin/favicon', description: 'Upload browser tab icon' },
   { type: 'platform_fee', label: 'Platform fees', path: '/admin/content/platform_fee', description: 'Set flat checkout fee charged once per order' },
+  { type: 'delivery_rates', label: 'Delivery rates', path: '/admin/content/delivery_rates', description: 'Set warehouse coordinates and distance-based delivery charges' },
   { type: 'categories', label: 'Product Categories', path: '/admin/categories', description: 'Manage product categories' },
   { type: 'coupons', label: 'Coupons', path: '/admin/coupons', description: 'Manage discounts' },
   { type: 'delivery_slots', label: 'Delivery Time Slots', path: '/admin/content/pincodes', description: 'Set subscription delivery-time dropdown options' },
@@ -119,6 +120,15 @@ function Icon({ name }: { name: string }) {
           <path d="M6 12h8" />
           <path d="M6 17h10" />
           <path d="M17.5 10.5c1.93 0 3.5 1.57 3.5 3.5s-1.57 3.5-3.5 3.5S14 15.93 14 14h3.5" />
+        </svg>
+      );
+    case 'delivery_rates':
+      return (
+        <svg viewBox="0 0 24 24" {...common}>
+          <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z" />
+          <circle cx="12" cy="10" r="2.5" />
+          <path d="M16 17h5" />
+          <path d="M18.5 14.5v5" />
         </svg>
       );
     case 'help_support':
