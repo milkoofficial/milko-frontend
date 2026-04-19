@@ -587,6 +587,7 @@
   border-bottom: 1px solid #f0f0f0;
   transition: background 0s;
   cursor: pointer;
+  position: relative;
 }
 
 .searchResultItem:last-child {
@@ -595,6 +596,24 @@
 
 .searchResultItem:hover {
   background: #f8f8f8;
+}
+
+.searchResultItemOutOfStock {
+  opacity: 0.72;
+}
+
+.searchResultOutOfStockBadge {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.7rem;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.32rem 0.48rem;
+  border-radius: 999px;
+  z-index: 1;
 }
 
 .searchResultAddBtn {
@@ -620,6 +639,20 @@
 
 .searchResultAddBtn:active {
   transform: scale(0.95);
+}
+
+.searchResultAddBtnDisabled,
+.searchResultAddBtn:disabled {
+  background: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.searchResultAddBtnDisabled:hover,
+.searchResultAddBtn:disabled:hover {
+  background: #d1d5db;
+  transform: none;
 }
 
 .searchResultImg {

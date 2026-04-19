@@ -971,15 +971,19 @@ export default function Header() {
                       <div className={styles.searchDropdownLoading}>Loading...</div>
                     ) : searchResults.length > 0 ? (
                       <>
-                        {searchResults.slice(0, 5).map((p) => (
+                        {searchResults.slice(0, 5).map((p) => {
+                          const isOutOfStock = p.isActive === false || (typeof p.quantity === 'number' && p.quantity <= 0);
+
+                          return (
                           <div
                             key={p.id}
                             role="button"
                             tabIndex={0}
-                            className={styles.searchResultItem}
+                            className={`${styles.searchResultItem} ${isOutOfStock ? styles.searchResultItemOutOfStock : ''}`}
                             onClick={() => setSelectedProduct(p)}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProduct(p); } }}
                           >
+                            {isOutOfStock ? <span className={styles.searchResultOutOfStockBadge}>Out of stock</span> : null}
                             {p.imageUrl && <img src={p.imageUrl} alt="" className={styles.searchResultImg} />}
                             <div className={styles.searchResultText}>
                               <span className={styles.searchResultName}>{p.name}</span>
@@ -987,12 +991,12 @@ export default function Header() {
                             </div>
                             <button
                               type="button"
-                              className={styles.searchResultAddBtn}
-                              aria-label="Add to cart"
-                              disabled={p.isActive === false || (typeof p.quantity === 'number' && p.quantity <= 0)}
+                              className={`${styles.searchResultAddBtn} ${isOutOfStock ? styles.searchResultAddBtnDisabled : ''}`}
+                              aria-label={isOutOfStock ? `${p.name} is out of stock` : 'Add to cart'}
+                              disabled={isOutOfStock}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (p.isActive === false || (typeof p.quantity === 'number' && p.quantity <= 0)) {
+                                if (isOutOfStock) {
                                   showToast('Out of stock', 'error');
                                   return;
                                 }
@@ -1006,7 +1010,7 @@ export default function Header() {
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5V19M5 12H19" /></svg>
                             </button>
                           </div>
-                        ))}
+                        )})}
                         {searchResults.length > 5 && (
                           <button
                             type="button"

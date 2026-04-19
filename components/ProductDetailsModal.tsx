@@ -822,9 +822,11 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
               {/* Stock Status */}
               {(() => {
                 const hasVariations = variations && variations.length > 0;
-                const isInStock = hasVariations
-                  ? variations.some(v => v.isAvailable)
-                  : !isProductOutOfStock;
+                const isInStock = !isProductOutOfStock && (
+                  hasVariations
+                    ? variations.some(v => v.isAvailable)
+                    : true
+                );
 
                 // Check if product is low in stock
                 const quantity = displayProduct.quantity ?? 0;
