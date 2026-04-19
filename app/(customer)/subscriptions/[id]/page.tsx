@@ -864,13 +864,22 @@ export default function SubscriptionDetailsPage() {
                             subscription_id: resp.razorpaySubscriptionId,
                             name: 'Milko',
                             description: 'Authenticate AutoPay mandate',
-                            handler: async function (rzpResp: { razorpay_payment_id: string }) {
+                            handler: async function (rzpResp: {
+                              razorpay_payment_id: string;
+                              razorpay_subscription_id?: string;
+                              razorpay_signature?: string;
+                            }) {
                               try {
                                 await subscriptionsApi.verifyAutopaySetup(subscription.id, {
                                   razorpay_payment_id: rzpResp.razorpay_payment_id,
+                                  razorpay_subscription_id: rzpResp.razorpay_subscription_id || resp.razorpaySubscriptionId,
+                                  razorpay_signature: rzpResp.razorpay_signature,
                                 });
-                                showToast('AutoPay linked successfully', 'success');
+                                showToast('AutoPay linked successfully. Redirecting to subscription details...', 'success');
                                 await fetchSubscription();
+                                window.setTimeout(() => {
+                                  router.replace(`/subscriptions/${subscription.id}`);
+                                }, 5000);
                               } catch (e) {
                                 showToast((e as { message?: string })?.message || 'Failed to verify AutoPay', 'error');
                                 await fetchSubscription();

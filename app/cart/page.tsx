@@ -567,7 +567,7 @@ export default function CartPage() {
               )}
               <div className={styles.priceRow}>
                 <span>Delivery Charges</span>
-                <span className={styles.freeDelivery}>Free Delivery</span>
+                <span className={styles.freeDelivery}>Proceed Further</span>
               </div>
               <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
                 <span>Total Amount</span>

@@ -77,6 +77,7 @@ export default function AddressLocationPicker({
   const [searchText, setSearchText] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<PlacePrediction[]>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
   /** Hide place predictions while the user is dragging the map (coords still update on drag end). */
   const [mapDragging, setMapDragging] = useState(false);
 
@@ -251,18 +252,23 @@ export default function AddressLocationPicker({
           className={`${styles.searchInput} ${searching ? styles.searchInputBusy : ''}`}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
           placeholder="Search location"
           autoComplete="off"
         />
         {searching ? <span className={styles.searchingInline}>Searching…</span> : null}
-        {results.length > 0 && !mapDragging ? (
+        {searchFocused && results.length > 0 && !mapDragging ? (
           <div className={styles.searchResults}>
             {results.map((item) => (
               <button
                 key={item.placeId}
                 type="button"
                 className={styles.searchResultItem}
-                onClick={() => onPickPlace(item.placeId)}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  onPickPlace(item.placeId);
+                }}
               >
                 {item.description}
               </button>

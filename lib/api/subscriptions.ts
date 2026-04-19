@@ -59,7 +59,10 @@ export const subscriptionsApi = {
     );
   },
 
-  verifyAutopaySetup: async (id: string, payload: { razorpay_payment_id: string }): Promise<Subscription> => {
+  verifyAutopaySetup: async (
+    id: string,
+    payload: { razorpay_payment_id: string; razorpay_subscription_id?: string; razorpay_signature?: string }
+  ): Promise<Subscription> => {
     return apiClient.post<Subscription>(API_ENDPOINTS.SUBSCRIPTIONS.VERIFY_AUTOPAY_SETUP(id), payload);
   },
 

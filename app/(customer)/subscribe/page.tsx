@@ -46,6 +46,7 @@ export default function SubscribePage() {
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'wallet'>('online');
   const [walletBalance, setWalletBalance] = useState(0);
+  const [platformFee, setPlatformFee] = useState(0);
   const [pincodeStatus, setPincodeStatus] = useState<'checking' | 'missing' | 'available' | 'unavailable'>('checking');
   const [savedPincode, setSavedPincode] = useState('');
   const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime?: string }> | null>(null);
@@ -164,6 +165,31 @@ export default function SubscribePage() {
       }
     };
     loadWallet();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPlatformFee = async () => {
+      try {
+        const data = await contentApi.getByType('platform_fee');
+        const metadataAmount = Number(data.metadata?.amount);
+        const titleAmount = Number(data.title);
+        const amount = Number.isFinite(metadataAmount) ? metadataAmount : titleAmount;
+        if (!cancelled) {
+          setPlatformFee(Number.isFinite(amount) && amount > 0 ? amount : 0);
+        }
+      } catch {
+        if (!cancelled) {
+          setPlatformFee(0);
+        }
+      }
+    };
+
+    loadPlatformFee();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -430,8 +456,10 @@ export default function SubscribePage() {
   }
 
   const subscriptionTotal = product.pricePerLitre * litresPerDay * durationDays;
-  const walletUsedPreview = Math.max(0, Math.min(walletBalance, subscriptionTotal));
-  const onlineDuePreview = Math.max(0, Math.round((subscriptionTotal - walletUsedPreview) * 100) / 100);
+  const initialPaymentPlatformFee = (!isCartFlow || isRenewFlow) ? platformFee : 0;
+  const payableTodayTotal = Math.max(0, Math.round((subscriptionTotal + initialPaymentPlatformFee) * 100) / 100);
+  const walletUsedPreview = Math.max(0, Math.min(walletBalance, payableTodayTotal));
+  const onlineDuePreview = Math.max(0, Math.round((payableTodayTotal - walletUsedPreview) * 100) / 100);
   const perLitreDiscount = Math.max(
     0,
     Number((product.compareAtPrice ?? product.sellingPrice ?? 0) - product.pricePerLitre) || 0,
@@ -819,6 +847,14 @@ export default function SubscribePage() {
               Total for {durationDays} day(s):{' '}
               <strong>₹{subscriptionTotal}</strong>
             </p>
+            {initialPaymentPlatformFee > 0 && (
+              <p className={styles.totalLine} style={{ marginTop: 8 }}>
+                Platform fee: <strong>₹{initialPaymentPlatformFee.toFixed(2)}</strong>
+              </p>
+            )}
+            <p className={styles.totalLine} style={{ marginTop: 8 }}>
+              Payable today: <strong>₹{payableTodayTotal.toFixed(2)}</strong>
+            </p>
             <p className={styles.amountBreakdown}>
               Breakdown: {litresPerDay} L/day × ₹{product.pricePerLitre}/L × {durationDays} day(s) = ₹{subscriptionTotal}
             </p>
@@ -850,7 +886,7 @@ export default function SubscribePage() {
                     </svg>
                     <span className={styles.paymentEtc}>etc</span>
                   </span>
-                  <span>Pay full amount online (₹{subscriptionTotal.toFixed(2)})</span>
+                  <span>Pay full amount online (₹{payableTodayTotal.toFixed(2)})</span>
                 </span>
               </label>
 
