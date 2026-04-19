@@ -18,6 +18,7 @@ const CONTENT_TYPES = [
 
 const OTHER_OPTIONS = [
   { type: 'logo', label: 'Logo', path: '/admin/logo', description: 'Upload logo, set width' },
+  { type: 'favicon', label: 'Favicon', path: '/admin/favicon', description: 'Upload browser tab icon' },
   { type: 'categories', label: 'Product Categories', path: '/admin/categories', description: 'Manage product categories' },
   { type: 'coupons', label: 'Coupons', path: '/admin/coupons', description: 'Manage discounts' },
   { type: 'delivery_slots', label: 'Delivery Time Slots', path: '/admin/content/pincodes', description: 'Set subscription delivery-time dropdown options' },
@@ -100,6 +101,14 @@ function Icon({ name }: { name: string }) {
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <path d="M9 9h6v6H9z" />
           <path d="M12 3v18M3 12h18" />
+        </svg>
+      );
+    case 'favicon':
+      return (
+        <svg viewBox="0 0 24 24" {...common}>
+          <path d="M6 4h8l4 4v12H6z" />
+          <path d="M14 4v4h4" />
+          <circle cx="12" cy="14" r="2.5" />
         </svg>
       );
     case 'help_support':
