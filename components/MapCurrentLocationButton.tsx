@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useToast } from '@/contexts/ToastContext';
-import { getGoogleMapsApiKeyPresent, reverseGeocodeLatLng } from '@/lib/maps/googleMaps';
-import LocationPermissionHelpDialog from '@/components/LocationPermissionHelpDialog';
+import { useToast } from '../contexts/ToastContext';
+import { getGoogleMapsApiKeyPresent, reverseGeocodeLatLng } from '../lib/maps/googleMaps';
+import LocationPermissionHelpDialog from './LocationPermissionHelpDialog';
 import styles from './MapCurrentLocationButton.module.css';
 
 export type MapLocatedResult = {

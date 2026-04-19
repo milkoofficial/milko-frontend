@@ -1,21 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useToast } from '@/contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 import styles from './AddressLocationPicker.module.css';
-import MapCurrentLocationButton from '@/components/MapCurrentLocationButton';
+import MapCurrentLocationButton from './MapCurrentLocationButton';
 import {
   approximatePinGroundRadiusMeters,
   ZOOM_ACCURACY_WARN_THRESHOLD_M,
-} from '@/lib/maps/mapScale';
+} from '../lib/maps/mapScale';
 import {
   formatGoogleMapsLoadError,
   getGoogleMapsApiKeyPresent,
   getGoogleMapsEnvSetupHint,
   loadGoogleMaps,
   reverseGeocodeLatLng,
-} from '@/lib/maps/googleMaps';
-import MapLocationPinIcon from '@/components/icons/MapLocationPinIcon';
+} from '../lib/maps/googleMaps';
+import MapLocationPinIcon from './icons/MapLocationPinIcon';
 
 type AddressLocationPickerProps = {
   latitude?: number;

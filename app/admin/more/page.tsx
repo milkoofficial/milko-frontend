@@ -128,6 +128,19 @@ export default function AdminMorePage() {
         </>
       ),
     },
+    {
+      title: 'Platform fees',
+      href: '/admin/content/platform_fee',
+      description: 'Set flat checkout fee',
+      icon: (
+        <>
+          <path d="M6 7h12" />
+          <path d="M6 12h8" />
+          <path d="M6 17h10" />
+          <path d="M17.5 10.5c1.93 0 3.5 1.57 3.5 3.5s-1.57 3.5-3.5 3.5S14 15.93 14 14h3.5" />
+        </>
+      ),
+    },
   ];
 
   return (

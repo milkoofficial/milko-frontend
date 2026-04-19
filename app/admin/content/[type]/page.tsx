@@ -18,6 +18,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   help_support: 'Help support number',
   app_download: 'Download our App',
   homepage_products: 'Homepage Products Rows',
+  platform_fee: 'Platform fees',
 };
 
 /**
@@ -74,6 +75,18 @@ export default function AdminContentEditPage() {
       setContentText(data.content);
       setMetadata(data.metadata || {});
       setIsActive(data.isActive);
+      if (contentType === 'platform_fee') {
+        const metadataAmount = Number(data.metadata?.amount);
+        const titleAmount = Number(data.title);
+        const resolvedAmount = Number.isFinite(metadataAmount)
+          ? metadataAmount
+          : Number.isFinite(titleAmount)
+            ? titleAmount
+            : 0;
+        setTitle(String(resolvedAmount));
+        setContentText('Flat platform fee charged once per order.');
+        setMetadata({ ...(data.metadata || {}), amount: resolvedAmount });
+      }
       if (contentType === 'pincodes') {
         // Support: {pincode, deliveryTime}[], legacy string[], or single string
         const meta = data.metadata || {};
@@ -152,6 +165,13 @@ export default function AdminContentEditPage() {
         setTitle('Homepage Products Rows');
         setContentText('Homepage products section settings.');
         setMetadata({ rows: 1 });
+        setIsActive(true);
+      } else if (contentType === 'platform_fee') {
+        setError('');
+        setContent(null);
+        setTitle('0');
+        setContentText('Flat platform fee charged once per order.');
+        setMetadata({ amount: 0 });
         setIsActive(true);
       } else {
         setError(error.message || 'Failed to load content');
@@ -247,6 +267,16 @@ export default function AdminContentEditPage() {
         finalMetadata = { rows };
       }
 
+      if (contentType === 'platform_fee') {
+        const raw = Number(title);
+        if (!Number.isFinite(raw) || raw < 0) {
+          setError('Platform fee must be 0 or more.');
+          setSaving(false);
+          return;
+        }
+        finalMetadata = { ...(metadata || {}), amount: Math.round(raw * 100) / 100 };
+      }
+
       await adminContentApi.update(contentType, {
         title:
           contentType === 'pincodes'
@@ -255,6 +285,8 @@ export default function AdminContentEditPage() {
               ? 'Help support number'
               : contentType === 'app_download'
                 ? 'Download our App'
+                : contentType === 'platform_fee'
+                  ? String(finalMetadata.amount ?? 0)
                 : title,
         content:
           contentType === 'pincodes'
@@ -263,6 +295,8 @@ export default function AdminContentEditPage() {
               ? 'Support contact for Need help button.'
               : contentType === 'app_download'
                 ? 'Mobile app store link for Account page.'
+                : contentType === 'platform_fee'
+                  ? 'Flat platform fee charged once per order.'
                 : contentText,
         metadata: finalMetadata,
       });
@@ -321,16 +355,23 @@ export default function AdminContentEditPage() {
         {contentType !== 'pincodes' && contentType !== 'help_support' && contentType !== 'app_download' && (
           <div className={styles.formGroup}>
             <label className={styles.label}>
-              Title *
+              {contentType === 'platform_fee' ? 'Platform fee (INR) *' : 'Title *'}
             </label>
             <input
-              type="text"
+              type={contentType === 'platform_fee' ? 'number' : 'text'}
+              min={contentType === 'platform_fee' ? 0 : undefined}
+              step={contentType === 'platform_fee' ? '0.01' : undefined}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
               className={styles.input}
               disabled={contentType === 'contact' || contentType === 'reviews'}
             />
+            {contentType === 'platform_fee' && (
+              <div className={styles.helpText}>
+                This flat fee is added once per checkout, regardless of product quantity.
+              </div>
+            )}
           </div>
         )}
 
@@ -626,7 +667,7 @@ export default function AdminContentEditPage() {
               </div>
             </div>
           </div>
-        ) : contentType === 'help_support' || contentType === 'app_download' ? null : (
+        ) : contentType === 'help_support' || contentType === 'app_download' || contentType === 'platform_fee' ? null : (
           <div className={styles.formGroup}>
             <label className={styles.label}>
               Content {contentType === 'contact' ? '(Optional)' : '*'}

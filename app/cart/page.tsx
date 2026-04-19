@@ -11,7 +11,7 @@ import {
   clearSubscriptionCart,
   scopedSubscriptionCartKey,
 } from '@/lib/utils/userScopedStorage';
-import { productsApi, couponsApi } from '@/lib/api';
+import { productsApi, couponsApi, contentApi } from '@/lib/api';
 import type { Coupon } from '@/lib/api';
 import { Product } from '@/types';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
@@ -44,6 +44,7 @@ export default function CartPage() {
   const [subscriptionCartItem, setSubscriptionCartItem] = useState<SubscriptionCartItem | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [platformFee, setPlatformFee] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -66,6 +67,22 @@ export default function CartPage() {
     };
     if (items.length) load();
   }, [items]);
+
+  useEffect(() => {
+    const loadPlatformFee = async () => {
+      try {
+        const data = await contentApi.getByType('platform_fee');
+        const metadataAmount = Number(data.metadata?.amount);
+        const titleAmount = Number(data.title);
+        const amount = Number.isFinite(metadataAmount) ? metadataAmount : titleAmount;
+        setPlatformFee(Number.isFinite(amount) && amount > 0 ? amount : 0);
+      } catch {
+        setPlatformFee(0);
+      }
+    };
+
+    loadPlatformFee();
+  }, []);
 
   useEffect(() => {
     const loadSubscriptionItem = () => {
@@ -172,7 +189,7 @@ export default function CartPage() {
   }, [appliedCouponData, subtotalAlignedWithCheckout]);
 
   const deliveryCharges = items.length > 0 ? 0 : 0; // Free delivery
-  const total = subtotalAlignedWithCheckout - couponDiscount + deliveryCharges;
+  const total = subtotalAlignedWithCheckout - couponDiscount + deliveryCharges + platformFee;
   const totalItemCount = items.length + (subscriptionCartItem ? 1 : 0);
 
   const handleSelectMembership = () => {
@@ -324,7 +341,7 @@ export default function CartPage() {
 
               return (
                 <div key={itemKey} className={styles.cartItem}>
-                  <div 
+                  <div
                     className={styles.itemImage}
                     onClick={handleProductClick}
                     style={{ cursor: 'pointer' }}
@@ -340,13 +357,13 @@ export default function CartPage() {
                     ) : (
                       <div className={styles.itemImagePlaceholder}>
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M4 16L8.586 11.414C9.367 10.633 10.633 10.633 11.414 11.414L16 16M14 14L15.586 12.414C16.367 11.633 17.633 11.633 18.414 12.414L20 14M14 8H14.01M6 20H18C19.105 20 20 19.105 20 18V6C20 4.895 19.105 4 18 4H6C4.895 4 4 4.895 4 6V18C4 19.105 4.895 20 6 20Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M4 16L8.586 11.414C9.367 10.633 10.633 10.633 11.414 11.414L16 16M14 14L15.586 12.414C16.367 11.633 17.633 11.633 18.414 12.414L20 14M14 8H14.01M6 20H18C19.105 20 20 19.105 20 18V6C20 4.895 19.105 4 18 4H6C4.895 4 4 4.895 4 6V18C4 19.105 4.895 20 6 20Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                     )}
                   </div>
 
-                  <div 
+                  <div
                     className={styles.itemDetails}
                     onClick={handleProductClick}
                     style={{ cursor: 'pointer' }}
@@ -383,7 +400,7 @@ export default function CartPage() {
                       aria-label="Remove item"
                     >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </button>
                   </div>
@@ -395,8 +412,8 @@ export default function CartPage() {
                 <div className={styles.itemImage}>
                   <div className={styles.itemImagePlaceholder}>
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M3 16H21" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 16H21" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
                 </div>
@@ -427,7 +444,7 @@ export default function CartPage() {
                     aria-label="Remove subscription"
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
                 </div>
@@ -488,8 +505,8 @@ export default function CartPage() {
               </div>
               <div className={styles.subscriptionIcon}>
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M3 16H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3 16H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
             </div>
@@ -498,7 +515,7 @@ export default function CartPage() {
           {/* Price Details */}
           <div className={styles.summarySection}>
             <h3 className={styles.sectionTitle}>Price Details</h3>
-              <div className={styles.priceDetailsBox}>
+            <div className={styles.priceDetailsBox}>
               <div className={styles.priceRow}>
                 <span>{totalItemCount} item{totalItemCount !== 1 ? 's' : ''}</span>
               </div>
@@ -529,6 +546,12 @@ export default function CartPage() {
                 <div className={styles.priceRow}>
                   <span>Coupon discount</span>
                   <span className={styles.discount}>-₹{couponDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              {platformFee > 0 && (
+                <div className={styles.priceRow}>
+                  <span>Platform fee</span>
+                  <span>â‚¹{platformFee.toFixed(2)}</span>
                 </div>
               )}
               <div className={styles.priceRow}>
@@ -569,7 +592,7 @@ export default function CartPage() {
             >
               Checkout
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           </div>
