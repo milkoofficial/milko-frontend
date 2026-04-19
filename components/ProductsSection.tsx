@@ -197,15 +197,22 @@ export default function ProductsSection() {
         <h2 className={styles.sectionTitle}>Our Products</h2>
         <div className={styles.productsGrid}>
           {products.map((product) => (
+            (() => {
+              const isOutOfStock =
+                product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0);
+              return (
             <div 
               key={product.id} 
-              className={styles.productCard}
+              className={`${styles.productCard} ${isOutOfStock ? styles.productCardOutOfStock : ''}`}
               onClick={() => {
                 setSelectedProduct(product);
                 setIsModalOpen(true);
               }}
             >
               <div className={styles.productImage}>
+                {isOutOfStock ? (
+                  <div className={styles.outOfStockBadge}>Out of stock</div>
+                ) : null}
                 {/* Assured Badge */}
                 <div className={styles.assuredBadge}>
                   <svg className={styles.verifiedIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -261,17 +268,17 @@ export default function ProductsSection() {
                     </div>
                   ) : null;
                 })()}
-                <div className={styles.addToCartRow}>
+                <div className={`${styles.addToCartRow} ${isOutOfStock ? styles.addToCartRowOutOfStock : ''}`}>
                   <div className={styles.priceDisplay}>
                     <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
                     <span className={styles.priceUnit}>/{product.suffixAfterPrice || 'litre'}</span>
                   </div>
                   <button
                     className={styles.addToCartButton}
-                    disabled={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)}
+                    disabled={isOutOfStock}
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent card click
-                      if (product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)) {
+                      if (isOutOfStock) {
                         showToast('Out of stock', 'error');
                         return;
                       }
@@ -438,17 +445,17 @@ export default function ProductsSection() {
                         }, 10);
                       }
                     }}
-                    aria-label={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of stock' : 'Add to cart'}
+                    aria-label={isOutOfStock ? 'Out of stock' : 'Add to cart'}
                   >
-                    {product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of Stock' : (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
                   </button>
                 </div>
               </div>
             </div>
+              );
+            })()
           ))}
         </div>
         <div className={styles.viewAllLink}>

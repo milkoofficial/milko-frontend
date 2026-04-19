@@ -798,10 +798,29 @@
   border-bottom: 1px solid #f0f0f0;
   transition: background 0.15s;
   cursor: pointer;
+  position: relative;
 }
 
 .searchOverlayRow:active {
   background: #f5f5f5;
+}
+
+.searchOverlayRowOutOfStock {
+  opacity: 0.72;
+}
+
+.searchOverlayOutOfStockBadge {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.75rem;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.35rem 0.5rem;
+  border-radius: 999px;
+  z-index: 1;
 }
 
 .searchOverlayRowAddBtn {
@@ -827,6 +846,20 @@
 
 .searchOverlayRowAddBtn:active {
   transform: scale(0.95);
+}
+
+.searchOverlayRowAddBtnDisabled,
+.searchOverlayRowAddBtn:disabled {
+  background: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.searchOverlayRowAddBtnDisabled:hover,
+.searchOverlayRowAddBtn:disabled:hover {
+  background: #d1d5db;
+  transform: none;
 }
 
 .searchOverlayRowImg {

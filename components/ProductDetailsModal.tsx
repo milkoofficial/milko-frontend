@@ -859,7 +859,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
                           <path d="M15 9L9 15M9 9L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         </svg>
-                        <span>Out of Stock</span>
+                        <span>Out of stock</span>
                       </>
                     )}
                   </div>
@@ -1418,7 +1418,12 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                 <div className={styles.relatedSection}>
                   <h3 className={styles.sectionTitle}>Related Products</h3>
                   <div className={styles.relatedProductsGrid}>
-                    {relatedProducts.map((relatedProduct) => (
+                    {relatedProducts.map((relatedProduct) => {
+                      const isRelatedProductOutOfStock =
+                        relatedProduct.isActive === false ||
+                        (typeof relatedProduct.quantity === 'number' && relatedProduct.quantity <= 0);
+
+                      return (
                       <button
                         key={relatedProduct.id}
                         type="button"
@@ -1434,10 +1439,20 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                       >
                         <button
                           type="button"
-                          className={styles.relatedAddButton}
-                          aria-label={`Add ${relatedProduct.name} to cart`}
+                          className={`${styles.relatedAddButton} ${isRelatedProductOutOfStock ? styles.relatedAddButtonDisabled : ''}`}
+                          aria-label={
+                            isRelatedProductOutOfStock
+                              ? `${relatedProduct.name} is out of stock`
+                              : `Add ${relatedProduct.name} to cart`
+                          }
+                          disabled={isRelatedProductOutOfStock}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (isRelatedProductOutOfStock) {
+                              showToast('This product is out of stock', 'error');
+                              return;
+                            }
+
                             const result = addItem({ productId: relatedProduct.id, quantity: 1 }, relatedProduct.maxQuantity);
                             showToast(
                               result.appliedQuantity > 0 && result.ok
@@ -1498,7 +1513,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                         <div className={styles.relatedProductName}>{relatedProduct.name}</div>
                         <div className={styles.relatedProductPrice}>₹{relatedProduct.pricePerLitre}/{relatedProduct.suffixAfterPrice || 'Litres'}</div>
                       </button>
-                    ))}
+                    )})}
                   </div>
                 </div>
               ) : null}
