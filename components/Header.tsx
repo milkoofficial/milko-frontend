@@ -989,8 +989,13 @@ export default function Header() {
                               type="button"
                               className={styles.searchResultAddBtn}
                               aria-label="Add to cart"
+                              disabled={p.isActive === false || (typeof p.quantity === 'number' && p.quantity <= 0)}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (p.isActive === false || (typeof p.quantity === 'number' && p.quantity <= 0)) {
+                                  showToast('Out of stock', 'error');
+                                  return;
+                                }
                                 const result = addItem({ productId: p.id, quantity: 1 }, p.maxQuantity);
                                 showToast(
                                   result.appliedQuantity > 0 && result.ok ? 'Added to cart' : `Maximum order quantity is ${p.maxQuantity ?? 99}`,
@@ -1505,8 +1510,13 @@ export default function Header() {
                         type="button"
                         className={styles.searchOverlayRowAddBtn}
                         aria-label="Add to cart"
+                        disabled={p.isActive === false || (typeof p.quantity === 'number' && p.quantity <= 0)}
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (p.isActive === false || (typeof p.quantity === 'number' && p.quantity <= 0)) {
+                            showToast('Out of stock', 'error');
+                            return;
+                          }
                           const result = addItem({ productId: p.id, quantity: 1 }, p.maxQuantity);
                           showToast(
                             result.appliedQuantity > 0 && result.ok ? 'Added to cart' : `Maximum order quantity is ${p.maxQuantity ?? 99}`,

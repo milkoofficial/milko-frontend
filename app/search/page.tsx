@@ -180,19 +180,26 @@ function SearchContent() {
                           <button
                             type="button"
                             className={styles.addToCartButton}
+                            disabled={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)) {
+                                showToast('Out of stock', 'error');
+                                return;
+                              }
                               const result = addItem({ productId: product.id, quantity: 1 }, product.maxQuantity);
                               showToast(
                                 result.appliedQuantity > 0 && result.ok ? 'Added to cart' : `Maximum order quantity is ${product.maxQuantity ?? 99}`,
                                 result.appliedQuantity > 0 && result.ok ? 'success' : 'error',
                               );
                             }}
-                            aria-label="Add to cart"
+                            aria-label={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of stock' : 'Add to cart'}
                           >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
+                            {product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of Stock' : (
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
                           </button>
                         </div>
                       </div>

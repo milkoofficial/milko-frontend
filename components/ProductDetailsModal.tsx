@@ -510,6 +510,8 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
   const quantityAlreadyInCart = items.reduce((sum, item) => (
     item.productId === displayProduct.id ? sum + item.quantity : sum
   ), 0);
+  const productQuantity = typeof displayProduct.quantity === 'number' ? displayProduct.quantity : null;
+  const isProductOutOfStock = displayProduct.isActive === false || (productQuantity !== null && productQuantity <= 0);
   const remainingCartCapacity = Math.max(0, productMaxQuantity - quantityAlreadyInCart);
   const safeQty = Math.max(1, Math.min(quantity, remainingCartCapacity > 0 ? remainingCartCapacity : 1));
   const isAtMaxQuantity = remainingCartCapacity <= 0 || safeQty >= remainingCartCapacity;
@@ -822,7 +824,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                 const hasVariations = variations && variations.length > 0;
                 const isInStock = hasVariations
                   ? variations.some(v => v.isAvailable)
-                  : displayProduct.isActive;
+                  : !isProductOutOfStock;
 
                 // Check if product is low in stock
                 const quantity = displayProduct.quantity ?? 0;
@@ -893,6 +895,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                       type="button"
                       className={styles.qtyButton}
                       onClick={() => {
+                        if (isProductOutOfStock) return;
                         if (remainingCartCapacity <= 0 || safeQty >= remainingCartCapacity) {
                           showToast(`Maximum order quantity is ${productMaxQuantity}`, 'error');
                           return;
@@ -900,7 +903,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                         setQuantity((q) => Math.min(productMaxQuantity, q + 1));
                       }}
                       aria-label="Increase quantity"
-                      disabled={isAtMaxQuantity}
+                      disabled={isAtMaxQuantity || isProductOutOfStock}
                     >
                       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M4 12H20M12 4V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
@@ -1002,8 +1005,12 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                     ref={addToCartButtonRef}
                     type="button"
                     className={styles.addToCartButton}
-                    disabled={pincode.length !== 6 || isPincodeAvailable !== true || remainingCartCapacity <= 0}
+                    disabled={isProductOutOfStock || pincode.length !== 6 || isPincodeAvailable !== true || remainingCartCapacity <= 0}
                     onClick={() => {
+                      if (isProductOutOfStock) {
+                        showToast('Out of stock', 'error');
+                        return;
+                      }
                       if (remainingCartCapacity <= 0) {
                         showToast(`Maximum order quantity is ${productMaxQuantity}`, 'error');
                         return;
@@ -1051,6 +1058,10 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                     type="button"
                     className={styles.buyNowButton}
                     onClick={() => {
+                      if (isProductOutOfStock) {
+                        showToast('Out of stock', 'error');
+                        return;
+                      }
                       if (pincode.length !== 6 || isPincodeAvailable !== true) return;
                       if (remainingCartCapacity <= 0) {
                         showToast(`Maximum order quantity is ${productMaxQuantity}`, 'error');
@@ -1072,11 +1083,11 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                       window.location.href = '/cart';
                     }}
                     style={{
-                      opacity: (pincode.length === 6 && isPincodeAvailable === true && remainingCartCapacity > 0) ? 1 : 0.5,
-                      cursor: (pincode.length === 6 && isPincodeAvailable === true && remainingCartCapacity > 0) ? 'pointer' : 'not-allowed',
-                      pointerEvents: (pincode.length === 6 && isPincodeAvailable === true && remainingCartCapacity > 0) ? 'auto' : 'none',
+                      opacity: (!isProductOutOfStock && pincode.length === 6 && isPincodeAvailable === true && remainingCartCapacity > 0) ? 1 : 0.5,
+                      cursor: (!isProductOutOfStock && pincode.length === 6 && isPincodeAvailable === true && remainingCartCapacity > 0) ? 'pointer' : 'not-allowed',
+                      pointerEvents: (!isProductOutOfStock && pincode.length === 6 && isPincodeAvailable === true && remainingCartCapacity > 0) ? 'auto' : 'none',
                     }}
-                    disabled={remainingCartCapacity <= 0}
+                    disabled={isProductOutOfStock || remainingCartCapacity <= 0}
                   >
                     <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                       <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>

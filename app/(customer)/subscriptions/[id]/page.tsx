@@ -844,7 +844,7 @@ export default function SubscriptionDetailsPage() {
                         try {
                           setAutopayBusy(true);
                           const resp = await subscriptionsApi.setupAutopay(subscription.id);
-                          if (resp.shortUrl) {
+                          if (resp.shortUrl && (!resp.razorpaySubscriptionId || !resp.key)) {
                             window.location.href = resp.shortUrl;
                             return;
                           }

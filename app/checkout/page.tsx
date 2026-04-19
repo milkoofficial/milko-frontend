@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { apiClient, productsApi, couponsApi, Coupon, addressesApi, walletApi, contentApi } from '@/lib/api';
 import { Product, Address } from '@/types';
 import Link from 'next/link';
@@ -47,11 +48,14 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, clearCart } = useCart();
   const { user, isAuthenticated, login, loginWithGoogle, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const subCartUserId = user?.id ?? null;
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('address');
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [serviceablePincodes, setServiceablePincodes] = useState<string[] | null>(null);
+  const [isFirstProductOrder, setIsFirstProductOrder] = useState(false);
   const [stepInitialized, setStepInitialized] = useState(false);
   const manualStepChange = useRef(false);
 
@@ -221,6 +225,37 @@ export default function CheckoutPage() {
   useEffect(() => {
     let cancelled = false;
 
+    const loadServiceablePincodes = async () => {
+      try {
+        const data = await contentApi.getByType('pincodes');
+        const meta = (data?.metadata || {}) as any;
+        let parsed: string[] = [];
+        if (Array.isArray(meta.serviceablePincodes)) {
+          parsed = meta.serviceablePincodes
+            .map((entry: any) => (typeof entry === 'string' ? entry.trim() : (entry?.pincode || '').toString().trim()))
+            .filter((pin: string) => pin.length === 6);
+        } else if (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()) {
+          parsed = [meta.serviceablePincode.trim()];
+        }
+        if (!cancelled) {
+          setServiceablePincodes(parsed.length > 0 ? parsed : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setServiceablePincodes(null);
+        }
+      }
+    };
+
+    loadServiceablePincodes();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
     const loadDeliveryRates = async () => {
       try {
         const data = await contentApi.getByType('delivery_rates');
@@ -339,6 +374,35 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFirstOrderStatus = async () => {
+      if (!isAuthenticated || !user) {
+        setIsFirstProductOrder(false);
+        return;
+      }
+
+      try {
+        const orders = await apiClient.get<Array<{ paymentStatus?: string }>>('/api/orders');
+        if (cancelled) return;
+        const eligiblePriorOrders = Array.isArray(orders)
+          ? orders.filter((order) => order?.paymentStatus === 'paid' || order?.paymentStatus === 'cod')
+          : [];
+        setIsFirstProductOrder(eligiblePriorOrders.length === 0);
+      } catch {
+        if (!cancelled) {
+          setIsFirstProductOrder(false);
+        }
+      }
+    };
+
+    loadFirstOrderStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user]);
+
   // Fill address form with selected address
   const fillAddressForm = (address: Address) => {
     setAddressForm({
@@ -352,6 +416,13 @@ export default function CheckoutPage() {
       latitude: address.latitude,
       longitude: address.longitude,
     });
+  };
+
+  const isDeliverablePostalCode = (postalCode: string) => {
+    const pin = (postalCode || '').trim();
+    if (pin.length !== 6) return false;
+    if (!serviceablePincodes || serviceablePincodes.length === 0) return true;
+    return serviceablePincodes.includes(pin);
   };
 
   // Handle address selection
@@ -520,7 +591,7 @@ export default function CheckoutPage() {
     addressForm.latitude,
     addressForm.longitude,
   );
-  const deliveryCharges = deliveryRateResult.charge;
+  const deliveryCharges = items.length > 0 && isFirstProductOrder ? 0 : deliveryRateResult.charge;
   const total = subtotal - discount + deliveryCharges + platformFee;
 
   const walletExtraToPay =
@@ -673,7 +744,18 @@ export default function CheckoutPage() {
   // Handle place order
   const handlePlaceOrder = async () => {
     if (!addressForm.name?.trim() || !addressForm.street?.trim() || !addressForm.city?.trim() || !addressForm.state?.trim() || !addressForm.postalCode?.trim() || !addressForm.country?.trim() || !addressForm.phone?.trim()) {
-      alert('Please fill in all required address fields');
+      showToast('Please fill in all required address fields', 'error');
+      return;
+    }
+    if (!isDeliverablePostalCode(addressForm.postalCode)) {
+      showToast('Pincode is not deliverable', 'error');
+      return;
+    }
+    const unavailableCartProduct = items
+      .map((item) => products[item.productId])
+      .find((product) => product && (product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)));
+    if (unavailableCartProduct) {
+      showToast(`${unavailableCartProduct.name} is out of stock`, 'error');
       return;
     }
 
@@ -756,7 +838,7 @@ export default function CheckoutPage() {
       router.push('/order-success');
     } catch (error) {
       console.error('Failed to place order:', error);
-      alert((error as { message?: string })?.message || 'Failed to place order. Please try again.');
+      showToast((error as { message?: string })?.message || 'Failed to place order. Please try again.', 'error');
     } finally {
       if (!openedRazorpay) setPlacingOrder(false);
     }

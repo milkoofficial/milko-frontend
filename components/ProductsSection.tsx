@@ -268,8 +268,13 @@ export default function ProductsSection() {
                   </div>
                   <button
                     className={styles.addToCartButton}
+                    disabled={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)}
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent card click
+                      if (product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)) {
+                        showToast('Out of stock', 'error');
+                        return;
+                      }
                       
                       // Add to cart
                       const result = addItem({
@@ -433,11 +438,13 @@ export default function ProductsSection() {
                         }, 10);
                       }
                     }}
-                    aria-label="Add to cart"
+                    aria-label={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of stock' : 'Add to cart'}
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    {product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of Stock' : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
