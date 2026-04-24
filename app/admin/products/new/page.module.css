@@ -289,6 +289,9 @@
 .variationInfo {
   flex: 1;
   font-size: 0.95rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 .variationSize {
@@ -300,6 +303,11 @@
 .variationPrice {
   color: #059669;
   font-weight: 500;
+  display: none;
+}
+
+.variationSize {
+  display: none;
 }
 
 .removeVariationButton {

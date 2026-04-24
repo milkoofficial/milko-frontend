@@ -14,6 +14,8 @@ import { readScopedPincode, writeScopedPincode, scopedPincodeStatusKey } from '@
 import { contentApi, productsApi, walletApi } from '@/lib/api';
 import ProductDetailsModal from './ProductDetailsModal';
 import Logo from './Logo';
+import { getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
+import { getPrimaryProductImageUrl } from '@/lib/utils/productImages';
 
 /**
  * User Dropdown Component
@@ -509,6 +511,9 @@ export default function Header() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const searchWrapRef = useRef<HTMLDivElement>(null);
+  const [isCallMenuOpen, setIsCallMenuOpen] = useState(false);
+  const [contactPhone, setContactPhone] = useState('');
+  const callMenuRef = useRef<HTMLDivElement>(null);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [pincode, setPincode] = useState(['', '', '', '', '', '']);
   const [deliveryStatus, setDeliveryStatus] = useState<'checking' | 'available' | 'unavailable' | null>(null);
@@ -548,6 +553,48 @@ export default function Header() {
     })();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    contentApi
+      .getByType('contact')
+      .then((data) => {
+        if (cancelled) return;
+        setContactPhone(String(data?.metadata?.phone || '').trim());
+      })
+      .catch(() => {
+        if (!cancelled) setContactPhone('');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isCallMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (callMenuRef.current && event.target instanceof Node && !callMenuRef.current.contains(event.target)) {
+        setIsCallMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsCallMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isCallMenuOpen]);
+
   const isDeliverable = (pin: string) => {
     const cleaned = (pin || '').trim();
     if (cleaned.length !== 6) return false;
@@ -566,6 +613,12 @@ export default function Header() {
     if (/^\d+h$/.test(s)) return s.replace(/h$/, 'hr'); // 1h->1hr, 2h->2hr
     return s;
   };
+
+  const contactPhoneDigits = contactPhone.replace(/\D/g, '');
+  const hasContactPhone = contactPhoneDigits.length > 0;
+  const telHref = hasContactPhone ? `tel:${contactPhone}` : '#';
+  const whatsappHref = hasContactPhone ? `https://wa.me/${contactPhoneDigits}` : '#';
+  const contactPhoneLabel = contactPhone || 'Not available';
 
   // If we have a saved pincode, compute saved status based on current config
   useEffect(() => {
@@ -973,6 +1026,9 @@ export default function Header() {
                       <>
                         {searchResults.slice(0, 5).map((p) => {
                           const isOutOfStock = p.isActive === false || (typeof p.quantity === 'number' && p.quantity <= 0);
+                          const imageUrl = getPrimaryProductImageUrl(p);
+                          const unitLabel = getProductDisplayUnitLabel(p);
+                          const displayPrice = getCardDisplayPrice(p);
 
                           return (
                           <div
@@ -984,9 +1040,10 @@ export default function Header() {
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProduct(p); } }}
                           >
                             {isOutOfStock ? <span className={styles.searchResultOutOfStockBadge}>Out of stock</span> : null}
-                            {p.imageUrl && <img src={p.imageUrl} alt="" className={styles.searchResultImg} />}
+                            {imageUrl && <img src={imageUrl} alt="" className={styles.searchResultImg} />}
                             <div className={styles.searchResultText}>
                               <span className={styles.searchResultName}>{p.name}</span>
+                              <span className={styles.searchResultPrice}>₹{displayPrice}/{unitLabel}</span>
                               <span className={styles.searchResultPrice}>₹{p.pricePerLitre} per litre</span>
                             </div>
                             <button
@@ -1192,6 +1249,75 @@ export default function Header() {
                 )}
 
                 {/* Desktop Login/User Button */}
+                <div className={styles.callMenu} ref={callMenuRef}>
+                  <button
+                    type="button"
+                    className={styles.callButton}
+                    aria-haspopup="dialog"
+                    aria-expanded={isCallMenuOpen}
+                    onClick={() => setIsCallMenuOpen((prev) => !prev)}
+                  >
+                    <svg className={styles.buttonIcon} viewBox="0 0 24.00 24.00" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                      <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                      <g id="SVGRepo_iconCarrier">
+                        <path d="M13 3.2524C15.1627 2.63619 17.5428 3.14662 19.1981 4.80192C20.8534 6.45723 21.3638 8.8373 20.7476 11M14.9369 5.96407C15.7093 5.81021 16.5991 6.0767 17.2612 6.73883C17.9233 7.40095 18.1898 8.29065 18.0359 9.0631" stroke="currentColor" strokeWidth="1.008" strokeLinecap="round" strokeLinejoin="round"></path>
+                        <path d="M15.1653 20.8835C16.0469 21.0388 16.9531 21.0388 17.8347 20.8835C19.2516 20.6338 20.3929 19.6826 20.786 18.4236L20.8694 18.1565C20.956 17.879 21 17.5919 21 17.3034C21 16.0313 19.8623 15 18.4589 15H14.5411C13.1377 15 12 16.0313 12 17.3034C12 17.5919 12.044 17.879 12.1306 18.1565L12.214 18.4236C12.6071 19.6826 13.7484 20.6338 15.1653 20.8835ZM15.1653 20.8835C9.04195 19.7489 4.25108 14.958 3.1165 8.83468M3.1165 8.83468C2.96117 7.95315 2.96117 7.04686 3.1165 6.16532C3.36618 4.74842 4.31744 3.60713 5.57641 3.21402L5.84345 3.13063C6.12103 3.04396 6.40813 3 6.69661 3C7.96874 3 9.00001 4.13768 9 5.54106L9 9.45894C9.00001 10.8623 7.96874 12 6.69661 12C6.40813 12 6.12103 11.956 5.84345 11.8694L5.57641 11.786C4.31744 11.3929 3.36618 10.2516 3.1165 8.83468Z" stroke="currentColor" strokeWidth="1.008"></path>
+                      </g>
+                    </svg>
+                    Call
+                  </button>
+
+                  {isCallMenuOpen ? (
+                    <div className={styles.callDropdown} role="dialog" aria-label="Call support menu">
+                      <div className={styles.callDropdownTitle}>Question in mind?</div>
+                      <p className={styles.callDropdownDescription}>We are here for any doubts of yours</p>
+
+                      <a
+                        href={telHref}
+                        className={`${styles.callActionButton} ${!hasContactPhone ? styles.callActionButtonDisabled : ''}`}
+                        onClick={() => setIsCallMenuOpen(false)}
+                        aria-disabled={!hasContactPhone}
+                      >
+                        <svg className={styles.callActionIcon} viewBox="0 0 24.00 24.00" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                          <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+                          <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
+                          <g id="SVGRepo_iconCarrier">
+                            <path d="M13 3.2524C15.1627 2.63619 17.5428 3.14662 19.1981 4.80192C20.8534 6.45723 21.3638 8.8373 20.7476 11M14.9369 5.96407C15.7093 5.81021 16.5991 6.0767 17.2612 6.73883C17.9233 7.40095 18.1898 8.29065 18.0359 9.0631" stroke="currentColor" strokeWidth="1.008" strokeLinecap="round" strokeLinejoin="round"></path>
+                            <path d="M15.1653 20.8835C16.0469 21.0388 16.9531 21.0388 17.8347 20.8835C19.2516 20.6338 20.3929 19.6826 20.786 18.4236L20.8694 18.1565C20.956 17.879 21 17.5919 21 17.3034C21 16.0313 19.8623 15 18.4589 15H14.5411C13.1377 15 12 16.0313 12 17.3034C12 17.5919 12.044 17.879 12.1306 18.1565L12.214 18.4236C12.6071 19.6826 13.7484 20.6338 15.1653 20.8835ZM15.1653 20.8835C9.04195 19.7489 4.25108 14.958 3.1165 8.83468M3.1165 8.83468C2.96117 7.95315 2.96117 7.04686 3.1165 6.16532C3.36618 4.74842 4.31744 3.60713 5.57641 3.21402L5.84345 3.13063C6.12103 3.04396 6.40813 3 6.69661 3C7.96874 3 9.00001 4.13768 9 5.54106L9 9.45894C9.00001 10.8623 7.96874 12 6.69661 12C6.40813 12 6.12103 11.956 5.84345 11.8694L5.57641 11.786C4.31744 11.3929 3.36618 10.2516 3.1165 8.83468Z" stroke="currentColor" strokeWidth="1.008"></path>
+                          </g>
+                        </svg>
+                        <span>{contactPhoneLabel}</span>
+                      </a>
+
+                      <div className={styles.callDivider}>
+                        <span className={styles.callDividerLine} aria-hidden="true"></span>
+                        <span className={styles.callDividerText}>OR</span>
+                        <span className={styles.callDividerLine} aria-hidden="true"></span>
+                      </div>
+
+                      <a
+                        href={whatsappHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`${styles.callActionButton} ${styles.callWhatsappButton} ${!hasContactPhone ? styles.callActionButtonDisabled : ''}`}
+                        onClick={() => setIsCallMenuOpen(false)}
+                        aria-disabled={!hasContactPhone}
+                      >
+                        <svg className={styles.callActionIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                          <path d="M12 3C7.03 3 3 6.9 3 11.71C3 13.58 3.61 15.31 4.65 16.73L3.75 21L8.2 19.84C9.43 20.48 10.84 20.84 12 20.84C16.97 20.84 21 16.94 21 12.13C21 7.32 16.97 3 12 3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"></path>
+                          <path d="M9.24 8.86C9.48 8.31 9.73 8.29 9.95 8.29C10.13 8.29 10.33 8.29 10.53 8.3C10.68 8.31 10.88 8.25 11.06 8.67C11.28 9.18 11.81 10.43 11.87 10.55C11.93 10.67 11.97 10.83 11.87 10.99C11.78 11.15 11.73 11.25 11.59 11.4C11.45 11.55 11.3 11.73 11.18 11.84C11.05 11.96 10.92 12.09 11.08 12.37C11.24 12.65 11.8 13.53 12.6 14.24C13.63 15.15 14.49 15.43 14.79 15.56C15.08 15.69 15.25 15.67 15.39 15.51C15.53 15.36 15.97 14.85 16.15 14.57C16.33 14.28 16.52 14.34 16.77 14.44C17.03 14.53 18.39 15.18 18.67 15.32C18.95 15.45 19.13 15.52 19.19 15.62C19.25 15.72 19.25 16.23 19.01 16.77C18.77 17.31 17.64 17.82 17.14 17.88C16.64 17.94 16 18.14 13.41 17.14C10.83 16.14 9.17 13.71 9.04 13.53C8.92 13.35 8 12.15 8 10.9C8 9.65 8.63 9.04 8.86 8.8L9.24 8.86Z" fill="currentColor"></path>
+                        </svg>
+                        <span>{contactPhoneLabel}</span>
+                      </a>
+
+                      <Link href="/contact" className={styles.callLearnMore} onClick={() => setIsCallMenuOpen(false)}>
+                        Click to learn more
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
+
                 {isAuthenticated ? (
                   <UserDropdown user={user} logout={logout} isAdmin={isAdmin} />
                 ) : (
@@ -1493,6 +1619,9 @@ export default function Header() {
                 <>
                   {searchResults.slice(0, 5).map((p) => {
                     const isOutOfStock = p.isActive === false || (typeof p.quantity === 'number' && p.quantity <= 0);
+                    const imageUrl = getPrimaryProductImageUrl(p);
+                    const unitLabel = getProductDisplayUnitLabel(p);
+                    const displayPrice = getCardDisplayPrice(p);
 
                     return (
                     <div
@@ -1509,9 +1638,10 @@ export default function Header() {
                       }}
                     >
                       {isOutOfStock ? <span className={styles.searchOverlayOutOfStockBadge}>Out of stock</span> : null}
-                      {p.imageUrl ? <img src={p.imageUrl} alt="" className={styles.searchOverlayRowImg} /> : <div className={styles.searchOverlayRowImg} />}
+                      {imageUrl ? <img src={imageUrl} alt="" className={styles.searchOverlayRowImg} /> : <div className={styles.searchOverlayRowImg} />}
                       <div className={styles.searchOverlayRowText}>
                         <span className={styles.searchOverlayRowName}>{p.name}</span>
+                        <span className={styles.searchOverlayRowPrice}>₹{displayPrice}/{unitLabel}</span>
                         <span className={styles.searchOverlayRowPrice}>₹{p.pricePerLitre} per litre</span>
                       </div>
                       <button

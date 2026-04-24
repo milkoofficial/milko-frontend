@@ -17,6 +17,7 @@ import { Product } from '@/types';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
 import { saveCheckoutCouponCode } from '@/lib/utils/checkoutCoupon';
 import { useToast } from '@/contexts/ToastContext';
+import { getPrimaryProductImageUrl } from '@/lib/utils/productImages';
 import styles from './cart.module.css';
 
 type SubscriptionCartItem = {
@@ -330,7 +331,7 @@ export default function CartPage() {
                   : p?.pricePerLitre ?? 0;
               const price = p ? (v?.price ?? basePrice * mult) : 0;
               const itemTotal = price * it.quantity;
-              const productImage = p?.images?.[0]?.imageUrl || p?.imageUrl || '/placeholder-product.png';
+              const productImage = (p ? getPrimaryProductImageUrl(p) : null) || '/placeholder-product.png';
 
               const handleProductClick = async () => {
                 if (p) {

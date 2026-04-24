@@ -1,5 +1,4 @@
 import { apiClient } from './client';
-import { API_ENDPOINTS } from '../utils/constants';
 
 export interface Category {
   id: string;
@@ -23,7 +22,7 @@ export interface UpdateCategoryInput {
  * Get all categories
  */
 export const getAllCategories = async (): Promise<Category[]> => {
-  return apiClient.get<Category[]>('/api/admin/categories');
+  return apiClient.get<Category[]>('/api/categories');
 };
 
 /**

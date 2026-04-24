@@ -82,6 +82,18 @@ export default function AdminCreateProductPage() {
     setVariations(variations.filter((_, i) => i !== index));
   };
 
+  const handleUpdateVariation = (
+    index: number,
+    field: keyof ProductVariation,
+    value: string
+  ) => {
+    setVariations((prev) =>
+      prev.map((variation, variationIndex) =>
+        variationIndex === index ? { ...variation, [field]: value } : variation
+      )
+    );
+  };
+
   const handleImageChange = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
@@ -645,6 +657,31 @@ export default function AdminCreateProductPage() {
                 {variations.map((variation, index) => (
                   <div key={index} className={styles.variationItem}>
                     <div className={styles.variationInfo}>
+                      <input
+                        type="text"
+                        value={variation.size}
+                        onChange={(e) => handleUpdateVariation(index, 'size', e.target.value)}
+                        placeholder="Size"
+                        className={styles.variationInput}
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={variation.price}
+                        onChange={(e) => handleUpdateVariation(index, 'price', e.target.value)}
+                        placeholder="Price"
+                        className={styles.variationInput}
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={variation.compareAtPrice || ''}
+                        onChange={(e) => handleUpdateVariation(index, 'compareAtPrice', e.target.value)}
+                        placeholder="Compare at"
+                        className={styles.variationInput}
+                      />
                       <span className={styles.variationSize}>{variation.size}</span>
                       <span className={styles.variationPrice}>
                         ₹{variation.price}

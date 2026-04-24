@@ -139,6 +139,11 @@ const addProductImage = async (req, res, next) => {
     const maxOrder = await productImageModel.getMaxDisplayOrder(id);
     const displayOrder = maxOrder + 1;
     const image = await productImageModel.createProductImage(id, uploadResult.url, displayOrder);
+    const product = await productModel.getProductById(id);
+
+    if (product && !product.imageUrl) {
+      await productModel.updateProduct(id, { imageUrl: uploadResult.url });
+    }
 
     res.status(201).json({
       success: true,

@@ -1,4 +1,4 @@
-import type { Product, ProductImage } from '@/types';
+import type { ProductImage } from '@/types';
 
 /**
  * Ordered image URLs for product gallery + listing: merges `products.image_url` with `product_images`
@@ -18,4 +18,11 @@ export function getOrderedProductImageUrls(product: {
     return [main, ...urls];
   }
   return urls;
+}
+
+export function getPrimaryProductImageUrl(product: {
+  imageUrl?: string | null;
+  images?: ProductImage[] | null;
+}): string | null {
+  return getOrderedProductImageUrls(product)[0] || null;
 }

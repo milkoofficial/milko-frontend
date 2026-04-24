@@ -684,6 +684,10 @@
   color: #666;
 }
 
+.searchResultText .searchResultPrice:not(:last-child) {
+  display: none;
+}
+
 .searchShowMore {
   display: block;
   width: 100%;
@@ -925,6 +929,10 @@
   color: #666;
 }
 
+.searchOverlayRowText .searchOverlayRowPrice:not(:last-child) {
+  display: none;
+}
+
 .rightButtons {
   display: flex;
   align-items: center;
@@ -963,6 +971,7 @@
   }
   
   .membershipButton,
+  .callMenu,
   .loginButton,
   .cartButton,
   .dashboardButton,
@@ -990,6 +999,7 @@
   }
   
   .membershipButton,
+  .callMenu,
   .loginButton,
   .cartButton,
   .dashboardButton,
@@ -1064,6 +1074,136 @@
 
 .loginButton:hover {
   background: #f1f1f1;
+}
+
+.callMenu {
+  position: relative;
+  display: flex;
+}
+
+.callButton {
+  padding: 10px 15px;
+  background: transparent;
+  color: #000;
+  border-radius: 27px;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.callButton:hover {
+  background: #f1f1f1;
+}
+
+.callDropdown {
+  position: absolute;
+  top: calc(100% + 0.7rem);
+  right: 0;
+  width: 320px;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.14);
+  z-index: 80;
+}
+
+.callDropdownTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.callDropdownDescription {
+  margin: 0.35rem 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.callActionButton {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+  text-decoration: none;
+  font-weight: 700;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.callActionButton:hover {
+  background: #f9fafb;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.callActionButtonDisabled {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.callActionIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.callDivider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.95rem 0;
+}
+
+.callDividerLine {
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.callDividerText {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #9ca3af;
+}
+
+.callWhatsappButton {
+  background: #25d366;
+  border-color: #25d366;
+  color: #fff;
+}
+
+.callWhatsappButton:hover {
+  background: #1fbc59;
+  border-color: #1fbc59;
+}
+
+.callLearnMore {
+  display: inline-block;
+  margin-top: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #111827;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.callLearnMore:hover {
+  color: #0f766e;
 }
 
 .cartButton {
