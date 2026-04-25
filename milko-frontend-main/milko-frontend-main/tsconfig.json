@@ -23,6 +23,6 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "milko-frontend-main", "_backend_sync_clone", "milko-backend-main"]
 }
 

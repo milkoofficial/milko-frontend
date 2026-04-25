@@ -12,7 +12,9 @@ import { useToast } from '@/contexts/ToastContext';
 import { animateToCart } from '@/lib/utils/cartAnimation';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import { contentApi } from '@/lib/api';
-import { getCardDiscountOff, getCardDisplayPrice } from '@/lib/utils/productCardPricing';
+import { getCardDiscountOff, getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
+import { getPrimaryProductImageUrl } from '@/lib/utils/productImages';
+import { useCategoryMap } from '@/hooks/useCategoryMap';
 import styles from './ProductsSection.module.css';
 
 /**
@@ -28,6 +30,7 @@ export default function ProductsSection() {
   const [gridCols, setGridCols] = useState(4);
   const { addItem } = useCart();
   const { showToast } = useToast();
+  const categoryMap = useCategoryMap();
 
   // Fallback demo products (dev-only). Never show these on production if backend is slow/unavailable.
   const showDemoFallback = process.env.NODE_ENV !== 'production';
@@ -197,15 +200,25 @@ export default function ProductsSection() {
         <h2 className={styles.sectionTitle}>Our Products</h2>
         <div className={styles.productsGrid}>
           {products.map((product) => (
+            (() => {
+              const isOutOfStock =
+                product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0);
+              const categoryLabel = product.categoryId ? (categoryMap.get(product.categoryId) || 'Dairy') : 'Dairy';
+              const unitLabel = getProductDisplayUnitLabel(product);
+              const productImage = getPrimaryProductImageUrl(product);
+              return (
             <div 
               key={product.id} 
-              className={styles.productCard}
+              className={`${styles.productCard} ${isOutOfStock ? styles.productCardOutOfStock : ''}`}
               onClick={() => {
                 setSelectedProduct(product);
                 setIsModalOpen(true);
               }}
             >
               <div className={styles.productImage}>
+                {isOutOfStock ? (
+                  <div className={styles.outOfStockBadge}>Out of stock</div>
+                ) : null}
                 {/* Assured Badge */}
                 <div className={styles.assuredBadge}>
                   <svg className={styles.verifiedIcon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -213,9 +226,9 @@ export default function ProductsSection() {
                   </svg>
                   <span>Assured</span>
                 </div>
-                {product.imageUrl ? (
+                {productImage ? (
                   <Image
-                    src={product.imageUrl}
+                    src={productImage}
                     alt={product.name}
                     fill
                     sizes="(max-width: 640px) 50vw, (max-width: 968px) 50vw, (max-width: 1200px) 33vw, 25vw"
@@ -229,7 +242,7 @@ export default function ProductsSection() {
               </div>
               <div className={styles.productInfo}>
                 <div className={styles.productCategory}>
-                  {(product as any).category || 'Dairy'}
+                  {categoryLabel}
                 </div>
                 <div className={styles.productTitleRow}>
                   <h3 className={styles.productName}>{product.name}</h3>
@@ -261,27 +274,36 @@ export default function ProductsSection() {
                     </div>
                   ) : null;
                 })()}
-                <div className={styles.addToCartRow}>
+                <div className={`${styles.addToCartRow} ${isOutOfStock ? styles.addToCartRowOutOfStock : ''}`}>
                   <div className={styles.priceDisplay}>
                     <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
-                    <span className={styles.priceUnit}>/{product.suffixAfterPrice || 'litre'}</span>
+                    <span className={styles.priceUnit}>/{unitLabel}</span>
                   </div>
                   <button
                     className={styles.addToCartButton}
+                    disabled={isOutOfStock}
                     onClick={(e) => {
                       e.stopPropagation(); // Prevent card click
+                      if (isOutOfStock) {
+                        showToast('Out of stock', 'error');
+                        return;
+                      }
                       
                       // Add to cart
-                      addItem({
+                      const result = addItem({
                         productId: product.id,
                         quantity: 1,
-                      });
+                      }, product.maxQuantity);
+                      if (result.appliedQuantity <= 0) {
+                        showToast(`Maximum order quantity is ${product.maxQuantity ?? 99}`, 'error');
+                        return;
+                      }
                       
                       // Show notification
-                      showToast('Added to cart', 'success');
+                      showToast(result.ok ? 'Added to cart' : `Maximum order quantity is ${product.maxQuantity ?? 99}`, result.ok ? 'success' : 'error');
 
                       // Get product image URL for animation
-                      const imageUrl = product.imageUrl || '';
+                      const imageUrl = getPrimaryProductImageUrl(product) || '';
                       
                       // Get source and target elements for animation
                       const sourceElement = e.currentTarget;
@@ -429,7 +451,7 @@ export default function ProductsSection() {
                         }, 10);
                       }
                     }}
-                    aria-label="Add to cart"
+                    aria-label={isOutOfStock ? 'Out of stock' : 'Add to cart'}
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -438,6 +460,8 @@ export default function ProductsSection() {
                 </div>
               </div>
             </div>
+              );
+            })()
           ))}
         </div>
         <div className={styles.viewAllLink}>

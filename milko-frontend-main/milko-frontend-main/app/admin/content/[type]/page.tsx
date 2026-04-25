@@ -18,6 +18,8 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   help_support: 'Help support number',
   app_download: 'Download our App',
   homepage_products: 'Homepage Products Rows',
+  platform_fee: 'Platform fees',
+  delivery_rates: 'Delivery rates',
 };
 
 /**
@@ -41,12 +43,26 @@ export default function AdminContentEditPage() {
   const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime: string }>>([]);
   const [newPincodeInput, setNewPincodeInput] = useState('');
   const [newDeliveryTimeInput, setNewDeliveryTimeInput] = useState('1h');
-  const [deliveryTimeSlots, setDeliveryTimeSlots] = useState<Array<{ label: string; value: string }>>([
-    { label: 'Before 9 AM', value: '09:00' },
-    { label: 'After 5 PM', value: '17:00' },
+  const [deliveryTimeSlots, setDeliveryTimeSlots] = useState<Array<{ label: string; value: string; end?: string }>>([
+    { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+    { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
   ]);
-  const [newSlotLabel, setNewSlotLabel] = useState('');
-  const [newSlotValue, setNewSlotValue] = useState('');
+  const [deliveryRateRows, setDeliveryRateRows] = useState<Array<{ startMeters: string; endMeters: string; rate: string }>>([]);
+  const [newSlotValue, setNewSlotValue] = useState('06:00');
+  const [newSlotEnd, setNewSlotEnd] = useState('09:00');
+
+  const formatTime12h = (hhmm: string): string => {
+    const [hRaw, mRaw] = String(hhmm || '').split(':');
+    const h = Number(hRaw);
+    const m = Number(mRaw);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return hhmm;
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+  };
+
+  const buildRangeLabel = (start: string, end: string): string =>
+    `${formatTime12h(start)} - ${formatTime12h(end)}`;
 
   useEffect(() => {
     fetchContent();
@@ -61,6 +77,35 @@ export default function AdminContentEditPage() {
       setContentText(data.content);
       setMetadata(data.metadata || {});
       setIsActive(data.isActive);
+      if (contentType === 'platform_fee') {
+        const metadataAmount = Number(data.metadata?.amount);
+        const titleAmount = Number(data.title);
+        const resolvedAmount = Number.isFinite(metadataAmount)
+          ? metadataAmount
+          : Number.isFinite(titleAmount)
+            ? titleAmount
+            : 0;
+        setTitle(String(resolvedAmount));
+        setContentText('Flat platform fee charged once per order.');
+        setMetadata({ ...(data.metadata || {}), amount: resolvedAmount });
+      }
+      if (contentType === 'delivery_rates') {
+        const rows = Array.isArray(data.metadata?.ranges) && data.metadata.ranges.length > 0
+          ? data.metadata.ranges.map((row: any) => ({
+              startMeters: String(row?.startMeters ?? ''),
+              endMeters: String(row?.endMeters ?? ''),
+              rate: String(row?.rate ?? ''),
+            }))
+          : [{ startMeters: '0', endMeters: '1000', rate: '0' }];
+        setTitle('Delivery rates');
+        setContentText('Distance-based delivery charges from warehouse to customer.');
+        setMetadata({
+          warehouseLatitude: data.metadata?.warehouseLatitude ?? '',
+          warehouseLongitude: data.metadata?.warehouseLongitude ?? '',
+          ranges: data.metadata?.ranges ?? [],
+        });
+        setDeliveryRateRows(rows);
+      }
       if (contentType === 'pincodes') {
         // Support: {pincode, deliveryTime}[], legacy string[], or single string
         const meta = data.metadata || {};
@@ -80,20 +125,21 @@ export default function AdminContentEditPage() {
             .map((slot: any) => ({
               label: (slot?.label || '').toString().trim(),
               value: (slot?.value || '').toString().trim(),
+              end: (slot?.end || '').toString().trim(),
             }))
             .filter((slot: { label: string; value: string }) => slot.label && slot.value);
           setDeliveryTimeSlots(
             parsedSlots.length > 0
               ? parsedSlots
               : [
-                  { label: 'Before 9 AM', value: '09:00' },
-                  { label: 'After 5 PM', value: '17:00' },
+                  { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+                  { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
                 ]
           );
         } else {
           setDeliveryTimeSlots([
-            { label: 'Before 9 AM', value: '09:00' },
-            { label: 'After 5 PM', value: '17:00' },
+            { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+            { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
           ]);
         }
       }
@@ -108,14 +154,14 @@ export default function AdminContentEditPage() {
         setMetadata({
           serviceablePincodes: [],
           deliveryTimeSlots: [
-            { label: 'Before 9 AM', value: '09:00' },
-            { label: 'After 5 PM', value: '17:00' },
+            { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+            { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
           ],
         });
         setServiceablePincodes([] as Array<{ pincode: string; deliveryTime: string }>);
         setDeliveryTimeSlots([
-          { label: 'Before 9 AM', value: '09:00' },
-          { label: 'After 5 PM', value: '17:00' },
+          { label: '06:00 AM - 09:00 AM', value: '06:00', end: '09:00' },
+          { label: '05:00 PM - 08:00 PM', value: '17:00', end: '20:00' },
         ]);
         setIsActive(true);
       } else if (contentType === 'help_support') {
@@ -138,6 +184,21 @@ export default function AdminContentEditPage() {
         setTitle('Homepage Products Rows');
         setContentText('Homepage products section settings.');
         setMetadata({ rows: 1 });
+        setIsActive(true);
+      } else if (contentType === 'platform_fee') {
+        setError('');
+        setContent(null);
+        setTitle('0');
+        setContentText('Flat platform fee charged once per order.');
+        setMetadata({ amount: 0 });
+        setIsActive(true);
+      } else if (contentType === 'delivery_rates') {
+        setError('');
+        setContent(null);
+        setTitle('Delivery rates');
+        setContentText('Distance-based delivery charges from warehouse to customer.');
+        setMetadata({ warehouseLatitude: '', warehouseLongitude: '', ranges: [] });
+        setDeliveryRateRows([{ startMeters: '0', endMeters: '1000', rate: '0' }]);
         setIsActive(true);
       } else {
         setError(error.message || 'Failed to load content');
@@ -184,10 +245,11 @@ export default function AdminContentEditPage() {
           .map((x) => ({ pincode: x.pincode.trim(), deliveryTime: (x.deliveryTime || '1h').toString().trim() || '1h' }));
         const validSlots = deliveryTimeSlots
           .map((slot) => ({
-            label: (slot.label || '').toString().trim(),
             value: (slot.value || '').toString().trim(),
+            end: (slot.end || '').toString().trim(),
+            label: buildRangeLabel((slot.value || '').toString().trim(), (slot.end || '').toString().trim()),
           }))
-          .filter((slot) => slot.label && slot.value);
+          .filter((slot) => slot.label && slot.value && slot.end);
 
         if (validSlots.length === 0) {
           setError('Please keep at least one delivery time slot.');
@@ -232,6 +294,63 @@ export default function AdminContentEditPage() {
         finalMetadata = { rows };
       }
 
+      if (contentType === 'platform_fee') {
+        const raw = Number(title);
+        if (!Number.isFinite(raw) || raw < 0) {
+          setError('Platform fee must be 0 or more.');
+          setSaving(false);
+          return;
+        }
+        finalMetadata = { ...(metadata || {}), amount: Math.round(raw * 100) / 100 };
+      }
+
+      if (contentType === 'delivery_rates') {
+        const warehouseLatitude = Number(metadata.warehouseLatitude);
+        const warehouseLongitude = Number(metadata.warehouseLongitude);
+        if (!Number.isFinite(warehouseLatitude) || warehouseLatitude < -90 || warehouseLatitude > 90) {
+          setError('Warehouse latitude must be between -90 and 90.');
+          setSaving(false);
+          return;
+        }
+        if (!Number.isFinite(warehouseLongitude) || warehouseLongitude < -180 || warehouseLongitude > 180) {
+          setError('Warehouse longitude must be between -180 and 180.');
+          setSaving(false);
+          return;
+        }
+        const parsedRows = deliveryRateRows.map((row, index) => {
+          const startMeters = Number(row.startMeters);
+          const endMeters = Number(row.endMeters);
+          const rate = Number(row.rate);
+          if (!Number.isFinite(startMeters) || startMeters < 0) {
+            throw new Error(`Row ${index + 1}: Start distance must be 0 or more.`);
+          }
+          if (!Number.isFinite(endMeters) || endMeters < 0) {
+            throw new Error(`Row ${index + 1}: End distance must be 0 or more.`);
+          }
+          if (endMeters < startMeters) {
+            throw new Error(`Row ${index + 1}: End distance must be greater than or equal to start distance.`);
+          }
+          if (!Number.isFinite(rate) || rate < 0) {
+            throw new Error(`Row ${index + 1}: Delivery rate must be 0 or more.`);
+          }
+          return {
+            startMeters: Math.round(startMeters),
+            endMeters: Math.round(endMeters),
+            rate: Math.round(rate * 100) / 100,
+          };
+        });
+        if (parsedRows.length === 0) {
+          setError('Please add at least one delivery-rate row.');
+          setSaving(false);
+          return;
+        }
+        finalMetadata = {
+          warehouseLatitude,
+          warehouseLongitude,
+          ranges: parsedRows.sort((a, b) => a.startMeters - b.startMeters || a.endMeters - b.endMeters),
+        };
+      }
+
       await adminContentApi.update(contentType, {
         title:
           contentType === 'pincodes'
@@ -240,6 +359,10 @@ export default function AdminContentEditPage() {
               ? 'Help support number'
               : contentType === 'app_download'
                 ? 'Download our App'
+                : contentType === 'platform_fee'
+                  ? String(finalMetadata.amount ?? 0)
+                  : contentType === 'delivery_rates'
+                    ? 'Delivery rates'
                 : title,
         content:
           contentType === 'pincodes'
@@ -248,6 +371,10 @@ export default function AdminContentEditPage() {
               ? 'Support contact for Need help button.'
               : contentType === 'app_download'
                 ? 'Mobile app store link for Account page.'
+                : contentType === 'platform_fee'
+                  ? 'Flat platform fee charged once per order.'
+                  : contentType === 'delivery_rates'
+                    ? 'Distance-based delivery charges from warehouse to customer.'
                 : contentText,
         metadata: finalMetadata,
       });
@@ -303,20 +430,133 @@ export default function AdminContentEditPage() {
       )}
 
       <form onSubmit={handleSubmit} className={styles.form}>
-        {contentType !== 'pincodes' && contentType !== 'help_support' && contentType !== 'app_download' && (
+        {contentType !== 'pincodes' && contentType !== 'help_support' && contentType !== 'app_download' && contentType !== 'delivery_rates' && (
           <div className={styles.formGroup}>
             <label className={styles.label}>
-              Title *
+              {contentType === 'platform_fee' ? 'Platform fee (INR) *' : 'Title *'}
             </label>
             <input
-              type="text"
+              type={contentType === 'platform_fee' ? 'number' : 'text'}
+              min={contentType === 'platform_fee' ? 0 : undefined}
+              step={contentType === 'platform_fee' ? '0.01' : undefined}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
               className={styles.input}
               disabled={contentType === 'contact' || contentType === 'reviews'}
             />
+            {contentType === 'platform_fee' && (
+              <div className={styles.helpText}>
+                This flat fee is added once per checkout, regardless of product quantity.
+              </div>
+            )}
           </div>
+        )}
+
+        {contentType === 'delivery_rates' && (
+          <>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Warehouse latitude *</label>
+              <input
+                type="number"
+                step="any"
+                value={metadata.warehouseLatitude ?? ''}
+                onChange={(e) => setMetadata({ ...metadata, warehouseLatitude: e.target.value })}
+                className={styles.input}
+                placeholder="e.g. 22.5726"
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Warehouse longitude *</label>
+              <input
+                type="number"
+                step="any"
+                value={metadata.warehouseLongitude ?? ''}
+                onChange={(e) => setMetadata({ ...metadata, warehouseLongitude: e.target.value })}
+                className={styles.input}
+                placeholder="e.g. 88.3639"
+              />
+              <div className={styles.helpText}>
+                Customers are charged by the straight-line distance from this warehouse location to the selected checkout address.
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Delivery rate ranges</label>
+              <div className={styles.helpText}>
+                If a customer distance is above the last row&apos;s end distance, the last row&apos;s delivery rate will be used automatically.
+              </div>
+              <div className={styles.deliveryRateList}>
+                {deliveryRateRows.map((row, index) => (
+                  <div key={`rate-${index}`} className={styles.deliveryRateRow}>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className={styles.input}
+                      value={row.startMeters}
+                      onChange={(e) => {
+                        const next = [...deliveryRateRows];
+                        next[index] = { ...next[index], startMeters: e.target.value };
+                        setDeliveryRateRows(next);
+                      }}
+                      placeholder="Start (m)"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className={styles.input}
+                      value={row.endMeters}
+                      onChange={(e) => {
+                        const next = [...deliveryRateRows];
+                        next[index] = { ...next[index], endMeters: e.target.value };
+                        setDeliveryRateRows(next);
+                      }}
+                      placeholder="End (m)"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className={styles.input}
+                      value={row.rate}
+                      onChange={(e) => {
+                        const next = [...deliveryRateRows];
+                        next[index] = { ...next[index], rate: e.target.value };
+                        setDeliveryRateRows(next);
+                      }}
+                      placeholder="Delivery rate (INR)"
+                    />
+                    <button
+                      type="button"
+                      className={styles.removePincodeButton}
+                      onClick={() => {
+                        if (deliveryRateRows.length === 1) return;
+                        setDeliveryRateRows(deliveryRateRows.filter((_, rowIndex) => rowIndex !== index));
+                      }}
+                      disabled={deliveryRateRows.length === 1}
+                      aria-label={`Remove delivery rate row ${index + 1}`}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className={styles.addPincodeButton}
+                onClick={() => {
+                  setDeliveryRateRows([...deliveryRateRows, { startMeters: '', endMeters: '', rate: '' }]);
+                }}
+              >
+                Add row
+              </button>
+            </div>
+          </>
         )}
 
         {contentType === 'contact' && (
@@ -522,24 +762,13 @@ export default function AdminContentEditPage() {
             <div className={styles.deliverySlotsBlock}>
               <label className={styles.label}>Subscription delivery slots</label>
               <div className={styles.helpText}>
-                These slots appear in the customer subscription page delivery-time dropdown.
+                These slots appear in the customer subscription page delivery-time dropdown as ranges.
               </div>
 
               {deliveryTimeSlots.length > 0 && (
                 <div className={styles.deliverySlotList}>
                   {deliveryTimeSlots.map((slot, index) => (
                     <div key={`${slot.value}-${index}`} className={styles.deliverySlotItem}>
-                      <input
-                        type="text"
-                        value={slot.label}
-                        onChange={(e) => {
-                          const next = [...deliveryTimeSlots];
-                          next[index] = { ...next[index], label: e.target.value };
-                          setDeliveryTimeSlots(next);
-                        }}
-                        className={styles.input}
-                        placeholder="Label (e.g. Before 9 AM)"
-                      />
                       <input
                         type="time"
                         value={slot.value}
@@ -549,6 +778,23 @@ export default function AdminContentEditPage() {
                           setDeliveryTimeSlots(next);
                         }}
                         className={styles.deliveryTimeInput}
+                      />
+                      <input
+                        type="time"
+                        value={slot.end || ''}
+                        onChange={(e) => {
+                          const next = [...deliveryTimeSlots];
+                          next[index] = { ...next[index], end: e.target.value };
+                          setDeliveryTimeSlots(next);
+                        }}
+                        className={styles.deliveryTimeInput}
+                      />
+                      <input
+                        type="text"
+                        value={buildRangeLabel(slot.value, slot.end || slot.value)}
+                        readOnly
+                        className={styles.input}
+                        placeholder="Range"
                       />
                       <button
                         type="button"
@@ -567,30 +813,37 @@ export default function AdminContentEditPage() {
 
               <div className={styles.addPincodeRow}>
                 <input
-                  type="text"
-                  value={newSlotLabel}
-                  onChange={(e) => setNewSlotLabel(e.target.value)}
-                  className={styles.input}
-                  placeholder="Slot label (e.g. Before 9 AM)"
-                />
-                <input
                   type="time"
                   value={newSlotValue}
                   onChange={(e) => setNewSlotValue(e.target.value)}
                   className={styles.deliveryTimeInput}
                 />
+                <input
+                  type="time"
+                  value={newSlotEnd}
+                  onChange={(e) => setNewSlotEnd(e.target.value)}
+                  className={styles.deliveryTimeInput}
+                />
+                <input
+                  type="text"
+                  value={buildRangeLabel(newSlotValue, newSlotEnd)}
+                  readOnly
+                  className={styles.input}
+                  placeholder="Range"
+                />
                 <button
                   type="button"
                   onClick={() => {
-                    const label = newSlotLabel.trim();
                     const value = newSlotValue.trim();
-                    if (!label || !value) return;
-                    if (deliveryTimeSlots.some((s) => s.label === label && s.value === value)) return;
-                    setDeliveryTimeSlots([...deliveryTimeSlots, { label, value }]);
-                    setNewSlotLabel('');
-                    setNewSlotValue('');
+                    const end = newSlotEnd.trim();
+                    if (!value || !end) return;
+                    if (deliveryTimeSlots.some((s) => s.value === value && (s.end || '') === end)) return;
+                    setDeliveryTimeSlots([
+                      ...deliveryTimeSlots,
+                      { label: buildRangeLabel(value, end), value, end },
+                    ]);
                   }}
-                  disabled={!newSlotLabel.trim() || !newSlotValue.trim()}
+                  disabled={!newSlotValue.trim() || !newSlotEnd.trim()}
                   className={styles.addPincodeButton}
                 >
                   Add slot
@@ -598,7 +851,7 @@ export default function AdminContentEditPage() {
               </div>
             </div>
           </div>
-        ) : contentType === 'help_support' || contentType === 'app_download' ? null : (
+        ) : contentType === 'help_support' || contentType === 'app_download' || contentType === 'platform_fee' ? null : (
           <div className={styles.formGroup}>
             <label className={styles.label}>
               Content {contentType === 'contact' ? '(Optional)' : '*'}

@@ -8,6 +8,10 @@ export function getFirstVariationForCard(p: Product): ProductVariation | null {
   return list[0];
 }
 
+export function getProductDisplayUnitLabel(p: Product): string {
+  return getFirstVariationForCard(p)?.size || p.suffixAfterPrice || 'litre';
+}
+
 function baseUnitPrice(p: Product): number {
   if (p.sellingPrice !== null && p.sellingPrice !== undefined && Number.isFinite(Number(p.sellingPrice))) {
     return Number(p.sellingPrice);

@@ -1,15 +1,16 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { cartStorage, CartItem } from '@/lib/utils/cart';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { getCartStorage, CartItem, CartMutationResult } from '@/lib/utils/cart';
 import { trackCartEvent } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CartContextType {
   items: CartItem[];
   itemCount: number;
-  addItem: (item: CartItem) => void;
+  addItem: (item: CartItem, maxQuantity?: number) => CartMutationResult;
   removeItem: (productId: string, variationId?: string) => void;
-  setItemQuantity: (productId: string, quantity: number, variationId?: string) => void;
+  setItemQuantity: (productId: string, quantity: number, variationId?: string, maxQuantity?: number) => CartMutationResult;
   clearCart: () => void;
   refreshCart: () => void;
 }
@@ -29,65 +30,82 @@ interface CartProviderProps {
 }
 
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
+  const { user } = useAuth();
+  const cart = useMemo(() => getCartStorage(user?.id ?? null), [user?.id]);
   const [items, setItems] = useState<CartItem[]>([]);
 
   const refreshCart = useCallback(() => {
-    setItems(cartStorage.get());
-  }, []);
+    setItems(cart.get());
+  }, [cart]);
 
   const getCartItemCount = useCallback(() => {
-    return cartStorage.get().reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  }, []);
+    return cart.get().reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  }, [cart]);
 
   useEffect(() => {
     refreshCart();
-    
-    // Listen for storage changes (for cross-tab synchronization)
+  }, [cart, refreshCart]);
+
+  useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'milko_cart_v1') {
+      if (!e.key) return;
+      if (e.key === cart.storageKey || e.key.startsWith('milko_cart_v1')) {
         refreshCart();
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [refreshCart]);
+  }, [cart, refreshCart]);
 
-  const addItem = useCallback((item: CartItem) => {
-    cartStorage.add(item);
-    refreshCart();
-    void trackCartEvent({
-      eventType: 'add',
-      cartItemCount: getCartItemCount(),
-      productId: item.productId,
-      variationId: item.variationId,
-    });
-  }, [refreshCart, getCartItemCount]);
+  const addItem = useCallback(
+    (item: CartItem, maxQuantity?: number) => {
+      const result = cart.add(item, maxQuantity);
+      refreshCart();
+      if (result.appliedQuantity > 0) {
+        void trackCartEvent({
+          eventType: 'add',
+          cartItemCount: getCartItemCount(),
+          productId: item.productId,
+          variationId: item.variationId,
+        });
+      }
+      return result;
+    },
+    [cart, refreshCart, getCartItemCount],
+  );
 
-  const removeItem = useCallback((productId: string, variationId?: string) => {
-    cartStorage.remove(productId, variationId);
-    refreshCart();
-    void trackCartEvent({
-      eventType: 'remove',
-      cartItemCount: getCartItemCount(),
-      productId,
-      variationId,
-    });
-  }, [refreshCart, getCartItemCount]);
+  const removeItem = useCallback(
+    (productId: string, variationId?: string) => {
+      cart.remove(productId, variationId);
+      refreshCart();
+      void trackCartEvent({
+        eventType: 'remove',
+        cartItemCount: getCartItemCount(),
+        productId,
+        variationId,
+      });
+    },
+    [cart, refreshCart, getCartItemCount],
+  );
 
-  const setItemQuantity = useCallback((productId: string, quantity: number, variationId?: string) => {
-    cartStorage.setQuantity(productId, quantity, variationId);
-    refreshCart();
-  }, [refreshCart]);
+  const setItemQuantity = useCallback(
+    (productId: string, quantity: number, variationId?: string, maxQuantity?: number) => {
+      const result = cart.setQuantity(productId, quantity, variationId, maxQuantity);
+      refreshCart();
+      return result;
+    },
+    [cart, refreshCart],
+  );
 
   const clearCart = useCallback(() => {
-    cartStorage.clear();
+    cart.clear();
     refreshCart();
     void trackCartEvent({
       eventType: 'clear',
       cartItemCount: 0,
     });
-  }, [refreshCart]);
+  }, [cart, refreshCart]);
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 

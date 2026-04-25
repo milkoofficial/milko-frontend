@@ -50,7 +50,9 @@ function getCalendarDayClassName(
     dayCancelled: string;
     dayPaused: string;
     dayToday: string;
+    dayShifted: string;
   },
+  shiftHighlight: { applied: boolean; shiftedDayKey: string | null },
 ): string {
   const parts: string[] = [css.dayCell];
   if (!cell.inMonth) {
@@ -79,6 +81,10 @@ function getCalendarDayClassName(
     parts.push(css.dayPaused);
   } else {
     parts.push(css.dayPending);
+  }
+
+  if (shiftHighlight.applied && shiftHighlight.shiftedDayKey && key === shiftHighlight.shiftedDayKey) {
+    parts.push(css.dayShifted);
   }
 
   if (cell.isToday) parts.push(css.dayToday);
@@ -268,6 +274,7 @@ export default function SubscriptionDetailsPage() {
       const data = await subscriptionsApi.getById(subscriptionId);
       setSubscription(data);
     } catch (e) {
+      setSubscription(null);
       const message = (e as { message?: string })?.message || 'Failed to load subscription details';
       setError(message);
     } finally {
@@ -315,6 +322,21 @@ export default function SubscriptionDetailsPage() {
     return months;
   }, [dateRange]);
 
+  // Shift UI follows API `firstDayShiftApplied` / `firstDayShiftReason`.
+  // - Set on activate or manual renew when payment is after the slot end (IST).
+  // - Stays visible for the full current period even if AutoPay is linked mid-period; cleared when a new period
+  //   starts from successful AutoPay renewal (`applyAutopaySubscriptionRenewalFromPayment`).
+  // - After expiry, manual renew evaluates slot-shift again at payment time.
+  const shiftCalendarHighlight = useMemo(
+    () => ({
+      applied: !!subscription?.firstDayShiftApplied,
+      /** Calendar day that missed the slot (start_date); bonus day at end_date stays normal “scheduled” styling. */
+      shiftedDayKey:
+        subscription?.firstDayShiftApplied && dateRange ? formatDateKey(dateRange.start) : null,
+    }),
+    [subscription?.firstDayShiftApplied, dateRange],
+  );
+
   const scheduleByDate = useMemo(() => {
     const m = new Map<string, 'pending' | 'delivered' | 'skipped' | 'cancelled'>();
     subscription?.deliverySchedules?.forEach((s) => {
@@ -333,6 +355,13 @@ export default function SubscriptionDetailsPage() {
     const status = scheduleByDate.get(todayIstKey);
     return pausedDateSet.has(todayIstKey) || status === 'cancelled' || status === 'skipped';
   }, [pausedDateSet, scheduleByDate, todayIstKey]);
+
+  const firstDayShiftSlotLabel =
+    subscription?.firstDayShiftReason === 'evening_slot_passed'
+      ? 'evening'
+      : subscription?.firstDayShiftReason === 'morning_slot_passed'
+        ? 'morning'
+        : 'delivery';
 
   if (loading) {
     return (
@@ -355,10 +384,13 @@ export default function SubscriptionDetailsPage() {
     );
   }
 
-  const orderId = subscription.razorpaySubscriptionId || subscription.id;
+  /** Same numeric id as admin subscription deliveries (`#subscriptionId`). */
+  const orderId = subscription.id;
   const paidAmount = subscription.totalAmountPaid ?? subscription.totalAmount ?? 0;
   const canManage = subscription.status === 'active' || subscription.status === 'paused';
-  const hasAutopayMandate = String(subscription.razorpaySubscriptionId || '').startsWith('sub_');
+  const hasAutopayMandate =
+    subscription.autopayStatus === 'authenticated'
+    || subscription.autopayStatus === 'active';
   const nextAutopayDateDisplay = formatNextAutopayAtIst(subscription.endDate);
   const subscriptionItemName = subscription.product?.name || 'this item';
   const formatInr = (value: number) =>
@@ -381,6 +413,16 @@ export default function SubscriptionDetailsPage() {
   const end =
     dateRange?.end ??
     dateOnly(parseLocalDateFromYmd(subscription.endDate) ?? new Date(subscription.endDate));
+  const shiftedFromText = start.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  const shiftedToText = end.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
   const msPerDay = 1000 * 60 * 60 * 24;
   const totalDays =
     subscription.durationDays != null && subscription.durationDays >= 1
@@ -502,6 +544,12 @@ export default function SubscriptionDetailsPage() {
               <span className={`${styles.calendarHintDot} ${styles.calendarHintDotPaused}`} aria-hidden />
               Paused day
             </span>
+            {subscription.firstDayShiftApplied ? (
+              <span className={styles.calendarHintItem} role="listitem">
+                <span className={`${styles.calendarHintDot} ${styles.calendarHintDotShifted}`} aria-hidden />
+                Shifted
+              </span>
+            ) : null}
           </div>
           <div className={styles.calendarList}>
             {dateRange && calendarMonths.map((month) => {
@@ -534,13 +582,22 @@ export default function SubscriptionDetailsPage() {
                             dayCancelled: styles.dayCancelled,
                             dayPaused: styles.dayPaused,
                             dayToday: styles.dayToday,
+                            dayShifted: styles.dayShifted,
                           },
+                          shiftCalendarHighlight,
                         )}
                         title={
                           cell.inMonth && cell.inSubscriptionRange
                             ? (() => {
                                 const k = formatDateKey(cell.date);
                                 const st = scheduleByDate.get(k);
+                                const isShiftedFirstDay =
+                                  shiftCalendarHighlight.applied &&
+                                  shiftCalendarHighlight.shiftedDayKey &&
+                                  k === shiftCalendarHighlight.shiftedDayKey;
+                                if (isShiftedFirstDay) {
+                                  return 'Shifted first delivery day — purchase was after your delivery window ended (an extra day was added at the end of your plan)';
+                                }
                                 if (st === 'delivered') return 'Delivered';
                                 if (st === 'cancelled' || st === 'skipped') return 'Delivery cancelled / skipped';
                                 if (st === 'pending') return 'Scheduled (not delivered yet)';
@@ -558,6 +615,20 @@ export default function SubscriptionDetailsPage() {
               );
             })}
           </div>
+          {subscription.firstDayShiftApplied ? (
+            <p className={styles.calendarShiftNote}>
+              <span className={styles.calendarShiftNoteDot} aria-hidden />
+              <span>
+                <strong>Shifted</strong> — Shifted from <strong>{shiftedFromText}</strong> to{' '}
+                <strong>{shiftedToText}</strong>. The system automatically added an extra delivery day at the end of your
+                subscription because this subscription was bought or renewed after your selected {firstDayShiftSlotLabel}{' '}
+                delivery window had already ended today.
+                <span className={styles.calendarShiftNoteMeta}>
+                  
+                </span>
+              </span>
+            </p>
+          ) : null}
         </section>
 
         <section className={styles.section}>
@@ -755,20 +826,83 @@ export default function SubscriptionDetailsPage() {
                       className={styles.autoPayButton}
                       disabled={autopayBusy || autopayActionsDisabled}
                       onClick={async () => {
+                        let openedRazorpay = false;
+                        const loadRazorpayScript = (): Promise<void> => {
+                          if (typeof window !== 'undefined' && (window as unknown as { Razorpay?: unknown }).Razorpay) {
+                            return Promise.resolve();
+                          }
+                          return new Promise((resolve, reject) => {
+                            const s = document.createElement('script');
+                            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                            s.async = true;
+                            s.onload = () => resolve();
+                            s.onerror = () => reject(new Error('Failed to load Razorpay'));
+                            document.head.appendChild(s);
+                          });
+                        };
+
                         try {
                           setAutopayBusy(true);
                           const resp = await subscriptionsApi.setupAutopay(subscription.id);
-                          if (resp.shortUrl) {
+                          if (resp.shortUrl && (!resp.razorpaySubscriptionId || !resp.key)) {
                             window.location.href = resp.shortUrl;
                             return;
                           }
-                          showToast('AutoPay is already linked', 'success');
-                          await fetchSubscription();
+                          if (resp.alreadyLinked) {
+                            showToast('AutoPay is already linked', 'success');
+                            await fetchSubscription();
+                            return;
+                          }
+                          if (!resp.razorpaySubscriptionId || !resp.key) {
+                            throw new Error('AutoPay setup is incomplete. Razorpay subscription ID was not returned.');
+                          }
+
+                          await loadRazorpayScript();
+                          const Razorpay = (window as unknown as { Razorpay: new (o: unknown) => { open: () => void } }).Razorpay;
+                          const rzp = new Razorpay({
+                            key: resp.key,
+                            subscription_id: resp.razorpaySubscriptionId,
+                            name: 'Milko',
+                            description: 'Authenticate AutoPay mandate',
+                            handler: async function (rzpResp: {
+                              razorpay_payment_id: string;
+                              razorpay_subscription_id?: string;
+                              razorpay_signature?: string;
+                            }) {
+                              try {
+                                await subscriptionsApi.verifyAutopaySetup(subscription.id, {
+                                  razorpay_payment_id: rzpResp.razorpay_payment_id,
+                                  razorpay_subscription_id: rzpResp.razorpay_subscription_id || resp.razorpaySubscriptionId,
+                                  razorpay_signature: rzpResp.razorpay_signature,
+                                });
+                                showToast('AutoPay linked successfully. Redirecting to subscription details...', 'success');
+                                await fetchSubscription();
+                                window.setTimeout(() => {
+                                  router.replace(`/subscriptions/${subscription.id}`);
+                                }, 5000);
+                              } catch (e) {
+                                showToast((e as { message?: string })?.message || 'Failed to verify AutoPay', 'error');
+                                await fetchSubscription();
+                              } finally {
+                                setAutopayBusy(false);
+                              }
+                            },
+                            modal: {
+                              ondismiss: async () => {
+                                setAutopayBusy(false);
+                                await fetchSubscription();
+                              },
+                            },
+                          });
+                          openedRazorpay = true;
+                          rzp.open();
                         } catch (e) {
                           showToast((e as { message?: string })?.message || 'Failed to setup AutoPay', 'error');
                           await fetchSubscription();
                         } finally {
-                          setAutopayBusy(false);
+                          if (!openedRazorpay) {
+                            setAutopayBusy(false);
+                          }
                         }
                       }}
                     >
@@ -784,7 +918,7 @@ export default function SubscriptionDetailsPage() {
         {(subscription.status !== 'cancelled' && subscription.status !== 'expired') && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Help</h2>
-            <p className={styles.autoPayText}>Need Help with Subscription? Contact us regarding your doubt.</p>
+            <p className={styles.autoPayText}>Need Help with this subscription? Contact us regarding your doubt.</p>
             <div className={styles.autoPayActions}>
               <button
                 type="button"

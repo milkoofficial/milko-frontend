@@ -76,4 +76,14 @@ export const adminContentApi = {
     );
     return res.data.data;
   },
+
+  uploadFavicon: async (formData: FormData): Promise<SiteContent> => {
+    const instance = apiClient.getInstance();
+    const res = await instance.post<{ success: boolean; data: SiteContent }>(
+      API_ENDPOINTS.ADMIN.FAVICON.UPLOAD,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return res.data.data;
+  },
 };

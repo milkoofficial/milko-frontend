@@ -5,10 +5,19 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
-import { productsApi, couponsApi } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  readSubscriptionCartJson,
+  clearSubscriptionCart,
+  scopedSubscriptionCartKey,
+} from '@/lib/utils/userScopedStorage';
+import { productsApi, couponsApi, contentApi } from '@/lib/api';
 import type { Coupon } from '@/lib/api';
 import { Product } from '@/types';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
+import { saveCheckoutCouponCode } from '@/lib/utils/checkoutCoupon';
+import { useToast } from '@/contexts/ToastContext';
+import { getPrimaryProductImageUrl } from '@/lib/utils/productImages';
 import styles from './cart.module.css';
 
 type SubscriptionCartItem = {
@@ -23,10 +32,11 @@ type SubscriptionCartItem = {
   updatedAt: string;
 };
 
-const SUBSCRIPTION_CART_KEY = 'milko_subscription_cart_item_v1';
-
 export default function CartPage() {
   const router = useRouter();
+  const { showToast } = useToast();
+  const { user } = useAuth();
+  const subCartUserId = user?.id ?? null;
   const { items, setItemQuantity, removeItem } = useCart();
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [couponCode, setCouponCode] = useState('');
@@ -37,6 +47,7 @@ export default function CartPage() {
   const [subscriptionCartItem, setSubscriptionCartItem] = useState<SubscriptionCartItem | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [platformFee, setPlatformFee] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -61,9 +72,25 @@ export default function CartPage() {
   }, [items]);
 
   useEffect(() => {
+    const loadPlatformFee = async () => {
+      try {
+        const data = await contentApi.getByType('platform_fee');
+        const metadataAmount = Number(data.metadata?.amount);
+        const titleAmount = Number(data.title);
+        const amount = Number.isFinite(metadataAmount) ? metadataAmount : titleAmount;
+        setPlatformFee(Number.isFinite(amount) && amount > 0 ? amount : 0);
+      } catch {
+        setPlatformFee(0);
+      }
+    };
+
+    loadPlatformFee();
+  }, []);
+
+  useEffect(() => {
     const loadSubscriptionItem = () => {
       try {
-        const raw = localStorage.getItem(SUBSCRIPTION_CART_KEY);
+        const raw = readSubscriptionCartJson(subCartUserId);
         if (!raw) {
           setSubscriptionCartItem(null);
           return;
@@ -92,11 +119,13 @@ export default function CartPage() {
     };
     loadSubscriptionItem();
     const onStorage = (e: StorageEvent) => {
-      if (e.key === SUBSCRIPTION_CART_KEY) loadSubscriptionItem();
+      if (e.key === scopedSubscriptionCartKey(subCartUserId) || e.key === 'milko_subscription_cart_item_v1') {
+        loadSubscriptionItem();
+      }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  }, [subCartUserId]);
 
   const formatINR = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -112,23 +141,31 @@ export default function CartPage() {
 
   const handleQuantityChange = (productId: string, variationId: string | undefined, delta: number) => {
     const item = items.find(it => it.productId === productId && it.variationId === variationId);
+    const product = products[productId];
     if (item) {
       const newQuantity = Math.max(1, item.quantity + delta);
-      setItemQuantity(productId, newQuantity, variationId);
+      const result = setItemQuantity(productId, newQuantity, variationId, product?.maxQuantity);
+      if (!result.ok && delta > 0 && product?.maxQuantity) {
+        showToast(`Maximum order quantity is ${product.maxQuantity}`, 'error');
+      }
     }
   };
 
 
-  // Calculate subtotal based on ALL items in cart (not filtered by selection)
-  const subtotal = useMemo(() => {
-    return items.reduce((sum, it) => {
+  /** Same basis as checkout `itemsSubtotal` + subscription — coupons and totals match checkout. */
+  const subtotalAlignedWithCheckout = useMemo(() => {
+    const itemsPart = items.reduce((sum, it) => {
       const p = products[it.productId];
       if (!p) return sum;
       const v = it.variationId ? (p.variations || []).find((x) => x.id === it.variationId) : null;
+      const basePrice =
+        p.sellingPrice !== null && p.sellingPrice !== undefined ? p.sellingPrice : p.pricePerLitre;
       const mult = v?.priceMultiplier ?? 1;
-      return sum + p.pricePerLitre * mult * it.quantity;
+      const unitPrice = v?.price ?? basePrice * mult;
+      return sum + unitPrice * it.quantity;
     }, 0);
-  }, [items, products]);
+    return itemsPart + (subscriptionCartItem?.totalAmount ?? 0);
+  }, [items, products, subscriptionCartItem]);
 
   // Your total savings = sum of (compareAtPrice - sellingPrice) * mult * qty per item
   const savings = useMemo(() => {
@@ -150,17 +187,16 @@ export default function CartPage() {
     const c = appliedCouponData;
     let d = 0;
     if (c.discountType === 'percentage') {
-      d = (subtotal * c.discountValue) / 100;
+      d = (subtotalAlignedWithCheckout * c.discountValue) / 100;
       if (c.maxDiscountAmount != null && d > c.maxDiscountAmount) d = c.maxDiscountAmount;
     } else {
       d = c.discountValue;
     }
-    return Math.min(d, subtotal);
-  }, [appliedCouponData, subtotal]);
+    return Math.min(d, subtotalAlignedWithCheckout);
+  }, [appliedCouponData, subtotalAlignedWithCheckout]);
 
   const deliveryCharges = items.length > 0 ? 0 : 0; // Free delivery
-  const subscriptionCharge = subscriptionCartItem ? subscriptionCartItem.totalAmount : 0;
-  const total = subtotal - couponDiscount + deliveryCharges + subscriptionCharge;
+  const total = subtotalAlignedWithCheckout - couponDiscount + deliveryCharges + platformFee;
   const totalItemCount = items.length + (subscriptionCartItem ? 1 : 0);
 
   const handleSelectMembership = () => {
@@ -180,7 +216,7 @@ export default function CartPage() {
   };
 
   const handleRemoveSubscriptionCartItem = () => {
-    localStorage.removeItem(SUBSCRIPTION_CART_KEY);
+    clearSubscriptionCart(subCartUserId);
     setSubscriptionCartItem(null);
   };
 
@@ -190,14 +226,16 @@ export default function CartPage() {
     setValidatingCoupon(true);
     setCouponValidationStatus('idle');
     try {
-      const coupon = await couponsApi.validate(code, subtotal);
+      const coupon = await couponsApi.validate(code, subtotalAlignedWithCheckout);
       setAppliedCoupon(code);
       setAppliedCouponData(coupon);
       setCouponValidationStatus('valid');
+      saveCheckoutCouponCode(code);
     } catch {
       setCouponValidationStatus('invalid');
       setAppliedCoupon(null);
       setAppliedCouponData(null);
+      saveCheckoutCouponCode(null);
     } finally {
       setValidatingCoupon(false);
     }
@@ -208,6 +246,7 @@ export default function CartPage() {
     setAppliedCouponData(null);
     setCouponCode('');
     setCouponValidationStatus('idle');
+    saveCheckoutCouponCode(null);
   };
 
   useEffect(() => {
@@ -286,9 +325,13 @@ export default function CartPage() {
               const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
               const itemKey = getItemKey(it.productId, it.variationId);
               const mult = v?.priceMultiplier ?? 1;
-              const price = p ? p.pricePerLitre * mult : 0;
+              const basePrice =
+                p && (p.sellingPrice !== null && p.sellingPrice !== undefined)
+                  ? p.sellingPrice
+                  : p?.pricePerLitre ?? 0;
+              const price = p ? (v?.price ?? basePrice * mult) : 0;
               const itemTotal = price * it.quantity;
-              const productImage = p?.images?.[0]?.imageUrl || p?.imageUrl || '/placeholder-product.png';
+              const productImage = (p ? getPrimaryProductImageUrl(p) : null) || '/placeholder-product.png';
 
               const handleProductClick = async () => {
                 if (p) {
@@ -305,7 +348,7 @@ export default function CartPage() {
 
               return (
                 <div key={itemKey} className={styles.cartItem}>
-                  <div 
+                  <div
                     className={styles.itemImage}
                     onClick={handleProductClick}
                     style={{ cursor: 'pointer' }}
@@ -321,13 +364,13 @@ export default function CartPage() {
                     ) : (
                       <div className={styles.itemImagePlaceholder}>
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M4 16L8.586 11.414C9.367 10.633 10.633 10.633 11.414 11.414L16 16M14 14L15.586 12.414C16.367 11.633 17.633 11.633 18.414 12.414L20 14M14 8H14.01M6 20H18C19.105 20 20 19.105 20 18V6C20 4.895 19.105 4 18 4H6C4.895 4 4 4.895 4 6V18C4 19.105 4.895 20 6 20Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M4 16L8.586 11.414C9.367 10.633 10.633 10.633 11.414 11.414L16 16M14 14L15.586 12.414C16.367 11.633 17.633 11.633 18.414 12.414L20 14M14 8H14.01M6 20H18C19.105 20 20 19.105 20 18V6C20 4.895 19.105 4 18 4H6C4.895 4 4 4.895 4 6V18C4 19.105 4.895 20 6 20Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                     )}
                   </div>
 
-                  <div 
+                  <div
                     className={styles.itemDetails}
                     onClick={handleProductClick}
                     style={{ cursor: 'pointer' }}
@@ -354,6 +397,11 @@ export default function CartPage() {
                       <button
                         onClick={() => handleQuantityChange(it.productId, it.variationId, 1)}
                         className={styles.quantityButton}
+                        disabled={(() => {
+                          const product = products[it.productId];
+                          const maxQty = product?.maxQuantity;
+                          return Number.isFinite(maxQty) && Number(maxQty) > 0 && it.quantity >= Number(maxQty);
+                        })()}
                       >
                         +
                       </button>
@@ -364,7 +412,7 @@ export default function CartPage() {
                       aria-label="Remove item"
                     >
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </button>
                   </div>
@@ -376,8 +424,8 @@ export default function CartPage() {
                 <div className={styles.itemImage}>
                   <div className={styles.itemImagePlaceholder}>
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M3 16H21" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M3 16H21" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
                 </div>
@@ -408,7 +456,7 @@ export default function CartPage() {
                     aria-label="Remove subscription"
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
                 </div>
@@ -469,8 +517,8 @@ export default function CartPage() {
               </div>
               <div className={styles.subscriptionIcon}>
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M3 16H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3 16H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
             </div>
@@ -479,7 +527,7 @@ export default function CartPage() {
           {/* Price Details */}
           <div className={styles.summarySection}>
             <h3 className={styles.sectionTitle}>Price Details</h3>
-              <div className={styles.priceDetailsBox}>
+            <div className={styles.priceDetailsBox}>
               <div className={styles.priceRow}>
                 <span>{totalItemCount} item{totalItemCount !== 1 ? 's' : ''}</span>
               </div>
@@ -487,7 +535,11 @@ export default function CartPage() {
                 const p = products[it.productId];
                 const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
                 const mult = v?.priceMultiplier ?? 1;
-                const price = p ? p.pricePerLitre * mult : 0;
+                const basePrice =
+                  p && (p.sellingPrice !== null && p.sellingPrice !== undefined)
+                    ? p.sellingPrice
+                    : p?.pricePerLitre ?? 0;
+                const price = p ? (v?.price ?? basePrice * mult) : 0;
                 const itemTotal = price * it.quantity;
                 return (
                   <div key={getItemKey(it.productId, it.variationId)} className={styles.priceRow}>
@@ -508,9 +560,15 @@ export default function CartPage() {
                   <span className={styles.discount}>-₹{couponDiscount.toFixed(2)}</span>
                 </div>
               )}
+              {platformFee > 0 && (
+                <div className={styles.priceRow}>
+                  <span>Platform fee</span>
+                  <span>₹{platformFee.toFixed(2)}</span>
+                </div>
+              )}
               <div className={styles.priceRow}>
                 <span>Delivery Charges</span>
-                <span className={styles.freeDelivery}>Free Delivery</span>
+                <span className={styles.freeDelivery}>Proceed Further</span>
               </div>
               <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
                 <span>Total Amount</span>
@@ -546,7 +604,7 @@ export default function CartPage() {
             >
               Checkout
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           </div>

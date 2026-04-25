@@ -73,6 +73,7 @@ export default function AdminProductEditPage() {
   const [taxPercent, setTaxPercent] = useState('');
   const [quantity, setQuantity] = useState('0');
   const [lowStockThreshold, setLowStockThreshold] = useState('10');
+  const [maxQuantity, setMaxQuantity] = useState('99');
   const [categoryId, setCategoryId] = useState('');
   const [suffixAfterPrice, setSuffixAfterPrice] = useState('Litres');
   const [isActive, setIsActive] = useState(true);
@@ -87,7 +88,7 @@ export default function AdminProductEditPage() {
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [newVariation, setNewVariation] = useState({ size: '', price: '', compareAtPrice: '', isAvailable: true });
   const [variationDrafts, setVariationDrafts] = useState<
-    Record<string, { price: string; compareAtPrice: string; isAvailable: boolean }>
+    Record<string, { size: string; price: string; compareAtPrice: string; isAvailable: boolean }>
   >({});
   const [savingVariationId, setSavingVariationId] = useState<string | null>(null);
 
@@ -95,10 +96,11 @@ export default function AdminProductEditPage() {
 
   useEffect(() => {
     if (!product) return;
-    const next: Record<string, { price: string; compareAtPrice: string; isAvailable: boolean }> = {};
+    const next: Record<string, { size: string; price: string; compareAtPrice: string; isAvailable: boolean }> = {};
     for (const v of variations) {
       const unit = v.price ?? product.pricePerLitre * v.priceMultiplier;
       next[v.id] = {
+        size: v.size,
         price: String(v.price != null && Number.isFinite(v.price) ? v.price : unit),
         compareAtPrice:
           v.compareAtPrice !== null && v.compareAtPrice !== undefined
@@ -122,6 +124,7 @@ export default function AdminProductEditPage() {
         setTaxPercent(data.taxPercent !== null && data.taxPercent !== undefined ? String(data.taxPercent) : '');
         setQuantity(String(data.quantity ?? 0));
         setLowStockThreshold(String(data.lowStockThreshold ?? 10));
+        setMaxQuantity(String(data.maxQuantity ?? 99));
         setCategoryId(data.categoryId ?? '');
         setSuffixAfterPrice(data.suffixAfterPrice || 'Litres');
         setIsActive(data.isActive);
@@ -182,6 +185,7 @@ export default function AdminProductEditPage() {
         taxPercent: taxPercent ? parseFloat(taxPercent) : 0,
         quantity: quantity ? parseInt(quantity) : 0,
         lowStockThreshold: lowStockThreshold ? parseInt(lowStockThreshold) : 10,
+        maxQuantity: maxQuantity ? parseInt(maxQuantity) : 99,
         categoryId: categoryId || null,
         suffixAfterPrice: suffixAfterPrice || 'Litres',
         isActive,
@@ -362,6 +366,10 @@ export default function AdminProductEditPage() {
   const handleSaveVariation = async (variationId: string) => {
     const d = variationDrafts[variationId];
     if (!d) return;
+    if (!d.size.trim()) {
+      showToast('Enter a variation name', 'error');
+      return;
+    }
     const price = parseFloat(d.price);
     if (!Number.isFinite(price) || price < 0) {
       showToast('Enter a valid selling price for this variation', 'error');
@@ -384,6 +392,7 @@ export default function AdminProductEditPage() {
     setSavingVariationId(variationId);
     try {
       await adminProductsApi.updateVariation(productId, variationId, {
+        size: d.size.trim(),
         price,
         compareAtPrice: comparePayload,
         isAvailable: d.isAvailable,
@@ -408,10 +417,10 @@ export default function AdminProductEditPage() {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         minHeight: '50vh',
         padding: '2rem'
       }}>
@@ -573,8 +582,20 @@ export default function AdminProductEditPage() {
                     min="0"
                     value={lowStockThreshold}
                     onChange={(e) => setLowStockThreshold(e.target.value)}
-                className={styles.input}
-              />
+                    className={styles.input}
+                  />
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className={styles.formGroup}>
+                  <label>Max Quantity Per Order</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={maxQuantity}
+                    onChange={(e) => setMaxQuantity(e.target.value)}
+                    className={styles.input}
+                  />
                 </div>
               </div>
             </div>
@@ -716,12 +737,25 @@ export default function AdminProductEditPage() {
                 return (
                   <div key={variation.id} className={styles.variationCard}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <strong>{variation.size}</strong>
                       {draft ? (
                         <div
                           className={styles.formRow}
                           style={{ marginTop: '0.75rem', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'flex-end' }}
                         >
+                          <div className={styles.formGroup} style={{ marginBottom: 0, minWidth: '150px' }}>
+                            <label style={{ fontSize: '0.8rem' }}>Variation name</label>
+                            <input
+                              type="text"
+                              value={draft.size}
+                              onChange={(e) =>
+                                setVariationDrafts((prev) => ({
+                                  ...prev,
+                                  [variation.id]: { ...prev[variation.id], size: e.target.value },
+                                }))
+                              }
+                              className={styles.input}
+                            />
+                          </div>
                           <div className={styles.formGroup} style={{ marginBottom: 0, minWidth: '120px' }}>
                             <label style={{ fontSize: '0.8rem' }}>Price (₹)</label>
                             <input

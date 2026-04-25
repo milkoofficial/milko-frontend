@@ -6,7 +6,7 @@ function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     return process.env.NEXT_PUBLIC_API_BASE_URL;
   }
-  
+
   // Auto-detect local dev in browser
   // - If running on localhost, use localhost backend port (3001)
   // - If running on LAN IP/hostname (e.g. testing on phone), use same host with backend port
@@ -17,7 +17,7 @@ function getApiBaseUrl(): string {
     // "localhost" would point to the phone itself — so use the same host for backend.
     if (host) return `http://${host}:3001`;
   }
-  
+
   // Default to production
   return 'https://milko-backend.onrender.com';
 }
@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
     CANCEL: (id: string) => `/api/subscriptions/${id}/cancel`,
     CANCEL_TODAY: (id: string) => `/api/subscriptions/${id}/cancel-today`,
     SETUP_AUTOPAY: (id: string) => `/api/subscriptions/${id}/setup-autopay`,
+    VERIFY_AUTOPAY_SETUP: (id: string) => `/api/subscriptions/${id}/verify-autopay-setup`,
     REMOVE_AUTOPAY: (id: string) => `/api/subscriptions/${id}/remove-autopay`,
     RENEW_INIT: (id: string) => `/api/subscriptions/${id}/renew-init`,
     RENEW_VERIFY: (id: string) => `/api/subscriptions/${id}/renew-verify`,
@@ -80,6 +81,10 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/api/addresses/${id}`,
     UPDATE: (id: string) => `/api/addresses/${id}`,
     DELETE: (id: string) => `/api/addresses/${id}`,
+  },
+  DELIVERY_TRACKING: {
+    LIST: '/api/deliveries',
+    MARK_DELIVERED: '/api/mark-delivered',
   },
   // Admin
   ADMIN: {
@@ -129,6 +134,7 @@ export const API_ENDPOINTS = {
       MARK_OUT_FOR_DELIVERY: (id: string) => `/api/admin/orders/${id}/mark-out-for-delivery`,
       MARK_DELIVERED: (id: string) => `/api/admin/orders/${id}/mark-delivered`,
       MARK_FULFILLED: (id: string) => `/api/admin/orders/${id}/mark-fulfilled`,
+      ORDER_DELIVERY_STOPS: '/api/admin/order-delivery-stops',
     },
     BANNERS: {
       LIST: '/api/admin/banners',
@@ -144,6 +150,9 @@ export const API_ENDPOINTS = {
     },
     LOGO: {
       UPLOAD: '/api/admin/logo',
+    },
+    FAVICON: {
+      UPLOAD: '/api/admin/favicon',
     },
     COUPONS: {
       LIST: '/api/admin/coupons',

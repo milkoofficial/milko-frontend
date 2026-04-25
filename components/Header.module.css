@@ -1135,22 +1135,30 @@
   padding: 1rem;
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 18px;
+  border-radius: 8px;
   box-shadow: 0 16px 42px rgba(15, 23, 42, 0.14);
   z-index: 80;
 }
 
 .callDropdownTitle {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #111827;
+  display: inline-block;
+  margin-top: 0.9rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #111827;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    display: flex;
+    justify-content: center;
 }
 
 .callDropdownDescription {
-  margin: 0.35rem 0 1rem;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  color: #6b7280;
+  margin: 0.25rem 0 1rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #6b7280;
+    display: flex;
+    justify-content: center;
 }
 
 .callActionButton {
@@ -1166,13 +1174,13 @@
   color: #111827;
   text-decoration: none;
   font-weight: 700;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  transition: transform 0.s ease;
 }
 
 .callActionButton:hover {
   background: #f9fafb;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
-  transform: translateY(-1px);
+  box-shadow: 0 8px 2px rgba(15, 23, 42, 0.08);
+  
 }
 
 .callActionButtonDisabled {
@@ -1196,9 +1204,9 @@
 .callDividerLine {
   flex: 1;
   height: 1px;
-  background: #e5e7eb;
+  background: #dadada;
+  border: 1px dashed #ffffff;
 }
-
 .callDividerText {
   font-size: 0.78rem;
   font-weight: 700;
@@ -1220,11 +1228,13 @@
 .callLearnMore {
   display: inline-block;
   margin-top: 0.9rem;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #111827;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #111827;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    display: flex;
+    justify-content: center;
 }
 
 .callLearnMore:hover {

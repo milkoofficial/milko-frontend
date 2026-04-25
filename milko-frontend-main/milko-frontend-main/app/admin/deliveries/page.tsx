@@ -2,10 +2,11 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { apiClient } from '@/lib/api';
+import { adminContentApi, apiClient } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/utils/constants';
 import { DeliverySchedule } from '@/types';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import DeliveryRoutePlanner from '@/components/admin/DeliveryRoutePlanner';
 import adminStyles from '../admin-styles.module.css';
 import styles from './page.module.css';
 import { useToast } from '@/contexts/ToastContext';
@@ -13,9 +14,19 @@ import {
   formatDateDDMMYYYYIST,
   formatDateTimeDDMMYYYYIST,
   formatDateTimeIST,
-  formatYyyyMmDdInputAsDDMMYYYY,
 } from '@/lib/utils/datetime';
 import { normalizeAdminListSearchQuery } from '@/lib/utils/searchQuery';
+import {
+  formatSubscriptionSlotLine,
+  parseDeliverySlotWindowsFromMetadata,
+  type DeliverySlotWindow,
+} from '@/lib/utils/deliverySlotDisplay';
+import {
+  aggregateTodaysSubscriptionNeed,
+  formatLitresAmount,
+  formatTodaysNeedLineLabel,
+  type TodaysNeedLine,
+} from '@/lib/utils/todaysSubscriptionNeed';
 
 type OrderDeliveryRow = {
   orderId: string;
@@ -88,6 +99,14 @@ const SUBSCRIPTION_SORT_OPTIONS = [
   { value: 'statusAsc' as const, label: 'Status (A-Z)' },
 ];
 
+function getTodayLocalYmd(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function CopyOrderNumberButton({
   orderNumber,
   showToast,
@@ -140,6 +159,12 @@ function CopyOrderNumberButton({
   );
 }
 
+function subscriptionDeliveryQtyLabel(d: DeliverySchedule): string | null {
+  const n = d.litresPerDay;
+  if (n == null || !Number.isFinite(Number(n))) return null;
+  return formatLitresAmount(Number(n));
+}
+
 /**
  * Admin Deliveries Page
  * View and manage daily delivery schedules
@@ -149,7 +174,6 @@ export default function AdminDeliveriesPage() {
   const [deliveries, setDeliveries] = useState<DeliverySchedule[]>([]);
   const [orderDeliveries, setOrderDeliveries] = useState<OrderDeliveryRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'delivered' | 'skipped' | 'cancelled'>('all');
   const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'package_prepared' | 'out_for_delivery' | 'delivered'>('all');
@@ -159,8 +183,28 @@ export default function AdminDeliveriesPage() {
   const [filterSheetMounted, setFilterSheetMounted] = useState(false);
   const filterSheetMenuTitleId = useId();
   const { showToast } = useToast();
+  const [deliverySlotWindows, setDeliverySlotWindows] = useState<DeliverySlotWindow[]>([]);
+  const [todaysNeedOpen, setTodaysNeedOpen] = useState(false);
+  const [todaysNeedIncludeDelivered, setTodaysNeedIncludeDelivered] = useState(false);
+  const [routeCheckPopupOpen, setRouteCheckPopupOpen] = useState(false);
+  const [routePlannerSlot, setRoutePlannerSlot] = useState<'morning' | 'evening'>('morning');
+  const todaysNeedTitleId = useId();
+  // Orders "Today's Need" state
+  const [ordersNeedOpen, setOrdersNeedOpen] = useState(false);
+  const [ordersRoutePopupOpen, setOrdersRoutePopupOpen] = useState(false);
+  const [ordersRouteNonce, setOrdersRouteNonce] = useState(0);  // increments each open → forces remount
+  const [ordersRefreshing, setOrdersRefreshing] = useState(false);
+  const [ordersStopsCount, setOrdersStopsCount] = useState<number | null>(null); // count from route-planner endpoint
+  const ordersNeedTitleId = useId();
 
   useEffect(() => setFilterSheetMounted(true), []);
+
+  useEffect(() => {
+    adminContentApi
+      .getByType('pincodes')
+      .then((c) => setDeliverySlotWindows(parseDeliverySlotWindowsFromMetadata(c?.metadata)))
+      .catch(() => setDeliverySlotWindows(parseDeliverySlotWindowsFromMetadata({})));
+  }, []);
 
   useEffect(() => {
     if (!filterSheetOpen) return;
@@ -175,18 +219,40 @@ export default function AdminDeliveriesPage() {
 
   useEffect(() => {
     if (tab === 'subscriptions') fetchDeliveries();
-  }, [selectedDate, tab]);
+  }, [tab]);
 
   useEffect(() => {
-    if (tab === 'orders') fetchOrderDeliveries();
+    if (tab === 'orders') {
+      fetchOrderDeliveries();
+      // Pre-load the routable stops count so it's ready when Today's Need is opened
+      apiClient
+        .get<{ id: string | number }[]>(API_ENDPOINTS.ADMIN.ORDER_DELIVERIES.ORDER_DELIVERY_STOPS)
+        .then((stops) => setOrdersStopsCount(Array.isArray(stops) ? stops.length : 0))
+        .catch(() => { /* silent */ });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  // Every time the Orders Today's Need modal opens: fetch from ORDER_DELIVERY_STOPS
+  // (the same source the route planner uses) so the count is always identical.
+  useEffect(() => {
+    if (!ordersNeedOpen) return;
+    setOrdersRefreshing(true);
+    setOrdersStopsCount(null);
+    apiClient
+      .get<{ id: string | number }[]>(API_ENDPOINTS.ADMIN.ORDER_DELIVERIES.ORDER_DELIVERY_STOPS)
+      .then((stops) => setOrdersStopsCount(Array.isArray(stops) ? stops.length : 0))
+      .catch(() => setOrdersStopsCount(0))
+      .finally(() => setOrdersRefreshing(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ordersNeedOpen]);
 
   const fetchDeliveries = async () => {
     try {
       setLoading(true);
+      const today = getTodayLocalYmd();
       const data = await apiClient.get<DeliverySchedule[]>(
-        `${API_ENDPOINTS.ADMIN.DELIVERIES.LIST}?date=${selectedDate}`
+        `${API_ENDPOINTS.ADMIN.DELIVERIES.LIST}?date=${today}`
       );
       setDeliveries(data);
     } catch (error) {
@@ -251,6 +317,14 @@ export default function AdminDeliveriesPage() {
     return result;
   }, [deliveries, query, statusFilter, sort]);
 
+  const todaysNeedReport = useMemo(
+    () =>
+      aggregateTodaysSubscriptionNeed(deliveries, deliverySlotWindows, {
+        onlyPending: !todaysNeedIncludeDelivered,
+      }),
+    [deliveries, deliverySlotWindows, todaysNeedIncludeDelivered]
+  );
+
   const filteredOrders = useMemo(() => {
     let result = [...orderDeliveries];
 
@@ -285,7 +359,8 @@ export default function AdminDeliveriesPage() {
   const [confirmAction, setConfirmAction] = useState<null | { kind: 'out' | 'deliver' | 'fulfill' }>(null);
 
   useEffect(() => {
-    if (!filterSheetOpen && !selectedOrderId && !confirmAction) return;
+    if (!filterSheetOpen && !selectedOrderId && !confirmAction && !todaysNeedOpen && !routeCheckPopupOpen && !ordersNeedOpen && !ordersRoutePopupOpen)
+      return;
 
     const html = document.documentElement;
     const body = document.body;
@@ -305,7 +380,7 @@ export default function AdminDeliveriesPage() {
       html.style.overscrollBehaviorY = prevHtmlOverscrollY;
       body.style.overscrollBehaviorY = prevBodyOverscrollY;
     };
-  }, [filterSheetOpen, selectedOrderId, confirmAction]);
+  }, [filterSheetOpen, selectedOrderId, confirmAction, todaysNeedOpen, routeCheckPopupOpen, ordersNeedOpen, ordersRoutePopupOpen]);
 
   const closeFilterSheet = () => {
     setFilterSheetOpen(false);
@@ -337,6 +412,14 @@ export default function AdminDeliveriesPage() {
     }
   };
 
+  /** Re-fetches the count of routable stops from the authoritative endpoint. */
+  const refreshOrdersStopsCount = () => {
+    apiClient
+      .get<{ id: string | number }[]>(API_ENDPOINTS.ADMIN.ORDER_DELIVERIES.ORDER_DELIVERY_STOPS)
+      .then((stops) => setOrdersStopsCount(Array.isArray(stops) ? stops.length : 0))
+      .catch(() => { /* silent */ });
+  };
+
   const runOrderAction = async () => {
     if (!selectedOrder || !confirmAction) return;
     try {
@@ -355,15 +438,24 @@ export default function AdminDeliveriesPage() {
       await fetchOrderDeliveries();
       const refreshed = await apiClient.get<AdminOrderDetails>(API_ENDPOINTS.ADMIN.ORDER_DELIVERIES.DETAIL(selectedOrder.id));
       setSelectedOrder(refreshed);
+
+      // When an order is moved to out_for_delivery, update the Today's Need counter immediately
+      if (confirmAction.kind === 'out') {
+        refreshOrdersStopsCount();
+      }
     } catch (error) {
       console.error('Failed to update order:', error);
       showToast('Failed to update order', 'error');
     }
   };
 
+
   const handleMarkDelivered = async (id: string) => {
     try {
-      // TODO: Implement mark as delivered API call
+      await apiClient.put(
+        API_ENDPOINTS.ADMIN.DELIVERIES.UPDATE_STATUS(id),
+        { status: 'delivered' }
+      );
       showToast('Delivery marked as delivered', 'success');
       await fetchDeliveries();
     } catch (error) {
@@ -400,6 +492,23 @@ export default function AdminDeliveriesPage() {
     }
   };
 
+  const renderNeedLines = (lines: TodaysNeedLine[]) =>
+    lines.length === 0 ? (
+      <p className={styles.todaysNeedMeta}>None</p>
+    ) : (
+      <ul className={styles.todaysNeedList}>
+        {lines.map((line) => (
+          <li key={line.key}>
+            <span className={styles.todaysNeedLineTitle}>{formatTodaysNeedLineLabel(line)}</span>
+            <span className={styles.todaysNeedLineDetail}>
+              {formatLitresAmount(line.totalLitres)} L total · {line.deliveryCount} stop
+              {line.deliveryCount === 1 ? '' : 's'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
+
   if (loading) {
     return (
       <div style={{ 
@@ -422,18 +531,6 @@ export default function AdminDeliveriesPage() {
           <p className={styles.subtitle}>Manage subscription deliveries and checkout order deliveries</p>
         </div>
       </div>
-
-      {tab === 'subscriptions' && (
-        <div className={styles.dateFilterRow}>
-          <label className={styles.dateLabel}>Select Date:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className={styles.dateInput}
-          />
-        </div>
-      )}
 
       <div className={styles.toolbar}>
         <div className={styles.searchSlot}>
@@ -509,6 +606,76 @@ export default function AdminDeliveriesPage() {
           </svg>
         </button>
       </div>
+
+      {tab === 'subscriptions' ? (
+        <div className={styles.todaysNeedBar}>
+          <button
+            type="button"
+            className={styles.todaysNeedBtn}
+            onClick={() => setTodaysNeedOpen(true)}
+          >
+            Today&apos;s need
+            <span className={styles.todaysNeedBtnIconWrap} aria-hidden="true">
+              <svg
+                className={styles.todaysNeedBtnIcon}
+                viewBox="0 0 512 512"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="currentColor"
+              >
+                <path d="M511.746,252.725c-0.061-0.427-0.11-0.852-0.194-1.275c-0.076-0.382-0.18-0.749-0.275-1.125 c-0.092-0.362-0.171-0.726-0.279-1.085c-0.112-0.369-0.251-0.726-0.38-1.089c-0.127-0.354-0.244-0.711-0.388-1.06 c-0.143-0.34-0.307-0.666-0.464-0.998c-0.168-0.355-0.327-0.715-0.514-1.064c-0.171-0.321-0.366-0.624-0.552-0.936 c-0.203-0.34-0.394-0.684-0.616-1.015c-0.234-0.351-0.493-0.68-0.745-1.015c-0.205-0.272-0.393-0.549-0.608-0.815 c-0.489-0.594-1.002-1.167-1.548-1.71l-116.36-116.363c-9.086-9.089-23.822-9.089-32.912,0c-9.089,9.089-9.089,23.824,0,32.912 l76.634,76.639H23.273C10.42,232.729,0,243.149,0,256.002c0,12.853,10.42,23.273,23.273,23.273h409.272l-76.636,76.634 c-9.089,9.089-9.089,23.824,0,32.913c4.544,4.544,10.501,6.817,16.457,6.817c5.956,0,11.913-2.271,16.455-6.817l116.36-116.36 c0.546-0.543,1.06-1.116,1.548-1.711c0.216-0.264,0.403-0.543,0.608-0.813c0.251-0.335,0.51-0.664,0.745-1.015 c0.223-0.33,0.414-0.675,0.616-1.015c0.186-0.312,0.382-0.614,0.552-0.936c0.186-0.351,0.346-0.709,0.514-1.066 c0.157-0.332,0.321-0.658,0.464-0.998c0.144-0.349,0.261-0.706,0.388-1.06c0.129-0.362,0.268-0.718,0.38-1.089 c0.107-0.358,0.188-0.721,0.279-1.085c0.095-0.374,0.199-0.743,0.275-1.125c0.084-0.422,0.133-0.849,0.194-1.275 c0.047-0.326,0.109-0.647,0.143-0.976c0.15-1.53,0.15-3.07,0-4.6C511.854,253.372,511.792,253.051,511.746,252.725z" />
+              </svg>
+            </span>
+          </button>
+          <span className={styles.todaysNeedHint}>Total litres, products, morning vs evening slots</span>
+          <span className={styles.todaysNeedCornerIcon} aria-hidden="true">
+            <svg
+              className={styles.todaysNeedCornerIconSvg}
+              viewBox="-1 02 19 19"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="currentColor"
+            >
+              <path d="M16.417 9.583A7.917 7.917 0 1 1 8.5 1.666a7.917 7.917 0 0 1 7.917 7.917zM5.85 3.309a6.833 6.833 0 1 0 2.65-.534 6.79 6.79 0 0 0-2.65.534zm5.958 4.678c-.105.113-.22.22-.33.33l-.756.757-1.59 1.59a1.532 1.532 0 0 1-.404.35.56.56 0 0 1-.778-.515c-.004-.431 0-.862 0-1.293V4.28a.554.554 0 0 1 .987-.36.86.86 0 0 1 .122.586V9.17q.155-.157.312-.313l1.223-1.223.387-.387a.647.647 0 0 1 .218-.153.554.554 0 0 1 .61.893z" />
+            </svg>
+          </span>
+        </div>
+      ) : null}
+
+      {tab === 'orders' ? (
+        <div className={styles.todaysNeedBar}>
+          <button
+            type="button"
+            className={styles.todaysNeedBtn}
+            onClick={() => setOrdersNeedOpen(true)}
+          >
+            Today&apos;s need
+            <span className={styles.todaysNeedBtnIconWrap} aria-hidden="true">
+              <svg
+                className={styles.todaysNeedBtnIcon}
+                viewBox="0 0 512 512"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="currentColor"
+              >
+                <path d="M511.746,252.725c-0.061-0.427-0.11-0.852-0.194-1.275c-0.076-0.382-0.18-0.749-0.275-1.125 c-0.092-0.362-0.171-0.726-0.279-1.085c-0.112-0.369-0.251-0.726-0.38-1.089c-0.127-0.354-0.244-0.711-0.388-1.06 c-0.143-0.34-0.307-0.666-0.464-0.998c-0.168-0.355-0.327-0.715-0.514-1.064c-0.171-0.321-0.366-0.624-0.552-0.936 c-0.203-0.34-0.394-0.684-0.616-1.015c-0.234-0.351-0.493-0.68-0.745-1.015c-0.205-0.272-0.393-0.549-0.608-0.815 c-0.489-0.594-1.002-1.167-1.548-1.71l-116.36-116.363c-9.086-9.089-23.822-9.089-32.912,0c-9.089,9.089-9.089,23.824,0,32.912 l76.634,76.639H23.273C10.42,232.729,0,243.149,0,256.002c0,12.853,10.42,23.273,23.273,23.273h409.272l-76.636,76.634 c-9.089,9.089-9.089,23.824,0,32.913c4.544,4.544,10.501,6.817,16.457,6.817c5.956,0,11.913-2.271,16.455-6.817l116.36-116.36 c0.546-0.543,1.06-1.116,1.548-1.711c0.216-0.264,0.403-0.543,0.608-0.813c0.251-0.335,0.51-0.664,0.745-1.015 c0.223-0.33,0.414-0.675,0.616-1.015c0.186-0.312,0.382-0.614,0.552-0.936c0.186-0.351,0.346-0.709,0.514-1.066 c0.157-0.332,0.321-0.658,0.464-0.998c0.144-0.349,0.261-0.706,0.388-1.06c0.129-0.362,0.268-0.718,0.38-1.089 c0.107-0.358,0.188-0.721,0.279-1.085c0.095-0.374,0.199-0.743,0.275-1.125c0.084-0.422,0.133-0.849,0.194-1.275 c0.047-0.326,0.109-0.647,0.143-0.976c0.15-1.53,0.15-3.07,0-4.6C511.854,253.372,511.792,253.051,511.746,252.725z" />
+              </svg>
+            </span>
+          </button>
+          <span className={styles.todaysNeedHint}>
+            {ordersStopsCount !== null
+              ? `${ordersStopsCount} order${ordersStopsCount !== 1 ? 's' : ''} ready to route`
+              : 'Out for delivery orders · plan your route'}
+          </span>
+          <span className={styles.todaysNeedCornerIcon} aria-hidden="true">
+            <svg
+              className={styles.todaysNeedCornerIconSvg}
+              viewBox="-1 02 19 19"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="currentColor"
+            >
+              <path d="M16.417 9.583A7.917 7.917 0 1 1 8.5 1.666a7.917 7.917 0 0 1 7.917 7.917zM5.85 3.309a6.833 6.833 0 1 0 2.65-.534 6.79 6.79 0 0 0-2.65.534zm5.958 4.678c-.105.113-.22.22-.33.33l-.756.757-1.59 1.59a1.532 1.532 0 0 1-.404.35.56.56 0 0 1-.778-.515c-.004-.431 0-.862 0-1.293V4.28a.554.554 0 0 1 .987-.36.86.86 0 0 1 .122.586V9.17q.155-.157.312-.313l1.223-1.223.387-.387a.647.647 0 0 1 .218-.153.554.554 0 0 1 .61.893z" />
+            </svg>
+          </span>
+        </div>
+      ) : null}
 
       {filterSheetMounted && filterSheetOpen
         ? createPortal(
@@ -710,7 +877,7 @@ export default function AdminDeliveriesPage() {
       {tab === 'subscriptions' && filtered.length === 0 ? (
         <div className={styles.panel}>
           <div className={styles.emptyState}>
-            <p>No deliveries found for {formatYyyyMmDdInputAsDDMMYYYY(selectedDate)}</p>
+            <p>No deliveries found for today</p>
             {query && <p className={styles.emptyStateSubtext}>Try adjusting your search</p>}
           </div>
         </div>
@@ -723,6 +890,7 @@ export default function AdminDeliveriesPage() {
                     <tr>
                       <th>Subscription</th>
                       <th>Product</th>
+                      <th>Slot</th>
                       <th>Customer</th>
                       <th>Delivery Date</th>
                       <th>Status</th>
@@ -730,8 +898,13 @@ export default function AdminDeliveriesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((delivery) => (
-                      <tr key={delivery.id}>
+                    {filtered.map((delivery) => {
+                      const qtyLabel = subscriptionDeliveryQtyLabel(delivery);
+                      return (
+                      <tr
+                        key={delivery.id}
+                        className={delivery.status === 'delivered' ? styles.rowFulfilled : ''}
+                      >
                         <td>
                           <div className={styles.subscriptionCell}>
                             #{delivery.subscriptionId}
@@ -739,7 +912,17 @@ export default function AdminDeliveriesPage() {
                         </td>
                         <td>
                           <div className={styles.productCell}>
-                            {delivery.productName || 'N/A'}
+                            <div className={styles.cardProductRow}>
+                              <span className={styles.cardProductName}>{delivery.productName || 'N/A'}</span>
+                              {qtyLabel != null ? (
+                                <span className={styles.cardProductQty}>· {qtyLabel} Qty</span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className={styles.slotCell}>
+                            {formatSubscriptionSlotLine(delivery.deliveryTime, deliverySlotWindows) || '—'}
                           </div>
                         </td>
                         <td>
@@ -776,47 +959,61 @@ export default function AdminDeliveriesPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
             <div className={styles.cards}>
-              {filtered.map((delivery) => (
-                <div key={`m-${delivery.id}`} className={styles.card}>
-                  <div className={styles.cardTop}>
-                    <div>
-                      <div className={styles.cardTitleRow}>
-                        <span className={styles.cardTitle}>#{delivery.subscriptionId}</span>
-                        <span className={`${styles.badge} ${getStatusBadgeClass(delivery.status)}`}>{delivery.status}</span>
+              {filtered.map((delivery) => {
+                const slotLabel = formatSubscriptionSlotLine(delivery.deliveryTime, deliverySlotWindows);
+                const qtyLabel = subscriptionDeliveryQtyLabel(delivery);
+                return (
+                  <div
+                    key={`m-${delivery.id}`}
+                    className={`${styles.card} ${delivery.status === 'delivered' ? styles.cardFulfilled : ''}`}
+                  >
+                    <div className={styles.cardTop}>
+                      <div>
+                        <div className={styles.cardTitleRow}>
+                          <span className={styles.cardTitle}>#{delivery.subscriptionId}</span>
+                          <span className={`${styles.badge} ${getStatusBadgeClass(delivery.status)}`}>{delivery.status}</span>
+                        </div>
+                        <div className={styles.cardProductRow}>
+                          <span className={styles.cardProductName}>{delivery.productName || 'N/A'}</span>
+                          {qtyLabel != null ? (
+                            <span className={styles.cardProductQty}>· {qtyLabel} Qty</span>
+                          ) : null}
+                        </div>
+                        {slotLabel ? <div className={styles.cardSlotLine}>{slotLabel}</div> : null}
                       </div>
-                      <div className={styles.cardProduct}>{delivery.productName || 'N/A'}</div>
                     </div>
-                  </div>
-                  <div className={styles.cardBody}>
-                    <div className={styles.customerCell}>
-                      <div className={styles.customerName}>{delivery.userName || delivery.userEmail || 'N/A'}</div>
-                      {delivery.userEmail && delivery.userName ? (
-                        <div className={styles.customerEmail}>{delivery.userEmail}</div>
+                    <div className={styles.cardBody}>
+                      <div className={styles.customerCell}>
+                        <div className={styles.customerName}>{delivery.userName || delivery.userEmail || 'N/A'}</div>
+                        {delivery.userEmail && delivery.userName ? (
+                          <div className={styles.customerEmail}>{delivery.userEmail}</div>
+                        ) : null}
+                      </div>
+                      <div className={styles.cardMeta}>
+                        <span className={styles.cardMetaLabel}>Delivery</span>
+                        <span className={styles.dateCell}>{formatDateDDMMYYYYIST(delivery.deliveryDate)}</span>
+                      </div>
+                      {delivery.status === 'pending' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkDelivered(delivery.id)}
+                          className={styles.actionButton}
+                          title="Mark as Delivered"
+                        >
+                          Mark Delivered
+                        </button>
                       ) : null}
                     </div>
-                    <div className={styles.cardMeta}>
-                      <span className={styles.cardMetaLabel}>Delivery</span>
-                      <span className={styles.dateCell}>{formatDateDDMMYYYYIST(delivery.deliveryDate)}</span>
-                    </div>
-                    {delivery.status === 'pending' ? (
-                      <button
-                        type="button"
-                        onClick={() => handleMarkDelivered(delivery.id)}
-                        className={styles.actionButton}
-                        title="Mark as Delivered"
-                      >
-                        Mark Delivered
-                      </button>
-                    ) : null}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
       ) : filteredOrders.length === 0 ? (
@@ -845,11 +1042,12 @@ export default function AdminDeliveriesPage() {
                     {filteredOrders.map((o) => {
                       const isCod = (o.paymentMethod || '').toLowerCase() === 'cod';
                       const codPaid = isCod && (o.paymentStatus || '').toLowerCase() === 'paid';
+                      const isDelivered = o.status === 'delivered';
                       return (
                         <tr
                           key={o.orderId}
                           onClick={() => openOrderDetails(o.orderId)}
-                          className={o.status === 'delivered' && o.fulfilledAt ? styles.rowFulfilled : ''}
+                          className={isDelivered ? styles.rowFulfilled : ''}
                           style={{ cursor: 'pointer' }}
                         >
                           <td>
@@ -876,14 +1074,10 @@ export default function AdminDeliveriesPage() {
                                 <span className={`${styles.paymentBadgePill} ${codPaid ? styles.paymentBadgeGreen : styles.paymentBadgeAmber}`}>
                                   COD
                                 </span>
-                                <span className={styles.paymentSubtext}>{codPaid ? 'Paid' : 'Pending'}</span>
                               </div>
                             ) : (
                               <div className={styles.paymentBadge}>
                                 <span className={`${styles.paymentBadgePill} ${styles.paymentBadgeGreen}`}>ONLINE</span>
-                                <span className={styles.paymentSubtext}>
-                                  {(o.paymentStatus || '').toLowerCase() === 'paid' ? 'Paid' : o.paymentStatus}
-                                </span>
                               </div>
                             )}
                           </td>
@@ -899,13 +1093,13 @@ export default function AdminDeliveriesPage() {
               {filteredOrders.map((o) => {
                 const isCod = (o.paymentMethod || '').toLowerCase() === 'cod';
                 const codPaid = isCod && (o.paymentStatus || '').toLowerCase() === 'paid';
-                const fulfilled = o.status === 'delivered' && o.fulfilledAt;
+                const isDelivered = o.status === 'delivered';
                 return (
                   <div
                     key={`m-${o.orderId}`}
                     role="button"
                     tabIndex={0}
-                    className={`${styles.card} ${styles.cardClickable} ${fulfilled ? styles.cardFulfilled : ''}`}
+                    className={`${styles.card} ${styles.cardClickable} ${isDelivered ? styles.cardFulfilled : ''}`}
                     onClick={() => openOrderDetails(o.orderId)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
@@ -936,14 +1130,10 @@ export default function AdminDeliveriesPage() {
                             <span className={`${styles.paymentBadgePill} ${codPaid ? styles.paymentBadgeGreen : styles.paymentBadgeAmber}`}>
                               COD
                             </span>
-                            <span className={styles.paymentSubtext}>{codPaid ? 'Paid' : 'Pending'}</span>
                           </div>
                         ) : (
                           <div className={styles.paymentBadge}>
                             <span className={`${styles.paymentBadgePill} ${styles.paymentBadgeGreen}`}>ONLINE</span>
-                            <span className={styles.paymentSubtext}>
-                              {(o.paymentStatus || '').toLowerCase() === 'paid' ? 'Paid' : o.paymentStatus}
-                            </span>
                           </div>
                         )}
                         <span className={styles.cardItems}>{o.itemsCount} items</span>
@@ -955,6 +1145,271 @@ export default function AdminDeliveriesPage() {
             </div>
           </>
       )}
+
+      {todaysNeedOpen
+        ? createPortal(
+            <div
+              className={styles.todaysNeedBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setTodaysNeedOpen(false);
+              }}
+            >
+              <div
+                className={styles.todaysNeedPanel}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={todaysNeedTitleId}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className={styles.todaysNeedClose}
+                  aria-label="Close"
+                  onClick={() => setTodaysNeedOpen(false)}
+                >
+                  ×
+                </button>
+                <div className={styles.todaysNeedInner}>
+                  <h2 id={todaysNeedTitleId} className={styles.todaysNeedTitle}>
+                    Today&apos;s need
+                  </h2>
+                  <p className={styles.todaysNeedMeta}>
+                    {formatDateDDMMYYYYIST(getTodayLocalYmd())} · full list for this day (ignores search / filters)
+                  </p>
+                  <label className={styles.todaysNeedToggle}>
+                    <input
+                      type="checkbox"
+                      checked={todaysNeedIncludeDelivered}
+                      onChange={(e) => setTodaysNeedIncludeDelivered(e.target.checked)}
+                    />
+                    <span>Include delivered stops</span>
+                  </label>
+                  <p className={styles.todaysNeedFootnote}>
+                    {todaysNeedIncludeDelivered
+                      ? 'Counts pending and delivered; skips skipped and cancelled.'
+                      : 'Pending stops only — what still needs to go out.'}
+                  </p>
+
+                  <div className={styles.todaysNeedSummaryCard}>
+                    <div className={styles.todaysNeedTotalRow}>
+                      <span className={styles.todaysNeedTotalLabel}>Total qty</span>
+                      <span className={styles.todaysNeedTotalValue}>{formatLitresAmount(todaysNeedReport.totalLitres)}</span>
+                      <span className={styles.todaysNeedTotalUnit}>L</span>
+                    </div>
+                    <p className={styles.todaysNeedMeta}>
+                      Sum of per-day litres across {todaysNeedReport.rowCount} delivery row
+                      {todaysNeedReport.rowCount === 1 ? '' : 's'}
+                    </p>
+                  </div>
+
+                  <div className={styles.todaysNeedSectionTitle}>Products</div>
+                  {renderNeedLines(todaysNeedReport.lines)}
+
+                  <div className={styles.todaysNeedSectionTitle}>By delivery slot</div>
+                  <div className={styles.todaysNeedSlotGrid}>
+                    <div className={styles.todaysNeedSlotCard}>
+                      <h3 className={styles.todaysNeedSlotHeading}>Morning</h3>
+                      <div className={styles.todaysNeedSlotTotal}>
+                        {formatLitresAmount(todaysNeedReport.morning.totalLitres)} L
+                      </div>
+                      {renderNeedLines(todaysNeedReport.morning.lines)}
+                      <button
+                        type="button"
+                        className={styles.todaysNeedRouteActionBtn}
+                        onClick={() => {
+                          setRoutePlannerSlot('morning');
+                          setRouteCheckPopupOpen(true);
+                        }}
+                      >
+                        Check route and start delivering
+                      </button>
+                    </div>
+                    <div className={`${styles.todaysNeedSlotCard} ${styles.todaysNeedSlotCardEvening}`}>
+                      <h3 className={styles.todaysNeedSlotHeading}>Evening</h3>
+                      <div className={styles.todaysNeedSlotTotal}>
+                        {formatLitresAmount(todaysNeedReport.evening.totalLitres)} L
+                      </div>
+                      {renderNeedLines(todaysNeedReport.evening.lines)}
+                      <button
+                        type="button"
+                        className={styles.todaysNeedRouteActionBtn}
+                        onClick={() => {
+                          setRoutePlannerSlot('evening');
+                          setRouteCheckPopupOpen(true);
+                        }}
+                      >
+                        Check route and start delivering
+                      </button>
+                    </div>
+                  </div>
+
+                  {todaysNeedReport.unknown.lines.length > 0 ? (
+                    <div className={styles.todaysNeedUnknown}>
+                      <h4 className={styles.todaysNeedUnknownTitle}>Unknown slot</h4>
+                      <p className={styles.todaysNeedMeta}>
+                        {formatLitresAmount(todaysNeedReport.unknown.totalLitres)} L — assign a delivery time on the
+                        subscription
+                      </p>
+                      {renderNeedLines(todaysNeedReport.unknown.lines)}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {routeCheckPopupOpen
+        ? createPortal(
+            <div
+              className={styles.routePopupBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setRouteCheckPopupOpen(false);
+              }}
+            >
+              <div
+                className={`${styles.routePopupPanel} ${styles.routePopupPanelWide}`}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Delivery route"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <DeliveryRoutePlanner
+                  slot={routePlannerSlot}
+                  date={getTodayLocalYmd()}
+                  onClose={() => setRouteCheckPopupOpen(false)}
+                />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {/* Orders Today's Need modal */}
+      {ordersNeedOpen
+        ? createPortal(
+            <div
+              className={styles.todaysNeedBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setOrdersNeedOpen(false);
+              }}
+            >
+              <div
+                className={styles.todaysNeedPanel}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={ordersNeedTitleId}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className={styles.todaysNeedClose}
+                  aria-label="Close"
+                  onClick={() => setOrdersNeedOpen(false)}
+                >
+                  ×
+                </button>
+                <div className={styles.todaysNeedInner}>
+                  <h2 id={ordersNeedTitleId} className={styles.todaysNeedTitle}>
+                    Today&apos;s need
+                  </h2>
+                  <p className={styles.todaysNeedMeta}>
+                    {formatDateDDMMYYYYIST(getTodayLocalYmd())} · out-for-delivery orders ready to route
+                  </p>
+
+                  <div className={styles.ordersNeedIconWrap} aria-hidden="true">
+                    <svg
+                      viewBox="0 0 1024 1024"
+                      className={styles.ordersNeedIcon}
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M786 279l-48-13 48-13 13-48 13 48 49 13-49 13-13 49-13-49zM834 332l-19-4 19-5 4-19 5 19 19 5-19 4-5 19-4-19z" fill="#c2ffce" />
+                      <path d="M159 715l-21-5 21-5 5-21 5 21 21 5-21 5-5 21-5-21z" fill="#c2ffce" />
+                      <path d="M244 247m-9 0a9 9 0 1 0 18 0 9 9 0 1 0-18 0Z" fill="#000000" />
+                      <path d="M288 821l-27-6 27-7 6-27 7 27 27 7-27 6-7 27-6-27z" fill="#c2ffce" />
+                      <path d="M832 828a25 25 0 1 1 25-25 25 25 0 0 1-25 25z m0-36a10 10 0 1 0 10 10 10 10 0 0 0-10-10z" fill="#000000" />
+                      <path d="M627 502l-10-17 11-7V287l-22 14a95 95 0 0 1 3 24c0 28-19 64-58 108 21 7 34 19 34 34s-31 40-71 40-71-17-71-40 13-27 34-34l-25-30-40 26v180h2l11-7 11 17-17 10h-7v112l216-102V501z m-135 83l-16 10-8 5-8 5h-1l-5-9-5-8 9-5 24-15 10 17z m56-35l-33 20-10-17 33-20 10 17z m56-35l-33 20-10-17 17-10 16-10 10 17zM188 640l204 99V427L188 296z m162-74l32 22-11 16-32-22z m-57-31l4-5 8 6 23 16-11 16-15-11-8-6-8-6z m-42-45a29 29 0 1 1-29 29 29 29 0 0 1 30-29zM648 477l12 6-9 18-3-2v141l217 95V428L648 285z m176 68a29 29 0 1 1-29 29 29 29 0 0 1 29-29z m-72-15l36 19-9 18-36-18z m-69-23l5-10 9 4 9 4 18 9-9 18-27-14-9-4z" fill="#c2ffce" />
+                      <path d="M640 256l-41 27a95 95 0 0 0-181 43c0 17 7 38 22 61l-37 24-235-151v392l236 115 233-110 248 108V417z m-202 69a75 75 0 0 1 151 0c0 33-40 81-75 118-62-63-76-99-76-118z m97 124c18 4 29 12 29 18s-20 20-51 20-51-12-51-20 11-14 29-18l15 15 7 7 7-7zM392 739l-204-99V296l204 131z m20 2V630h7l17-10-11-17-11 7h-2V429l40-26 25 30c-21 7-34 19-34 34s31 40 71 40 71-17 71-40-13-27-34-34c39-44 58-80 58-108a95 95 0 0 0-3-24l22-14v190l-11 7 10 17h1v138z m453-6l-217-95V499l3 2 9-18-12-6V285l217 143z" fill="#000000" />
+                      <path d="M286 546l8 5 8 6 15 11 12-17-24-16-8-6-4 5-7 12zM371 604l11-16-32-22-11 16 32 22zM481 568l-24 15-9 5 1 1h-1l5 8 5 9v-1l1 1 8-5 9-5h-1l17-11-11-17zM537 534l-33 20 11 17 33-20-10-17h-1zM594 499l-16 10-17 10 10 17 33-20-10-17zM679 515l9 4 27 14 9-17v-1l-18-9-9-4-9-5-5 10-4 8zM779 566l9-18-36-18-9 17v1l36 18z" fill="#000000" />
+                      <path d="M824 585a11 11 0 1 0-11-11 11 11 0 0 0 11 11z" fill="#009e20" />
+                      <path d="M824 603a29 29 0 1 0-29-29 29 29 0 0 0 29 29z m0-40a11 11 0 1 1-11 11 11 11 0 0 1 11-11z" fill="#000000" />
+                      <path d="M252 530a11 11 0 1 0-11-11 11 11 0 0 0 11 11z" fill="#FFFFFF" />
+                      <path d="M252 548a29 29 0 1 0-29-29 29 29 0 0 0 29 29z m0-40a11 11 0 1 1-11 11 11 11 0 0 1 11-11z" fill="#000000" />
+                      <path d="M507 465l-15-15c-18 4-29 12-29 18s20 20 51 20 51-12 51-20-11-14-29-18l-15 15-7 7z" fill="#AFBCF3" />
+                      <path d="M514 444c36-37 75-85 75-118a75 75 0 0 0-151 0c0 18 14 54 76 118z m-35-117a35 35 0 1 1 35 35 35 35 0 0 1-35-35z" fill="#009e20" />
+                      <path d="M514 327m-35 0a35 35 0 1 0 70 0 35 35 0 1 0-70 0Z" fill="#FFFFFF" />
+                    </svg>
+                  </div>
+
+                  <div className={styles.todaysNeedSummaryCard}>
+                    <div className={styles.todaysNeedTotalRow}>
+                      <span className={styles.todaysNeedTotalLabel}>Routable orders</span>
+                      <span className={styles.todaysNeedTotalValue}>
+                        {ordersRefreshing || ordersStopsCount === null ? '…' : ordersStopsCount}
+                      </span>
+                      <span className={styles.todaysNeedTotalUnit}>orders</span>
+                    </div>
+                    <p className={styles.todaysNeedMeta}>
+                      Out for delivery orders with a saved delivery location (orders without coordinates are skipped)
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className={styles.todaysNeedRouteActionBtn}
+                    disabled={ordersRefreshing}
+                    onClick={() => {
+                      setOrdersNeedOpen(false);
+                      setOrdersRouteNonce((n) => n + 1);  // force fresh remount of route planner
+                      setOrdersRoutePopupOpen(true);
+                    }}
+                  >
+                    Check route and start delivering
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {/* Orders route planner popup */}
+      {ordersRoutePopupOpen
+        ? createPortal(
+            <div
+              className={styles.routePopupBackdrop}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setOrdersRoutePopupOpen(false);
+              }}
+            >
+              <div
+                className={`${styles.routePopupPanel} ${styles.routePopupPanelWide}`}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Order delivery route"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <DeliveryRoutePlanner
+                  key={ordersRouteNonce}
+                  slot="morning"
+                  date={getTodayLocalYmd()}
+                  mode="orders"
+                  onClose={() => {
+                    setOrdersRoutePopupOpen(false);
+                    // Refresh order list after deliveries may have been marked
+                    void fetchOrderDeliveries();
+                  }}
+                />
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {/* Order details modal */}
       {selectedOrderId && (
@@ -1053,23 +1508,10 @@ export default function AdminDeliveriesPage() {
                   )}
 
                   {selectedOrder.status === 'out_for_delivery' && (
-                    <>
-                      <button type="button" onClick={() => setConfirmAction({ kind: 'deliver' })} className={styles.orderModalBtnSuccess}>
-                        Mark as deliver
-                      </button>
-                      <button type="button" onClick={() => setConfirmAction({ kind: 'fulfill' })} className={styles.orderModalBtnSecondary}>
-                        Mark as fulfilled
-                      </button>
-                    </>
+                    <button type="button" onClick={() => setConfirmAction({ kind: 'deliver' })} className={styles.orderModalBtnSuccess}>
+                      Mark as delivered
+                    </button>
                   )}
-
-                  {selectedOrder.status === 'delivered' &&
-                    (selectedOrder.paymentMethod || '').toLowerCase() === 'cod' &&
-                    (selectedOrder.paymentStatus || '').toLowerCase() !== 'paid' && (
-                      <button type="button" onClick={() => setConfirmAction({ kind: 'fulfill' })} className={styles.orderModalBtnSecondary}>
-                        Mark as fulfilled
-                      </button>
-                    )}
                 </div>
               </div>
             ) : null}

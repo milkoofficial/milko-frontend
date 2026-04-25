@@ -5,14 +5,20 @@ import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { productsApi, subscriptionsApi, contentApi, walletApi, addressesApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  readScopedPincode,
+  scopedPincodeKey,
+  scopedPincodeStatusKey,
+  writeSubscriptionCartJson,
+} from '@/lib/utils/userScopedStorage';
 import { Product, Address } from '@/types';
 import styles from './SubscribePage.module.css';
 import Link from 'next/link';
 
 const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
 const DEFAULT_DELIVERY_TIME_OPTIONS = [
-  { label: 'Before 9 AM', value: '09:00' },
-  { label: 'After 5 PM', value: '17:00' },
+  { label: '06:00 AM - 09:00 AM', value: '06:00' },
+  { label: '05:00 PM - 08:00 PM', value: '17:00' },
 ];
 
 /**
@@ -22,7 +28,8 @@ const DEFAULT_DELIVERY_TIME_OPTIONS = [
 export default function SubscribePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const pinUserId = user?.id ?? null;
   const productId = searchParams.get('productId');
   const isCartFlow = searchParams.get('from') === 'cart';
   const isRenewFlow = searchParams.get('renew') === '1';
@@ -31,7 +38,7 @@ export default function SubscribePage() {
   const [resolvedProductId, setResolvedProductId] = useState(productId || '');
   const [cartFlowProducts, setCartFlowProducts] = useState<Product[]>([]);
   const [litresPerDay, setLitresPerDay] = useState(1);
-  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('daily');
+  const [frequency, setFrequency] = useState<'daily'>('daily');
   const [durationDays, setDurationDays] = useState(30);
   const [deliveryTime, setDeliveryTime] = useState(DEFAULT_DELIVERY_TIME_OPTIONS[0].value);
   const [deliveryTimeOptions, setDeliveryTimeOptions] = useState<Array<{ label: string; value: string }>>(DEFAULT_DELIVERY_TIME_OPTIONS);
@@ -39,6 +46,7 @@ export default function SubscribePage() {
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'wallet'>('online');
   const [walletBalance, setWalletBalance] = useState(0);
+  const [platformFee, setPlatformFee] = useState(0);
   const [pincodeStatus, setPincodeStatus] = useState<'checking' | 'missing' | 'available' | 'unavailable'>('checking');
   const [savedPincode, setSavedPincode] = useState('');
   const [serviceablePincodes, setServiceablePincodes] = useState<Array<{ pincode: string; deliveryTime?: string }> | null>(null);
@@ -46,8 +54,17 @@ export default function SubscribePage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [mapModalAddress, setMapModalAddress] = useState<Address | null>(null);
-  const [mapDraftLat, setMapDraftLat] = useState<number | undefined>(undefined);
-  const [mapDraftLng, setMapDraftLng] = useState<number | undefined>(undefined);
+  const [mapModalDraft, setMapModalDraft] = useState<{
+    name: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    latitude?: number;
+    longitude?: number;
+  } | null>(null);
   const [mapSaving, setMapSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showAddLocationModal, setShowAddLocationModal] = useState(false);
@@ -87,12 +104,7 @@ export default function SubscribePage() {
       setDurationDays(parseInt(daysParam, 10));
     }
 
-    if (
-      frequencyParam === 'daily' ||
-      frequencyParam === 'weekly' ||
-      frequencyParam === 'monthly' ||
-      frequencyParam === 'quarterly'
-    ) {
+    if (frequencyParam === 'daily') {
       setFrequency(frequencyParam);
     }
 
@@ -156,6 +168,31 @@ export default function SubscribePage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadPlatformFee = async () => {
+      try {
+        const data = await contentApi.getByType('platform_fee');
+        const metadataAmount = Number(data.metadata?.amount);
+        const titleAmount = Number(data.title);
+        const amount = Number.isFinite(metadataAmount) ? metadataAmount : titleAmount;
+        if (!cancelled) {
+          setPlatformFee(Number.isFinite(amount) && amount > 0 ? amount : 0);
+        }
+      } catch {
+        if (!cancelled) {
+          setPlatformFee(0);
+        }
+      }
+    };
+
+    loadPlatformFee();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const loadAddresses = async () => {
       try {
         setLoadingAddresses(true);
@@ -216,7 +253,7 @@ export default function SubscribePage() {
       }
 
       const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
-      const pin = (selectedAddress?.postalCode || localStorage.getItem('milko_delivery_pincode') || '').trim();
+      const pin = (selectedAddress?.postalCode || readScopedPincode(pinUserId) || '').trim();
       setSavedPincode(pin);
       if (pin.length !== 6) {
         setPincodeStatus('missing');
@@ -233,7 +270,12 @@ export default function SubscribePage() {
     syncPincodeState();
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'milko_delivery_pincode' || e.key === 'milko_delivery_status') {
+      if (
+        e.key === scopedPincodeKey(pinUserId)
+        || e.key === scopedPincodeStatusKey(pinUserId)
+        || e.key === 'milko_delivery_pincode'
+        || e.key === 'milko_delivery_status'
+      ) {
         syncPincodeState();
       }
     };
@@ -245,7 +287,7 @@ export default function SubscribePage() {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('milko:pincode-updated', onPincodeUpdated as EventListener);
     };
-  }, [savedAddresses, selectedAddressId]);
+  }, [savedAddresses, selectedAddressId, pinUserId]);
 
   useEffect(() => {
     if (!deliveryTimeOptions.some((slot) => slot.value === deliveryTime)) {
@@ -272,6 +314,25 @@ export default function SubscribePage() {
     if (!resolvedProductId) return;
     if (isCartFlow && !isRenewFlow) {
       if (!product) return;
+      if (!isAuthenticated || !user?.id) {
+        const returnPath = `/subscribe?${searchParams.toString()}`;
+        localStorage.setItem('milko_return_after_auth', returnPath);
+        router.replace(`/auth/login?redirect=${encodeURIComponent(returnPath)}`);
+        return;
+      }
+      if (!selectedAddressId) {
+        alert('Please select a delivery address to add this subscription to your cart.');
+        return;
+      }
+      const addr = savedAddresses.find((a) => a.id === selectedAddressId);
+      if (!addr || typeof addr.latitude !== 'number' || typeof addr.longitude !== 'number') {
+        alert('Please set your exact location on the map for the selected address before continuing.');
+        return;
+      }
+      if (pincodeStatus !== 'available') {
+        alert('Delivery is not available for this address pincode. Please choose a serviceable address.');
+        return;
+      }
       const durationMonths = Math.max(1, Math.round(durationDays / 30));
       const subscriptionCartItem = {
         type: 'subscription',
@@ -285,7 +346,7 @@ export default function SubscribePage() {
         totalAmount: Number((product.pricePerLitre * litresPerDay * durationDays).toFixed(2)),
         updatedAt: new Date().toISOString(),
       };
-      localStorage.setItem('milko_subscription_cart_item_v1', JSON.stringify(subscriptionCartItem));
+      writeSubscriptionCartJson(user.id, JSON.stringify(subscriptionCartItem));
       router.push('/cart');
       return;
     }
@@ -395,8 +456,10 @@ export default function SubscribePage() {
   }
 
   const subscriptionTotal = product.pricePerLitre * litresPerDay * durationDays;
-  const walletUsedPreview = Math.max(0, Math.min(walletBalance, subscriptionTotal));
-  const onlineDuePreview = Math.max(0, Math.round((subscriptionTotal - walletUsedPreview) * 100) / 100);
+  const initialPaymentPlatformFee = (!isCartFlow || isRenewFlow) ? platformFee : 0;
+  const payableTodayTotal = Math.max(0, Math.round((subscriptionTotal + initialPaymentPlatformFee) * 100) / 100);
+  const walletUsedPreview = Math.max(0, Math.min(walletBalance, payableTodayTotal));
+  const onlineDuePreview = Math.max(0, Math.round((payableTodayTotal - walletUsedPreview) * 100) / 100);
   const perLitreDiscount = Math.max(
     0,
     Number((product.compareAtPrice ?? product.sellingPrice ?? 0) - product.pricePerLitre) || 0,
@@ -406,13 +469,23 @@ export default function SubscribePage() {
 
   const openMapModal = (address: Address) => {
     setMapModalAddress(address);
-    setMapDraftLat(address.latitude);
-    setMapDraftLng(address.longitude);
+    setMapModalDraft({
+      name: address.name,
+      phone: address.phone || '',
+      street: address.street,
+      city: address.city,
+      state: address.state,
+      postalCode: address.postalCode,
+      country: address.country || 'India',
+      latitude: address.latitude,
+      longitude: address.longitude,
+    });
   };
 
   const closeMapModal = () => {
     if (mapSaving) return;
     setMapModalAddress(null);
+    setMapModalDraft(null);
   };
 
   const openAddLocationModal = () => {
@@ -482,23 +555,49 @@ export default function SubscribePage() {
     }
   };
 
-  const saveMapLocation = async () => {
-    if (!mapModalAddress || mapDraftLat === undefined || mapDraftLng === undefined) {
-      alert('Please tap the map to set a location.');
+  const saveAddressFromMapModal = async () => {
+    if (!mapModalAddress || !mapModalDraft) return;
+    const d = mapModalDraft;
+    if (
+      !d.name.trim()
+      || !d.phone.trim()
+      || !d.street.trim()
+      || !d.city.trim()
+      || !d.state.trim()
+      || !d.postalCode.trim()
+      || !d.country.trim()
+    ) {
+      alert('Please fill all address fields.');
+      return;
+    }
+    if (d.latitude === undefined || d.longitude === undefined) {
+      alert('Please set your location on the map.');
+      return;
+    }
+    if (!isDeliverable(d.postalCode.trim())) {
+      alert('This pincode is not deliverable.');
       return;
     }
     setMapSaving(true);
     try {
       const updated = await addressesApi.update(mapModalAddress.id, {
-        latitude: mapDraftLat,
-        longitude: mapDraftLng,
+        name: d.name.trim(),
+        phone: d.phone.trim(),
+        street: d.street.trim(),
+        city: d.city.trim(),
+        state: d.state.trim(),
+        postalCode: d.postalCode.trim(),
+        country: d.country.trim(),
+        latitude: d.latitude,
+        longitude: d.longitude,
       });
       setSavedAddresses((prev) =>
         prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a)),
       );
       setMapModalAddress(null);
+      setMapModalDraft(null);
     } catch (e) {
-      alert((e as { message?: string })?.message || 'Could not save location.');
+      alert((e as { message?: string })?.message || 'Could not save address.');
     } finally {
       setMapSaving(false);
     }
@@ -585,7 +684,7 @@ export default function SubscribePage() {
                             openMapModal(address);
                           }}
                         >
-                          {hasPin ? 'Change exact location' : 'Set exact location'}
+                          {hasPin ? 'Change Address' : 'Set address & map'}
                         </button>
                       </div>
                     );
@@ -661,13 +760,10 @@ export default function SubscribePage() {
                 id="frequency"
                 className={styles.select}
                 value={frequency}
-                onChange={(e) => setFrequency(e.target.value as 'daily' | 'weekly' | 'monthly' | 'quarterly')}
+                onChange={(e) => setFrequency(e.target.value as 'daily')}
                 required
               >
                 <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
               </select>
               <svg className={styles.selectArrow} viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -708,6 +804,7 @@ export default function SubscribePage() {
                 <option value={7}>7 days</option>
                 <option value={15}>15 days</option>
                 <option value={30}>1 month</option>
+                <option value={60}>2 months</option>
                 <option value={90}>3 months</option>
                 <option value={180}>6 months</option>
                 <option value={365}>12 months (365 days)</option>
@@ -750,6 +847,14 @@ export default function SubscribePage() {
               Total for {durationDays} day(s):{' '}
               <strong>₹{subscriptionTotal}</strong>
             </p>
+            {initialPaymentPlatformFee > 0 && (
+              <p className={styles.totalLine} style={{ marginTop: 8 }}>
+                Platform fee: <strong>₹{initialPaymentPlatformFee.toFixed(2)}</strong>
+              </p>
+            )}
+            <p className={styles.totalLine} style={{ marginTop: 8 }}>
+              Payable today: <strong>₹{payableTodayTotal.toFixed(2)}</strong>
+            </p>
             <p className={styles.amountBreakdown}>
               Breakdown: {litresPerDay} L/day × ₹{product.pricePerLitre}/L × {durationDays} day(s) = ₹{subscriptionTotal}
             </p>
@@ -781,7 +886,7 @@ export default function SubscribePage() {
                     </svg>
                     <span className={styles.paymentEtc}>etc</span>
                   </span>
-                  <span>Pay full amount online (₹{subscriptionTotal.toFixed(2)})</span>
+                  <span>Pay full amount online (₹{payableTodayTotal.toFixed(2)})</span>
                 </span>
               </label>
 
@@ -825,7 +930,7 @@ export default function SubscribePage() {
           </div>
         </form>
 
-        {mapModalAddress ? (
+        {mapModalAddress && mapModalDraft ? (
           <div
             className={styles.mapModalOverlay}
             role="presentation"
@@ -835,7 +940,7 @@ export default function SubscribePage() {
               className={styles.mapModal}
               role="dialog"
               aria-modal="true"
-              aria-labelledby="subscribe-map-title"
+              aria-labelledby="subscribe-address-modal-title"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -847,21 +952,72 @@ export default function SubscribePage() {
               >
                 ×
               </button>
-              <h3 id="subscribe-map-title" className={styles.mapModalTitle}>
-                Set exact location
+              <h3 id="subscribe-address-modal-title" className={styles.mapModalTitle}>
+                Delivery address
               </h3>
               <p className={styles.mapModalSubtitle}>
-                {mapModalAddress.name} — {mapModalAddress.city}, {mapModalAddress.postalCode}
+                Update your details and map pin. Changes apply when you save.
               </p>
-              <div className={styles.mapModalBody}>
-                <AddressLocationPicker
-                  latitude={mapDraftLat}
-                  longitude={mapDraftLng}
-                  onChange={({ latitude, longitude }) => {
-                    setMapDraftLat(latitude);
-                    setMapDraftLng(longitude);
-                  }}
+              <div className={styles.addLocationForm}>
+                <div className={styles.addLocationRow}>
+                  <input
+                    className={styles.input}
+                    placeholder="Full name"
+                    value={mapModalDraft.name}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, name: e.target.value } : p))}
+                  />
+                  <input
+                    className={styles.input}
+                    placeholder="Phone number"
+                    value={mapModalDraft.phone}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, phone: e.target.value } : p))}
+                  />
+                </div>
+                <input
+                  className={styles.input}
+                  placeholder="Street address"
+                  value={mapModalDraft.street}
+                  onChange={(e) => setMapModalDraft((p) => (p ? { ...p, street: e.target.value } : p))}
                 />
+                <div className={styles.addLocationRow}>
+                  <input
+                    className={styles.input}
+                    placeholder="City"
+                    value={mapModalDraft.city}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, city: e.target.value } : p))}
+                  />
+                  <input
+                    className={styles.input}
+                    placeholder="State"
+                    value={mapModalDraft.state}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, state: e.target.value } : p))}
+                  />
+                </div>
+                <div className={styles.addLocationRow}>
+                  <input
+                    className={styles.input}
+                    placeholder="Postal code"
+                    value={mapModalDraft.postalCode}
+                    onChange={(e) => setMapModalDraft((p) => (p ? { ...p, postalCode: e.target.value } : p))}
+                  />
+                  <input
+                    className={styles.input}
+                    value="India"
+                    readOnly
+                    aria-label="Country (fixed)"
+                  />
+                </div>
+                <div className={styles.mapModalBody}>
+                  <AddressLocationPicker
+                    key={mapModalAddress.id}
+                    latitude={mapModalDraft.latitude}
+                    longitude={mapModalDraft.longitude}
+                    showCoords={false}
+                    onChange={({ latitude, longitude }) =>
+                      setMapModalDraft((p) => (p ? { ...p, latitude, longitude } : p))
+                    }
+                  />
+                </div>
               </div>
               <div className={styles.mapModalActions}>
                 <button
@@ -876,9 +1032,9 @@ export default function SubscribePage() {
                   type="button"
                   className={styles.mapModalSave}
                   disabled={mapSaving}
-                  onClick={() => void saveMapLocation()}
+                  onClick={() => void saveAddressFromMapModal()}
                 >
-                  {mapSaving ? 'Saving…' : 'Save location'}
+                  {mapSaving ? 'Saving…' : 'Save changes'}
                 </button>
               </div>
             </div>
@@ -957,6 +1113,7 @@ export default function SubscribePage() {
                 <AddressLocationPicker
                   latitude={newAddressForm.latitude}
                   longitude={newAddressForm.longitude}
+                  showCoords={false}
                   onChange={({ latitude, longitude }) =>
                     setNewAddressForm((p) => ({ ...p, latitude, longitude }))
                   }

@@ -116,6 +116,44 @@ export default function AdminMorePage() {
         </>
       ),
     },
+    {
+      title: 'Favicon',
+      href: '/admin/favicon',
+      description: 'Update browser tab icon',
+      icon: (
+        <>
+          <path d="M6 4H14L18 8V20H6V4Z" />
+          <path d="M14 4V8H18" />
+          <circle cx="12" cy="13" r="3" />
+        </>
+      ),
+    },
+    {
+      title: 'Platform fees',
+      href: '/admin/content/platform_fee',
+      description: 'Set flat checkout fee',
+      icon: (
+        <>
+          <path d="M6 7h12" />
+          <path d="M6 12h8" />
+          <path d="M6 17h10" />
+          <path d="M17.5 10.5c1.93 0 3.5 1.57 3.5 3.5s-1.57 3.5-3.5 3.5S14 15.93 14 14h3.5" />
+        </>
+      ),
+    },
+    {
+      title: 'Delivery rates',
+      href: '/admin/content/delivery_rates',
+      description: 'Warehouse distance-based checkout charges',
+      icon: (
+        <>
+          <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11Z" />
+          <circle cx="12" cy="10" r="2.5" />
+          <path d="M16 17h5" />
+          <path d="M18.5 14.5v5" />
+        </>
+      ),
+    },
   ];
 
   return (

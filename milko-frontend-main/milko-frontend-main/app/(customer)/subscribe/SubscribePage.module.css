@@ -559,7 +559,7 @@
 
 .mapModal {
   width: min(100%, 602px);
-  max-height: min(92vh, 700px);
+  max-height: min(92vh, 820px);
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: #c9cfda transparent;
@@ -656,6 +656,15 @@
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
+}
+
+.mapModalCancel:hover {
+  background: #e4e4e4;
+}
+
+.mapModalSave:hover {
+  background: #003bb1;
+
 }
 
 .mapModalCancel {

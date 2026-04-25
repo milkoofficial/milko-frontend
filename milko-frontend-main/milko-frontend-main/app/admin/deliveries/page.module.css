@@ -72,6 +72,440 @@
   display: none;
 }
 
+/* Today's need — subscription aggregate (admin) */
+.todaysNeedBar {
+  display: flex;
+  position: relative;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.8rem;
+  padding: 1rem 3.2rem 1rem 1rem;
+  background: white;
+  border: 0px solid #a5f3fc;
+  border-radius: 18px;
+}
+
+.todaysNeedBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #0c4a6e;
+  background: #cfedffc2;
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  box-shadow: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.todaysNeedBtn:hover {
+  box-shadow: none;
+}
+
+.todaysNeedBtn:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+
+.todaysNeedHint {
+  font-size: 0.8rem;
+  color: #0e7490;
+  font-weight: 600;
+}
+
+.todaysNeedBtnIconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0b3f62;
+  pointer-events: none;
+}
+
+.todaysNeedBtnIcon {
+  width: 0.95rem;
+  height: 0.95rem;
+  display: block;
+}
+
+.todaysNeedCornerIcon {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.8rem;
+  width: 27px;
+  height: 37px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0c4a6e;
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+.todaysNeedCornerIconSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.todaysNeedBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  backdrop-filter: blur(3px);
+}
+
+.todaysNeedPanel {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: min(88vh, 100dvh);
+  overflow: auto;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.todaysNeedClose {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  border: none;
+  background: transparent;
+  font-size: 29px;
+  line-height: 1;
+  cursor: pointer;
+  color: #64748b;
+  z-index: 2;
+  padding: 0.35rem;
+  border-radius: 8px;
+}
+
+.todaysNeedClose:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.todaysNeedInner {
+  padding: 1.35rem 1.35rem 1.5rem;
+  padding-top: 1.35rem;
+}
+
+.todaysNeedTitle {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 0 0 0.35rem;
+  padding-right: 2.25rem;
+  color: #0f172a;
+}
+
+.todaysNeedToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.todaysNeedToggle input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #0284c7;
+}
+
+.todaysNeedFootnote {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.todaysNeedSummaryCard {
+  background: white;
+  border: 0px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-top: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.todaysNeedTotalRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.todaysNeedTotalLabel {
+  font-size: 1rem;
+    font-weight: 800;
+    text-transform: capitalize;
+    letter-spacing: 0;
+    color: #111111;
+}
+.todaysNeedTotalValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: black;
+}
+
+.todaysNeedTotalUnit {
+  font-size: 1rem;
+    font-weight: 800;
+    color: black;
+}
+
+.todaysNeedMeta {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ordersNeedIconWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0.9rem 0 0.2rem;
+}
+
+.ordersNeedIcon {
+  width: min(180px, 52%);
+  height: auto;
+  display: block;
+}
+
+.todaysNeedSectionTitle {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin: 1rem 0 0.5rem;
+}
+
+.todaysNeedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.todaysNeedList li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.todaysNeedList li:last-child {
+  border-bottom: none;
+}
+
+.todaysNeedLineTitle {
+  font-weight: 700;
+}
+
+.todaysNeedLineDetail {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.todaysNeedSlotGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 0.35rem;
+}
+
+.todaysNeedSlotCard {
+  background: #fffbeb;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+
+.todaysNeedSlotCardEvening {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.todaysNeedSlotHeading {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #92400e;
+  margin: 0 0 0.35rem;
+}
+
+.todaysNeedSlotCardEvening .todaysNeedSlotHeading {
+  color: #3730a3;
+}
+
+.todaysNeedSlotTotal {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.55rem;
+}
+
+.todaysNeedRouteActionBtn {
+  display: block;
+  width: 100%;
+  margin: 0.85rem 0 0;
+  padding: 1.2rem 0.95rem;
+  border: none;
+  border-radius: 10px;
+  background: #008c42;
+  color: #fff;
+  font-weight: 500;
+  font-size: 0.92rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.todaysNeedRouteActionBtn:hover {
+  background: #005327;
+}
+
+.todaysNeedRouteActionBtn:focus-visible {
+  outline: 2px solid #0c4a6e;
+  outline-offset: 2px;
+}
+
+.routePopupBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.68);
+  z-index: 1320;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0rem;
+  backdrop-filter: blur(3px);
+}
+
+.routePopupPanel {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 1rem 1rem 0.9rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.routePopupPanelWide {
+  width: 100%;
+  max-width: min(100vw, 520px);
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+@media (min-width: 520px) {
+  .routePopupPanelWide {
+    max-height: min(92dvh, 880px);
+    height: min(92dvh, 880px);
+    border-radius: 14px;
+  }
+}
+
+.routePopupTitle {
+  margin: 0 0 0.45rem;
+  color: #0f172a;
+  font-size: 1.02rem;
+  font-weight: 900;
+}
+
+.routePopupText {
+  margin: 0;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.routePopupPre {
+  margin: 0.4rem 0 0;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: #0f172a;
+  overflow: auto;
+}
+
+.routePopupActions {
+  margin-top: 0.8rem;
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+
+.routePopupBtnSecondary,
+.routePopupBtnPrimary {
+  border-radius: 10px;
+  padding: 0.58rem 0.95rem;
+  font-weight: 800;
+  border: 1px solid #cbd5e1;
+  cursor: pointer;
+}
+
+.routePopupBtnSecondary {
+  background: #fff;
+  color: #334155;
+}
+
+.routePopupBtnPrimary {
+  background: #0c4a6e;
+  color: #fff;
+  border-color: #0c4a6e;
+}
+
+.todaysNeedUnknown {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
+.todaysNeedUnknownTitle {
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: #475569;
+  margin: 0 0 0.35rem;
+}
+
+@media (max-width: 540px) {
+  .todaysNeedSlotGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .searchWrap {
   position: relative;
   width: 100%;
@@ -653,6 +1087,10 @@
   color: #111827;
 }
 
+.productCell .cardProductRow {
+  margin-top: 0;
+}
+
 .customerCell {
   display: flex;
   flex-direction: column;
@@ -683,8 +1121,8 @@
 }
 
 .badgeDelivered {
-  background: #d1fae5;
-  color: #065f46;
+  background: #85ffcb;
+    color: #004b21;
 }
 
 .badgePending {
@@ -742,12 +1180,6 @@
   color: #92400e;
 }
 
-.paymentSubtext {
-  font-size: 0.75rem;
-  color: #6b7280;
-  font-weight: 700;
-}
-
 .rowFulfilled {
   background: #e5e7eb;
 }
@@ -801,7 +1233,7 @@
 }
 
 .card {
-  border: 1px solid #e5e7eb;
+  border: 0px solid #e5e7eb;
   border-radius: 16px;
   background: #fff;
   padding: 1rem;
@@ -824,11 +1256,11 @@
 }
 
 .cardFulfilled {
-  background: #e5e7eb;
+  background: #ddfff2;
 }
 
 .cardFulfilled:hover {
-  background: #d1d5db;
+  background: #d5fff0;
 }
 
 .cardTop {
@@ -838,10 +1270,18 @@
   gap: 0.75rem;
 }
 
+/* Inner block must span full card width so subscription title row can space-between id vs badge */
+.cardTop > div {
+  flex: 1;
+  min-width: 0;
+}
+
 .cardTitleRow {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  width: 100%;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  
   gap: 0.5rem;
 }
 
@@ -852,12 +1292,45 @@
   font-family: inter;
 }
 
-.cardProduct {
+.cardProductRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4rem;
   margin-top: 0.35rem;
+}
+
+.cardProductName {
   font-weight: 600;
   color: #111827;
   font-size: 0.95rem;
   line-height: 1.35;
+  min-width: 0;
+}
+
+.cardProductQty {
+  font-weight: 700;
+  color: #475569;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cardSlotLine {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.slotCell {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.35;
+  max-width: 14rem;
 }
 
 .cardDate {
@@ -981,7 +1454,7 @@
 
 .orderModalInfoCard {
   background: #f8fafc;
-  border: 0px solid #e5e7eb;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 1rem;
   min-width: 0;

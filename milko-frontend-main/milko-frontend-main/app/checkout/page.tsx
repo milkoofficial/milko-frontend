@@ -5,10 +5,18 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiClient, productsApi, couponsApi, Coupon, addressesApi, walletApi } from '@/lib/api';
+import { useToast } from '@/contexts/ToastContext';
+import { apiClient, productsApi, couponsApi, Coupon, addressesApi, walletApi, contentApi } from '@/lib/api';
 import { Product, Address } from '@/types';
 import Link from 'next/link';
 import FloatingLabelInput from '@/components/ui/FloatingLabelInput';
+import { readCheckoutCouponCode, saveCheckoutCouponCode } from '@/lib/utils/checkoutCoupon';
+import {
+  readSubscriptionCartJson,
+  clearSubscriptionCart,
+  scopedSubscriptionCartKey,
+} from '@/lib/utils/userScopedStorage';
+import { normalizeDeliveryRatesConfig, resolveDeliveryRate } from '@/lib/utils/deliveryRates';
 import styles from './checkout.module.css';
 
 const AddressLocationPicker = dynamic(() => import('@/components/AddressLocationPicker'), { ssr: false });
@@ -36,16 +44,18 @@ type SubscriptionCartItem = {
   totalAmount: number;
   updatedAt: string;
 };
-const SUBSCRIPTION_CART_KEY = 'milko_subscription_cart_item_v1';
-
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, clearCart } = useCart();
   const { user, isAuthenticated, login, loginWithGoogle, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
+  const subCartUserId = user?.id ?? null;
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('address');
   const [products, setProducts] = useState<Record<string, Product>>({});
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [serviceablePincodes, setServiceablePincodes] = useState<string[] | null>(null);
+  const [isFirstProductOrder, setIsFirstProductOrder] = useState(false);
   const [stepInitialized, setStepInitialized] = useState(false);
   const manualStepChange = useRef(false);
 
@@ -69,7 +79,7 @@ export default function CheckoutPage() {
     longitude: undefined as number | undefined,
   });
   const [addressError, setAddressError] = useState('');
-  
+
   // Saved addresses state
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -93,6 +103,8 @@ export default function CheckoutPage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletLoading, setWalletLoading] = useState(false);
   const [subscriptionCartItem, setSubscriptionCartItem] = useState<SubscriptionCartItem | null>(null);
+  const [platformFee, setPlatformFee] = useState(0);
+  const [deliveryRatesConfig, setDeliveryRatesConfig] = useState<{ warehouseLatitude?: number; warehouseLongitude?: number; ranges: Array<{ startMeters: number; endMeters: number; rate: number }> }>({ ranges: [] });
 
   // Load products
   useEffect(() => {
@@ -100,7 +112,7 @@ export default function CheckoutPage() {
       // Wait a bit to ensure cart context has loaded from localStorage
       // Cart context loads items in useEffect, so we need to wait for it
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       // Double-check items after waiting
       if (items.length === 0 && !subscriptionCartItem) {
         // Only redirect if we're sure there are no items
@@ -138,7 +150,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     const loadSubscriptionItem = () => {
       try {
-        const raw = localStorage.getItem(SUBSCRIPTION_CART_KEY);
+        const raw = readSubscriptionCartJson(subCartUserId);
         if (!raw) {
           setSubscriptionCartItem(null);
           return;
@@ -167,21 +179,101 @@ export default function CheckoutPage() {
 
     loadSubscriptionItem();
     const onStorage = (e: StorageEvent) => {
-      if (e.key === SUBSCRIPTION_CART_KEY) loadSubscriptionItem();
+      if (e.key === scopedSubscriptionCartKey(subCartUserId) || e.key === 'milko_subscription_cart_item_v1') {
+        loadSubscriptionItem();
+      }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  }, [subCartUserId]);
 
   // Initialize step - always start at address step (which will show login if needed)
   useEffect(() => {
     if (stepInitialized) return; // Only run once
-    
+
     // Always start at address step (step 2)
     // The address step will show login form if user is not authenticated
     setCurrentStep('address');
     setStepInitialized(true);
   }, [stepInitialized]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPlatformFee = async () => {
+      try {
+        const data = await contentApi.getByType('platform_fee');
+        const metadataAmount = Number(data.metadata?.amount);
+        const titleAmount = Number(data.title);
+        const amount = Number.isFinite(metadataAmount) ? metadataAmount : titleAmount;
+        if (!cancelled) {
+          setPlatformFee(Number.isFinite(amount) && amount > 0 ? amount : 0);
+        }
+      } catch {
+        if (!cancelled) {
+          setPlatformFee(0);
+        }
+      }
+    };
+
+    loadPlatformFee();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadServiceablePincodes = async () => {
+      try {
+        const data = await contentApi.getByType('pincodes');
+        const meta = (data?.metadata || {}) as any;
+        let parsed: string[] = [];
+        if (Array.isArray(meta.serviceablePincodes)) {
+          parsed = meta.serviceablePincodes
+            .map((entry: any) => (typeof entry === 'string' ? entry.trim() : (entry?.pincode || '').toString().trim()))
+            .filter((pin: string) => pin.length === 6);
+        } else if (typeof meta.serviceablePincode === 'string' && meta.serviceablePincode.trim()) {
+          parsed = [meta.serviceablePincode.trim()];
+        }
+        if (!cancelled) {
+          setServiceablePincodes(parsed.length > 0 ? parsed : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setServiceablePincodes(null);
+        }
+      }
+    };
+
+    loadServiceablePincodes();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDeliveryRates = async () => {
+      try {
+        const data = await contentApi.getByType('delivery_rates');
+        if (!cancelled) {
+          setDeliveryRatesConfig(normalizeDeliveryRatesConfig(data.metadata || {}));
+        }
+      } catch {
+        if (!cancelled) {
+          setDeliveryRatesConfig({ ranges: [] });
+        }
+      }
+    };
+
+    loadDeliveryRates();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Load wallet balance for the "Use Wallet" payment choice
   useEffect(() => {
@@ -262,7 +354,7 @@ export default function CheckoutPage() {
         setLoadingAddresses(true);
         const addresses = await addressesApi.getAll();
         setSavedAddresses(addresses);
-        
+
         // If user has addresses and no address is selected, select the default one
         if (addresses.length > 0 && !selectedAddressId) {
           const defaultAddress = addresses.find(addr => addr.isDefault) || addresses[0];
@@ -282,6 +374,35 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFirstOrderStatus = async () => {
+      if (!isAuthenticated || !user) {
+        setIsFirstProductOrder(false);
+        return;
+      }
+
+      try {
+        const orders = await apiClient.get<Array<{ paymentStatus?: string }>>('/api/orders');
+        if (cancelled) return;
+        const eligiblePriorOrders = Array.isArray(orders)
+          ? orders.filter((order) => order?.paymentStatus === 'paid' || order?.paymentStatus === 'cod')
+          : [];
+        setIsFirstProductOrder(eligiblePriorOrders.length === 0);
+      } catch {
+        if (!cancelled) {
+          setIsFirstProductOrder(false);
+        }
+      }
+    };
+
+    loadFirstOrderStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user]);
+
   // Fill address form with selected address
   const fillAddressForm = (address: Address) => {
     setAddressForm({
@@ -295,6 +416,13 @@ export default function CheckoutPage() {
       latitude: address.latitude,
       longitude: address.longitude,
     });
+  };
+
+  const isDeliverablePostalCode = (postalCode: string) => {
+    const pin = (postalCode || '').trim();
+    if (pin.length !== 6) return false;
+    if (!serviceablePincodes || serviceablePincodes.length === 0) return true;
+    return serviceablePincodes.includes(pin);
   };
 
   // Handle address selection
@@ -423,8 +551,8 @@ export default function CheckoutPage() {
     const p = products[it.productId];
     if (!p) return sum;
     const v = it.variationId ? (p.variations || []).find((x) => x.id === it.variationId) : null;
-    const basePrice = (p.sellingPrice !== null && p.sellingPrice !== undefined) 
-      ? p.sellingPrice 
+    const basePrice = (p.sellingPrice !== null && p.sellingPrice !== undefined)
+      ? p.sellingPrice
       : p.pricePerLitre;
     const mult = v?.priceMultiplier ?? 1;
     const unitPrice = v?.price ?? (basePrice * mult);
@@ -458,8 +586,13 @@ export default function CheckoutPage() {
   };
 
   const discount = calculateDiscount();
-  const deliveryCharges = 0; // Free delivery
-  const total = subtotal - discount + deliveryCharges;
+  const deliveryRateResult = resolveDeliveryRate(
+    deliveryRatesConfig,
+    addressForm.latitude,
+    addressForm.longitude,
+  );
+  const deliveryCharges = items.length > 0 && isFirstProductOrder ? 0 : deliveryRateResult.charge;
+  const total = subtotal - discount + deliveryCharges + platformFee;
 
   const walletExtraToPay =
     Math.max(0, Math.round((total - walletBalance) * 100) / 100);
@@ -488,6 +621,7 @@ export default function CheckoutPage() {
   const handleValidateCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponValidation({ status: 'idle', message: '', coupon: null });
+      saveCheckoutCouponCode(null);
       return;
     }
 
@@ -501,23 +635,57 @@ export default function CheckoutPage() {
         message: `${couponCode.trim().toUpperCase()} code is valid`,
         coupon,
       });
+      saveCheckoutCouponCode(couponCode.trim().toUpperCase());
     } catch (error: any) {
       setCouponValidation({
         status: 'invalid',
         message: `${couponCode.trim().toUpperCase()} code is invalid`,
         coupon: null,
       });
+      saveCheckoutCouponCode(null);
     } finally {
       setValidatingCoupon(false);
     }
   };
 
-  // Clear coupon when code changes
+  // Cart applies coupon to sessionStorage; re-validate here so address + payment steps use the same discount
   useEffect(() => {
-    if (!couponCode.trim()) {
+    if (loading) return;
+    if (items.length === 0 && !subscriptionCartItem) return;
+    const stored = readCheckoutCouponCode();
+    if (!stored) {
       setCouponValidation({ status: 'idle', message: '', coupon: null });
+      setCouponCode('');
+      return;
     }
-  }, [couponCode]);
+    setCouponCode(stored);
+    let cancelled = false;
+    setValidatingCoupon(true);
+    couponsApi
+      .validate(stored, subtotal)
+      .then((coupon) => {
+        if (cancelled) return;
+        setCouponValidation({
+          status: 'valid',
+          message: `${stored} applied`,
+          coupon,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCouponValidation({
+          status: 'invalid',
+          message: 'Coupon could not be applied',
+          coupon: null,
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setValidatingCoupon(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, subtotal, items.length, subscriptionSubtotal, subscriptionCartItem]);
 
   // Build order items for localStorage (with productName, imageUrl, unitPrice) so order-success can show them even if fetch fails
   const buildStoredOrderItems = () =>
@@ -541,21 +709,20 @@ export default function CheckoutPage() {
       }),
       ...(subscriptionCartItem
         ? [
-            {
-              productId: String(subscriptionCartItem.productId),
-              variationId: undefined,
-              quantity: 1,
-              productName: `Subscription for ${subscriptionCartItem.productName}`,
-              variationSize: `Qty: ${subscriptionCartItem.litresPerDay} L/day | Period: ${
-                subscriptionCartItem.durationDays != null && subscriptionCartItem.durationDays >= 1
-                  ? `${subscriptionCartItem.durationDays} day(s)`
-                  : `${subscriptionCartItem.durationMonths} month(s)`
+          {
+            productId: String(subscriptionCartItem.productId),
+            variationId: undefined,
+            quantity: 1,
+            productName: `Subscription for ${subscriptionCartItem.productName}`,
+            variationSize: `Qty: ${subscriptionCartItem.litresPerDay} L/day | Period: ${subscriptionCartItem.durationDays != null && subscriptionCartItem.durationDays >= 1
+                ? `${subscriptionCartItem.durationDays} day(s)`
+                : `${subscriptionCartItem.durationMonths} month(s)`
               } | Delivery: ${subscriptionCartItem.deliveryTime}`,
-              imageUrl: products[subscriptionCartItem.productId]?.images?.[0]?.imageUrl || products[subscriptionCartItem.productId]?.imageUrl,
-              unitPrice: subscriptionCartItem.totalAmount,
-              taxPercent: products[subscriptionCartItem.productId]?.taxPercent ?? 0,
-            },
-          ]
+            imageUrl: products[subscriptionCartItem.productId]?.images?.[0]?.imageUrl || products[subscriptionCartItem.productId]?.imageUrl,
+            unitPrice: subscriptionCartItem.totalAmount,
+            taxPercent: products[subscriptionCartItem.productId]?.taxPercent ?? 0,
+          },
+        ]
         : []),
     ];
 
@@ -577,7 +744,18 @@ export default function CheckoutPage() {
   // Handle place order
   const handlePlaceOrder = async () => {
     if (!addressForm.name?.trim() || !addressForm.street?.trim() || !addressForm.city?.trim() || !addressForm.state?.trim() || !addressForm.postalCode?.trim() || !addressForm.country?.trim() || !addressForm.phone?.trim()) {
-      alert('Please fill in all required address fields');
+      showToast('Please fill in all required address fields', 'error');
+      return;
+    }
+    if (!isDeliverablePostalCode(addressForm.postalCode)) {
+      showToast('Pincode is not deliverable', 'error');
+      return;
+    }
+    const unavailableCartProduct = items
+      .map((item) => products[item.productId])
+      .find((product) => product && (product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)));
+    if (unavailableCartProduct) {
+      showToast(`${unavailableCartProduct.name} is out of stock`, 'error');
       return;
     }
 
@@ -602,12 +780,12 @@ export default function CheckoutPage() {
         })),
         subscriptionItem: subscriptionCartItem
           ? {
-              productId: subscriptionCartItem.productId,
-              litresPerDay: subscriptionCartItem.litresPerDay,
-              durationDays: subscriptionCartItem.durationDays,
-              durationMonths: subscriptionCartItem.durationMonths,
-              deliveryTime: subscriptionCartItem.deliveryTime,
-            }
+            productId: subscriptionCartItem.productId,
+            litresPerDay: subscriptionCartItem.litresPerDay,
+            durationDays: subscriptionCartItem.durationDays,
+            durationMonths: subscriptionCartItem.durationMonths,
+            deliveryTime: subscriptionCartItem.deliveryTime,
+          }
           : null,
       });
 
@@ -632,7 +810,8 @@ export default function CheckoutPage() {
                 localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
               }
               clearCart();
-              localStorage.removeItem(SUBSCRIPTION_CART_KEY);
+              clearSubscriptionCart(subCartUserId);
+              saveCheckoutCouponCode(null);
               router.push('/order-success');
             } catch (e) {
               console.error(e);
@@ -654,11 +833,12 @@ export default function CheckoutPage() {
         localStorage.setItem('milko_delivery_address', JSON.stringify(addressForm));
       }
       clearCart();
-      localStorage.removeItem(SUBSCRIPTION_CART_KEY);
+      clearSubscriptionCart(subCartUserId);
+      saveCheckoutCouponCode(null);
       router.push('/order-success');
     } catch (error) {
       console.error('Failed to place order:', error);
-      alert((error as { message?: string })?.message || 'Failed to place order. Please try again.');
+      showToast((error as { message?: string })?.message || 'Failed to place order. Please try again.', 'error');
     } finally {
       if (!openedRazorpay) setPlacingOrder(false);
     }
@@ -712,12 +892,12 @@ export default function CheckoutPage() {
                 <div className={styles.loginSection}>
                   <h2 className={styles.stepTitle}>Login to Continue</h2>
                   <p className={styles.stepDescription}>Please login to proceed with your order</p>
-                  
+
                   <form onSubmit={handleLogin} className={styles.loginForm}>
                     {loginError && (
                       <div className={styles.errorMessage}>{loginError}</div>
                     )}
-                    
+
                     <FloatingLabelInput
                       type="email"
                       label="Email"
@@ -725,7 +905,7 @@ export default function CheckoutPage() {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                     />
-                    
+
                     <div className={styles.passwordInputWrapper}>
                       <FloatingLabelInput
                         type={showPassword ? 'text' : 'password'}
@@ -774,193 +954,193 @@ export default function CheckoutPage() {
 
               {/* Address Section - only when logged in */}
               {(isAuthenticated && user) && (
-              <div className={styles.addressSection}>
-                <h2 className={styles.stepTitle}>Delivery Address</h2>
-                <p className={styles.stepDescription}>Please provide your delivery address</p>
-                
-                {/* Saved Addresses Selection (if user has saved addresses) */}
-                {isAuthenticated && user && savedAddresses.length > 0 && (
-                  <div className={styles.savedAddressesSection}>
-                    <h3 className={styles.savedAddressesTitle}>Select a saved address</h3>
-                    <div className={styles.savedAddressesList}>
-                      {savedAddresses.map((address) => (
-                        <div
-                          key={address.id}
-                          className={`${styles.savedAddressCard} ${selectedAddressId === address.id ? styles.savedAddressCardSelected : ''}`}
-                          onClick={() => handleAddressSelect(address.id)}
-                        >
-                          <input
-                            type="radio"
-                            name="selectedAddress"
-                            checked={selectedAddressId === address.id}
-                            onChange={() => handleAddressSelect(address.id)}
-                            className={styles.addressRadio}
-                          />
-                          <div className={styles.savedAddressContent}>
-                            <div className={styles.savedAddressHeader}>
-                              <span className={styles.savedAddressName}>{address.name}</span>
-                              {address.isDefault && (
-                                <span className={styles.defaultBadge}>Default</span>
-                              )}
-                              {typeof address.latitude === 'number' && typeof address.longitude === 'number' && (
-                                <span className={styles.liveLocationAdded}>Live location added</span>
-                              )}
-                            </div>
-                            <div className={styles.savedAddressDetails}>
-                              <p>{address.street}</p>
-                              <p>{address.city}, {address.state} {address.postalCode}</p>
-                              <p>{address.country}</p>
-                              {address.phone && <p>Phone: {address.phone}</p>}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className={styles.editAddressIconBtn}
-                            aria-label="Edit address"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingAddressId(address.id);
-                              setShowCreateNewAddress(true);
-                              setSelectedAddressId(null);
-                              fillAddressForm(address);
-                            }}
+                <div className={styles.addressSection}>
+                  <h2 className={styles.stepTitle}>Delivery Address</h2>
+                  <p className={styles.stepDescription}>Please provide your delivery address</p>
+
+                  {/* Saved Addresses Selection (if user has saved addresses) */}
+                  {isAuthenticated && user && savedAddresses.length > 0 && (
+                    <div className={styles.savedAddressesSection}>
+                      <h3 className={styles.savedAddressesTitle}>Select a saved address</h3>
+                      <div className={styles.savedAddressesList}>
+                        {savedAddresses.map((address) => (
+                          <div
+                            key={address.id}
+                            className={`${styles.savedAddressCard} ${selectedAddressId === address.id ? styles.savedAddressCardSelected : ''}`}
+                            onClick={() => handleAddressSelect(address.id)}
                           >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {!showCreateNewAddress && (
-                      <button
-                        type="button"
-                        className={styles.createNewAddressButton}
-                        onClick={handleCreateNewAddress}
-                      >
-                        Create a new address
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Address Form - Show when creating new address or no saved addresses */}
-                {(showCreateNewAddress || savedAddresses.length === 0) && (
-                  <form onSubmit={handleAddressSubmit} className={styles.addressForm} noValidate>
-                {addressError && (
-                  <div className={styles.errorMessage}>{addressError}</div>
-                )}
-
-                <FloatingLabelInput
-                  type="text"
-                  label="Full Name"
-                  value={addressForm.name}
-                  onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
-                  required
-                />
-
-                <FloatingLabelInput
-                  type="tel"
-                  label="Phone Number"
-                  value={addressForm.phone}
-                  onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-                  required
-                />
-
-                <FloatingLabelInput
-                  type="text"
-                  label="Street Address"
-                  value={addressForm.street}
-                  onChange={(e) => setAddressForm({ ...addressForm, street: e.target.value })}
-                  required
-                />
-
-                <div className={styles.addressRow}>
-                  <FloatingLabelInput
-                    type="text"
-                    label="City"
-                    value={addressForm.city}
-                    onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                    required
-                  />
-                  <FloatingLabelInput
-                    type="text"
-                    label="State"
-                    value={addressForm.state}
-                    onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <AddressLocationPicker
-                  latitude={addressForm.latitude}
-                  longitude={addressForm.longitude}
-                  onChange={({ latitude, longitude }) =>
-                    setAddressForm((prev) => ({ ...prev, latitude, longitude }))
-                  }
-                />
-
-                <div className={styles.addressRow}>
-                  <FloatingLabelInput
-                    type="text"
-                    label="Postal Code"
-                    value={addressForm.postalCode}
-                    onChange={(e) => setAddressForm({ ...addressForm, postalCode: e.target.value })}
-                    required
-                  />
-                  <FloatingLabelInput
-                    type="text"
-                    label="Country"
-                    value={addressForm.country}
-                    onChange={(e) => setAddressForm({ ...addressForm, country: e.target.value })}
-                    required
-                  />
-                </div>
-
-                {/* Save Address Checkbox - Only show for new addresses when user is authenticated */}
-                {isAuthenticated && user && (showCreateNewAddress || savedAddresses.length === 0) && (
-                  <div
-                    className={styles.saveAddressCheckbox}
-                    role="checkbox"
-                    aria-checked={saveAddress}
-                    tabIndex={0}
-                    onPointerDown={(e) => {
-                      // Prevent focus-on-click (can trigger scroll-into-view jumps on some browsers)
-                      e.preventDefault();
-                    }}
-                    onClick={() => setSaveAddress((prev) => !prev)}
-                    onKeyDown={(e) => {
-                      if (e.key === ' ' || e.key === 'Enter') {
-                        e.preventDefault();
-                        setSaveAddress((prev) => !prev);
-                      }
-                    }}
-                  >
-                    <span className={`${styles.checkboxIcon} ${saveAddress ? styles.checkboxIconChecked : ''}`}>
-                      {saveAddress && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor" />
-                        </svg>
+                            <input
+                              type="radio"
+                              name="selectedAddress"
+                              checked={selectedAddressId === address.id}
+                              onChange={() => handleAddressSelect(address.id)}
+                              className={styles.addressRadio}
+                            />
+                            <div className={styles.savedAddressContent}>
+                              <div className={styles.savedAddressHeader}>
+                                <span className={styles.savedAddressName}>{address.name}</span>
+                                {address.isDefault && (
+                                  <span className={styles.defaultBadge}>Default</span>
+                                )}
+                                {typeof address.latitude === 'number' && typeof address.longitude === 'number' && (
+                                  <span className={styles.liveLocationAdded}>Live location added</span>
+                                )}
+                              </div>
+                              <div className={styles.savedAddressDetails}>
+                                <p>{address.street}</p>
+                                <p>{address.city}, {address.state} {address.postalCode}</p>
+                                <p>{address.country}</p>
+                                {address.phone && <p>Phone: {address.phone}</p>}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className={styles.editAddressIconBtn}
+                              aria-label="Edit address"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingAddressId(address.id);
+                                setShowCreateNewAddress(true);
+                                setSelectedAddressId(null);
+                                fillAddressForm(address);
+                              }}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {!showCreateNewAddress && (
+                        <button
+                          type="button"
+                          className={styles.createNewAddressButton}
+                          onClick={handleCreateNewAddress}
+                        >
+                          Create a new address
+                        </button>
                       )}
-                    </span>
-                    <span className={styles.checkboxLabel}>Save this address for future orders</span>
-                  </div>
-                )}
+                    </div>
+                  )}
 
-                {/* Submit in step card: only when no saved addresses. When creating new (with saved), use summary's Continue. */}
-                {savedAddresses.length === 0 && (
-                  <button
-                    type="submit"
-                    className={styles.primaryButton}
-                  >
-                    {saveAddress ? 'Save Address & Continue' : 'Continue to Checkout'}
-                  </button>
-                )}
-              </form>
-              )}
+                  {/* Address Form - Show when creating new address or no saved addresses */}
+                  {(showCreateNewAddress || savedAddresses.length === 0) && (
+                    <form onSubmit={handleAddressSubmit} className={styles.addressForm} noValidate>
+                      {addressError && (
+                        <div className={styles.errorMessage}>{addressError}</div>
+                      )}
 
-              </div>
+                      <FloatingLabelInput
+                        type="text"
+                        label="Full Name"
+                        value={addressForm.name}
+                        onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
+                        required
+                      />
+
+                      <FloatingLabelInput
+                        type="tel"
+                        label="Phone Number"
+                        value={addressForm.phone}
+                        onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+                        required
+                      />
+
+                      <FloatingLabelInput
+                        type="text"
+                        label="Street Address"
+                        value={addressForm.street}
+                        onChange={(e) => setAddressForm({ ...addressForm, street: e.target.value })}
+                        required
+                      />
+
+                      <div className={styles.addressRow}>
+                        <FloatingLabelInput
+                          type="text"
+                          label="City"
+                          value={addressForm.city}
+                          onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                          required
+                        />
+                        <FloatingLabelInput
+                          type="text"
+                          label="State"
+                          value={addressForm.state}
+                          onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      <AddressLocationPicker
+                        latitude={addressForm.latitude}
+                        longitude={addressForm.longitude}
+                        onChange={({ latitude, longitude }) =>
+                          setAddressForm((prev) => ({ ...prev, latitude, longitude }))
+                        }
+                      />
+
+                      <div className={styles.addressRow}>
+                        <FloatingLabelInput
+                          type="text"
+                          label="Postal Code"
+                          value={addressForm.postalCode}
+                          onChange={(e) => setAddressForm({ ...addressForm, postalCode: e.target.value })}
+                          required
+                        />
+                        <FloatingLabelInput
+                          type="text"
+                          label="Country"
+                          value={addressForm.country}
+                          onChange={(e) => setAddressForm({ ...addressForm, country: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      {/* Save Address Checkbox - Only show for new addresses when user is authenticated */}
+                      {isAuthenticated && user && (showCreateNewAddress || savedAddresses.length === 0) && (
+                        <div
+                          className={styles.saveAddressCheckbox}
+                          role="checkbox"
+                          aria-checked={saveAddress}
+                          tabIndex={0}
+                          onPointerDown={(e) => {
+                            // Prevent focus-on-click (can trigger scroll-into-view jumps on some browsers)
+                            e.preventDefault();
+                          }}
+                          onClick={() => setSaveAddress((prev) => !prev)}
+                          onKeyDown={(e) => {
+                            if (e.key === ' ' || e.key === 'Enter') {
+                              e.preventDefault();
+                              setSaveAddress((prev) => !prev);
+                            }
+                          }}
+                        >
+                          <span className={`${styles.checkboxIcon} ${saveAddress ? styles.checkboxIconChecked : ''}`}>
+                            {saveAddress && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor" />
+                              </svg>
+                            )}
+                          </span>
+                          <span className={styles.checkboxLabel}>Save this address for future orders</span>
+                        </div>
+                      )}
+
+                      {/* Submit in step card: only when no saved addresses. When creating new (with saved), use summary's Continue. */}
+                      {savedAddresses.length === 0 && (
+                        <button
+                          type="submit"
+                          className={styles.primaryButton}
+                        >
+                          {saveAddress ? 'Save Address & Continue' : 'Continue to Checkout'}
+                        </button>
+                      )}
+                    </form>
+                  )}
+
+                </div>
               )}
             </div>
           )}
@@ -970,7 +1150,7 @@ export default function CheckoutPage() {
             <div className={styles.stepCard}>
               <h2 className={styles.stepTitle}>Review Your Order</h2>
               <p className={styles.stepDescription}>Please review your order details before placing</p>
-              
+
               {/* Order Items */}
               <div className={styles.orderItems}>
                 <h3 className={styles.sectionTitle}>Order Items</h3>
@@ -1046,196 +1226,204 @@ export default function CheckoutPage() {
         {/* Price summary at bottom: after address section (step 2) or below step card (step 3) */}
         <div className={styles.summaryColumn}>
           <div className={styles.summarySticky}>
-          <div className={styles.summaryCard}>
-            <h3 className={styles.summaryTitle}>Price Details</h3>
-            <div className={styles.priceDetailsBox}>
-              <div className={styles.priceRow}>
-                <span>{totalItemCount} item{totalItemCount !== 1 ? 's' : ''}</span>
-              </div>
-              {items.map((it) => {
-                const p = products[it.productId];
-                const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
-                const basePrice = p && (p.sellingPrice != null && p.sellingPrice !== undefined) ? p.sellingPrice : (p ? p.pricePerLitre : 0);
-                const mult = v?.priceMultiplier ?? 1;
-                const unitPrice = p ? (v?.price ?? basePrice * mult) : 0;
-                const itemTotal = unitPrice * it.quantity;
-                return (
-                  <div key={`${it.productId}:${it.variationId || ''}`} className={styles.priceRow}>
-                    <span>{it.quantity} × {p?.name || 'Product'}{v ? ` (${v.size})` : ''}</span>
-                    <span>₹{itemTotal.toFixed(2)}</span>
+            <div className={styles.summaryCard}>
+              <h3 className={styles.summaryTitle}>Price Details</h3>
+              <div className={styles.priceDetailsBox}>
+                <div className={styles.priceRow}>
+                  <span>{totalItemCount} item{totalItemCount !== 1 ? 's' : ''}</span>
+                </div>
+                {items.map((it) => {
+                  const p = products[it.productId];
+                  const v = it.variationId ? (p?.variations || []).find((x) => x.id === it.variationId) : null;
+                  const basePrice = p && (p.sellingPrice != null && p.sellingPrice !== undefined) ? p.sellingPrice : (p ? p.pricePerLitre : 0);
+                  const mult = v?.priceMultiplier ?? 1;
+                  const unitPrice = p ? (v?.price ?? basePrice * mult) : 0;
+                  const itemTotal = unitPrice * it.quantity;
+                  return (
+                    <div key={`${it.productId}:${it.variationId || ''}`} className={styles.priceRow}>
+                      <span>{it.quantity} × {p?.name || 'Product'}{v ? ` (${v.size})` : ''}</span>
+                      <span>₹{itemTotal.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+                {subscriptionCartItem && (
+                  <div className={styles.priceRow}>
+                    <span>1 X subscription for {subscriptionCartItem.productName}</span>
+                    <span>₹{subscriptionCartItem.totalAmount.toFixed(2)}</span>
                   </div>
-                );
-              })}
-              {subscriptionCartItem && (
+                )}
+                {discount > 0 && (
+                  <div className={styles.priceRow}>
+                    <span>Coupon ({couponValidation.coupon?.code})</span>
+                    <span className={styles.discountAmount}>-₹{discount.toFixed(2)}</span>
+                  </div>
+                )}
+                {platformFee > 0 && (
+                  <div className={styles.priceRow}>
+                    <span>Platform fee</span>
+                    <span>₹{platformFee.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className={styles.priceRow}>
-                  <span>1 X subscription for {subscriptionCartItem.productName}</span>
-                  <span>₹{subscriptionCartItem.totalAmount.toFixed(2)}</span>
-                </div>
-              )}
-              {discount > 0 && (
-                <div className={styles.priceRow}>
-                  <span>Coupon ({couponValidation.coupon?.code})</span>
-                  <span className={styles.discountAmount}>-₹{discount.toFixed(2)}</span>
-                </div>
-              )}
-              <div className={styles.priceRow}>
-                <span>Delivery</span>
-                <span className={styles.freeDelivery}>Free</span>
-              </div>
-              <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
-                <span>Total</span>
-                <span>₹{total.toFixed(2)}</span>
-              </div>
-            </div>
-            <div className={styles.totalSavingsBox}>
-              <span className={styles.totalSavingsLabel}>Your total savings</span>
-              <span className={styles.savings}>₹{savings.toFixed(2)}</span>
-            </div>
-            <div className={styles.paymentMethods}>
-              <div className={styles.paymentMethodItem}>
-                <span className={styles.paymentMethodLabel}>COD</span>
-                <span className={styles.paymentMethodAvailable}>Available</span>
-              </div>
-              <div className={styles.paymentMethodItem}>
-                <span className={styles.paymentMethodLabel}>Online Payment</span>
-                <span className={styles.paymentMethodAvailable}>Available</span>
-              </div>
-            </div>
-
-            {/* Step 3 only: explicit payment method selection */}
-            {currentStep === 'review' && (
-              <div className={styles.paymentChoice}>
-                <div className={styles.paymentChoiceTitle}>Choose payment method:</div>
-                <label className={styles.paymentChoiceOption}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="cod"
-                    checked={paymentMethod === 'cod'}
-                    onChange={() => setPaymentMethod('cod')}
-                  />
-                  <span className={styles.paymentChoiceLabelWithIcon}>
-                    <span>Cash on delivery (COD)</span>
-                    <span className={styles.paymentChoiceCashBadge} aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none">
-                        <rect x="3" y="6.5" width="18" height="11" rx="2.2" stroke="currentColor" strokeWidth="1.8" />
-                        <circle cx="12" cy="12" r="2.1" stroke="currentColor" strokeWidth="1.8" />
-                        <path d="M6.5 12H7.5M16.5 12H17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                      </svg>
-                    </span>
+                  <span>Delivery</span>
+                  <span className={deliveryCharges > 0 ? '' : styles.freeDelivery}>
+                    {deliveryCharges > 0 ? `₹${deliveryCharges.toFixed(2)}` : 'Free'}
                   </span>
-                </label>
-                <label className={styles.paymentChoiceOption}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="online"
-                    checked={paymentMethod === 'online'}
-                    onChange={() => setPaymentMethod('online')}
-                  />
-                  <span className={styles.paymentChoiceLabelWithIcon}>
-                    <span>Online Payment</span>
-                    <span className={styles.paymentChoiceCards} aria-hidden="true">
-                      <span className={styles.paymentCardVisa}>VISA</span>
-                      <span className={styles.paymentCardMaster}>
-                        <span className={styles.masterDotLeft} />
-                        <span className={styles.masterDotRight} />
-                      </span>
-                      <span className={styles.paymentCardEtc}>etc</span>
-                    </span>
-                  </span>
-                </label>
+                </div>
+                <div className={`${styles.priceRow} ${styles.priceRowTotal}`}>
+                  <span>Total</span>
+                  <span>₹{total.toFixed(2)}</span>
+                </div>
+              </div>
+              <div className={styles.totalSavingsBox}>
+                <span className={styles.totalSavingsLabel}>Your total savings</span>
+                <span className={styles.savings}>₹{savings.toFixed(2)}</span>
+              </div>
+              <div className={styles.paymentMethods}>
+                <div className={styles.paymentMethodItem}>
+                  <span className={styles.paymentMethodLabel}>COD</span>
+                  <span className={styles.paymentMethodAvailable}>Available</span>
+                </div>
+                <div className={styles.paymentMethodItem}>
+                  <span className={styles.paymentMethodLabel}>Online Payment</span>
+                  <span className={styles.paymentMethodAvailable}>Available</span>
+                </div>
+              </div>
 
-                {canUseWallet && (
+              {/* Step 3 only: explicit payment method selection */}
+              {currentStep === 'review' && (
+                <div className={styles.paymentChoice}>
+                  <div className={styles.paymentChoiceTitle}>Choose payment method:</div>
                   <label className={styles.paymentChoiceOption}>
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="wallet"
-                      checked={paymentMethod === 'wallet'}
-                      onChange={() => setPaymentMethod('wallet')}
+                      value="cod"
+                      checked={paymentMethod === 'cod'}
+                      onChange={() => setPaymentMethod('cod')}
                     />
                     <span className={styles.paymentChoiceLabelWithIcon}>
-                      <span>Use Wallet</span>
-                      <span className={styles.paymentChoiceWalletBadge} aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect
-                            x="3"
-                            y="5.5"
-                            width="18"
-                            height="13"
-                            rx="2.2"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                          />
-                          <path d="M3 10.25h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                          <rect
-                            x="13.5"
-                            y="11.25"
-                            width="6.5"
-                            height="4.5"
-                            rx="0.65"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                          />
-                          <circle cx="16.75" cy="13.5" r="0.85" fill="currentColor" />
+                      <span>Cash on delivery (COD)</span>
+                      <span className={styles.paymentChoiceCashBadge} aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                          <rect x="3" y="6.5" width="18" height="11" rx="2.2" stroke="currentColor" strokeWidth="1.8" />
+                          <circle cx="12" cy="12" r="2.1" stroke="currentColor" strokeWidth="1.8" />
+                          <path d="M6.5 12H7.5M16.5 12H17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                         </svg>
                       </span>
                     </span>
                   </label>
-                )}
+                  <label className={styles.paymentChoiceOption}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="online"
+                      checked={paymentMethod === 'online'}
+                      onChange={() => setPaymentMethod('online')}
+                    />
+                    <span className={styles.paymentChoiceLabelWithIcon}>
+                      <span>Online Payment</span>
+                      <span className={styles.paymentChoiceCards} aria-hidden="true">
+                        <span className={styles.paymentCardVisa}>VISA</span>
+                        <span className={styles.paymentCardMaster}>
+                          <span className={styles.masterDotLeft} />
+                          <span className={styles.masterDotRight} />
+                        </span>
+                        <span className={styles.paymentCardEtc}>etc</span>
+                      </span>
+                    </span>
+                  </label>
 
-                {paymentMethod === 'wallet' && canUseWallet && (
-                  <div className={styles.walletPaymentInfo}>
-                    {walletExtraToPay > 0 ? (
-                      <>You need to pay ₹{walletExtraToPay.toFixed(2)} more to complete this order.</>
-                    ) : (
-                      <>
-                        You need to pay ₹0 to complete this order. Remaining Wallet amount = ₹{walletRemainingAfterOrder.toFixed(2)}
-                      </>
-                    )}
-                  </div>
-                )}
+                  {canUseWallet && (
+                    <label className={styles.paymentChoiceOption}>
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="wallet"
+                        checked={paymentMethod === 'wallet'}
+                        onChange={() => setPaymentMethod('wallet')}
+                      />
+                      <span className={styles.paymentChoiceLabelWithIcon}>
+                        <span>Use Wallet</span>
+                        <span className={styles.paymentChoiceWalletBadge} aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect
+                              x="3"
+                              y="5.5"
+                              width="18"
+                              height="13"
+                              rx="2.2"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                            />
+                            <path d="M3 10.25h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            <rect
+                              x="13.5"
+                              y="11.25"
+                              width="6.5"
+                              height="4.5"
+                              rx="0.65"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                            />
+                            <circle cx="16.75" cy="13.5" r="0.85" fill="currentColor" />
+                          </svg>
+                        </span>
+                      </span>
+                    </label>
+                  )}
+
+                  {paymentMethod === 'wallet' && canUseWallet && (
+                    <div className={styles.walletPaymentInfo}>
+                      {walletExtraToPay > 0 ? (
+                        <>You need to pay ₹{walletExtraToPay.toFixed(2)} more to complete this order.</>
+                      ) : (
+                        <>
+                          You need to pay ₹0 to complete this order. Remaining Wallet amount = ₹{walletRemainingAfterOrder.toFixed(2)}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Continue to Checkout: when saved-address selected or creating new and form filled. Hidden when no saved addresses (use form submit). */}
+            {currentStep === 'address' && isAddressFulfilled && ((savedAddresses.length > 0 && selectedAddressId && !showCreateNewAddress) || showCreateNewAddress) && (
+              <div className={styles.summaryButtonWrapper}>
+                <div className={styles.totalAmountSection}>
+                  <div className={styles.totalAmountLabel}>Total amount</div>
+                  <div className={styles.totalAmountValue}>₹{total.toFixed(2)}</div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.summaryButtonBelow}
+                  disabled={savingAddressForCheckout}
+                  onClick={async () => {
+                    setSavingAddressForCheckout(true);
+                    const { ok } = await saveNewAddressIfRequested();
+                    setSavingAddressForCheckout(false);
+                    if (!ok) return;
+                    setStep('review');
+                  }}
+                >
+                  {savingAddressForCheckout ? 'Saving...' : 'Checkout'}
+                </button>
               </div>
             )}
-          </div>
 
-          {/* Continue to Checkout: when saved-address selected or creating new and form filled. Hidden when no saved addresses (use form submit). */}
-          {currentStep === 'address' && isAddressFulfilled && ((savedAddresses.length > 0 && selectedAddressId && !showCreateNewAddress) || showCreateNewAddress) && (
-            <div className={styles.summaryButtonWrapper}>
-              <div className={styles.totalAmountSection}>
-                <div className={styles.totalAmountLabel}>Total amount</div>
-                <div className={styles.totalAmountValue}>₹{total.toFixed(2)}</div>
+            {/* Place Order - below summary, only on review step */}
+            {currentStep === 'review' && (
+              <div className={styles.summaryButtonWrapper}>
+                <div className={styles.totalAmountSection}>
+                  <div className={styles.totalAmountLabel}>Total amount</div>
+                  <div className={styles.totalAmountValue}>₹{total.toFixed(2)}</div>
+                </div>
+                <button type="button" onClick={handlePlaceOrder} className={styles.summaryButtonBelow} disabled={placingOrder}>
+                  {placingOrder ? 'Placing Order...' : 'Place Order'}
+                </button>
               </div>
-              <button
-                type="button"
-                className={styles.summaryButtonBelow}
-                disabled={savingAddressForCheckout}
-                onClick={async () => {
-                  setSavingAddressForCheckout(true);
-                  const { ok } = await saveNewAddressIfRequested();
-                  setSavingAddressForCheckout(false);
-                  if (!ok) return;
-                  setStep('review');
-                }}
-              >
-                {savingAddressForCheckout ? 'Saving...' : 'Checkout'}
-              </button>
-            </div>
-          )}
-
-          {/* Place Order - below summary, only on review step */}
-          {currentStep === 'review' && (
-            <div className={styles.summaryButtonWrapper}>
-              <div className={styles.totalAmountSection}>
-                <div className={styles.totalAmountLabel}>Total amount</div>
-                <div className={styles.totalAmountValue}>₹{total.toFixed(2)}</div>
-              </div>
-              <button type="button" onClick={handlePlaceOrder} className={styles.summaryButtonBelow} disabled={placingOrder}>
-                {placingOrder ? 'Placing Order...' : 'Place Order'}
-              </button>
-            </div>
-          )}
+            )}
           </div>
         </div>
       </div>

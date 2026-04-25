@@ -8,7 +8,9 @@ import ProductDetailsModal from '@/components/ProductDetailsModal';
 import RatingBadge from '@/components/ui/RatingBadge';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
-import { getCardDiscountOff, getCardDisplayPrice } from '@/lib/utils/productCardPricing';
+import { getCardDiscountOff, getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
+import { getPrimaryProductImageUrl } from '@/lib/utils/productImages';
+import { useCategoryMap } from '@/hooks/useCategoryMap';
 import styles from './products.module.css';
 import cardStyles from '@/components/ProductsSection.module.css';
 
@@ -23,6 +25,7 @@ export default function ProductsClient() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { addItem } = useCart();
   const { showToast } = useToast();
+  const categoryMap = useCategoryMap();
 
   const getAverageRating = (p: Product) => {
     const reviews = p.reviews || [];
@@ -66,7 +69,12 @@ export default function ProductsClient() {
     <div className={styles.container}>
       <h1 className={styles.title}>Our Products</h1>
       <div className={cardStyles.productsGrid}>
-        {products.map((product) => (
+        {products.map((product) => {
+          const categoryLabel = product.categoryId ? (categoryMap.get(product.categoryId) || 'Dairy') : 'Dairy';
+          const unitLabel = getProductDisplayUnitLabel(product);
+          const productImage = getPrimaryProductImageUrl(product);
+
+          return (
           <div
             key={product.id}
             className={cardStyles.productCard}
@@ -83,9 +91,9 @@ export default function ProductsClient() {
                 <span>Assured</span>
               </div>
 
-              {product.imageUrl ? (
+              {productImage ? (
                 <Image
-                  src={product.imageUrl}
+                  src={productImage}
                   alt={product.name}
                   fill
                   style={{ objectFit: 'cover' }}
@@ -98,7 +106,7 @@ export default function ProductsClient() {
             </div>
 
             <div className={cardStyles.productInfo}>
-              <div className={cardStyles.productCategory}>{(product as any).category || 'Dairy'}</div>
+              <div className={cardStyles.productCategory}>{categoryLabel}</div>
 
               <div className={cardStyles.productTitleRow}>
                 <h3 className={cardStyles.productName}>{product.name}</h3>
@@ -131,26 +139,34 @@ export default function ProductsClient() {
               <div className={cardStyles.addToCartRow}>
                 <div className={cardStyles.priceDisplay}>
                   <span className={cardStyles.priceAmount}>₹{getDisplayPrice(product)}</span>
-                  <span className={cardStyles.priceUnit}>/{product.suffixAfterPrice || 'litre'}</span>
+                  <span className={cardStyles.priceUnit}>/{unitLabel}</span>
                 </div>
                 <button
                   className={cardStyles.addToCartButton}
+                  disabled={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)}
                   onClick={(e) => {
                     e.stopPropagation();
-                    addItem({ productId: product.id, quantity: 1 });
-                    showToast('Added to cart', 'success');
+                    if (product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)) {
+                      showToast('Out of stock', 'error');
+                      return;
+                    }
+                    const result = addItem({ productId: product.id, quantity: 1 }, product.maxQuantity);
+                    showToast(result.appliedQuantity > 0 ? 'Added to cart' : `Maximum order quantity is ${product.maxQuantity ?? 99}`, result.appliedQuantity > 0 ? 'success' : 'error');
                   }}
-                  aria-label="Add to cart"
+                  aria-label={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of stock' : 'Add to cart'}
                   type="button"
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  {product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of Stock' : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {selectedProduct && (

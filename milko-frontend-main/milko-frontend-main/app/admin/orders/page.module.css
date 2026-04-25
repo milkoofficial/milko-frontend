@@ -55,19 +55,21 @@
 }
 
 .searchIcon svg {
-  width: 22px;
+  width: 22px !Important;
   height: 30px;
   display: block;
+  margin-top: 1px;
+  margin-left: -4px;
 }
 
 .searchInput {
   width: 100%;
   padding: 0.85rem 1rem 0.85rem calc(12px + 30px + 10px);
-  border: 0px solid #ffffff;
+  border: 2px solid #ffffff;
   border-radius: 100px;
   background: #fff;
   font-size: 0.95rem;
-  box-shadow: none;
+  box-shadow:none;
   transition:
     box-shadow 0.15s ease,
     border-color 0.15s ease;
@@ -338,8 +340,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  min-width: 0.5rem;
-  min-height: 0.5rem;
+  min-width: 0rem;
+  min-height: 0rem;
   margin: 0;
   padding: 0rem;
   border: none;
@@ -364,7 +366,7 @@
 
 .copyOrderIcon {
   width: 0.9rem;
-  height: 0.9rem;
+  height: 1.125rem;
   display: block;
 }
 
@@ -544,6 +546,7 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  /* Stop scroll chaining / pull-to-refresh from starting on the dimmed area (Android Chrome) */
   overscroll-behavior: none;
   touch-action: none;
 }
@@ -558,6 +561,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   position: relative;
+  /* Keep fling inside the sheet so it does not trigger page pull-to-refresh */
   overscroll-behavior-y: contain;
   touch-action: pan-y pinch-zoom;
   -webkit-overflow-scrolling: touch;
@@ -594,7 +598,7 @@
   gap: 0.35rem 0.5rem;
   font-size: 1.5rem;
   font-weight: 700;
-  margin: 0 0 0rem 0;
+  margin: 0 0 0.1rem 0;
   padding-right: 2.5rem;
 }
 
@@ -788,12 +792,14 @@
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  font-size: 0.95rem;
 }
 
 .secondaryBtn:hover {
   background: #e5e7eb;
 }
 
+/* Mobile filter sheet (delivery + sort) */
 .filterSheetBackdrop {
   position: fixed;
   inset: 0;
@@ -1075,7 +1081,7 @@
     align-items: center;
     justify-content: center;
     padding: 0;
-    border: 0px solid #ffffff;
+    border: 2px solid #ffffff;
     border-radius: 100px;
     background: #fff;
     box-shadow: none;

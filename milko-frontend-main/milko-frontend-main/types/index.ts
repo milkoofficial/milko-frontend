@@ -75,6 +75,7 @@ export interface Product {
   isMembershipEligible?: boolean;
   quantity?: number;
   lowStockThreshold?: number;
+  maxQuantity?: number;
   categoryId?: string | null;
   suffixAfterPrice?: string;
   createdAt: string;
@@ -101,6 +102,7 @@ export interface Subscription {
   startDate: string;
   endDate: string;
   razorpaySubscriptionId?: string;
+  autopayStatus?: 'created' | 'authenticated' | 'active' | 'halted' | 'cancelled' | string;
   /** Set when subscription was created from cart checkout (UUID of orders row). */
   checkoutOrderId?: string;
   addressId?: string;
@@ -118,6 +120,10 @@ export interface Subscription {
   initialStartDate?: string;
   /** Set when AutoPay setup failed twice (subscription expired automatically). */
   autopayFailureReason?: string;
+  /** True when first calendar-day delivery was moved to end (bought/renewed after slot ended). */
+  firstDayShiftApplied?: boolean;
+  /** `morning_slot_passed` | `evening_slot_passed` | `purchased_within_delivery_window` (from backend). */
+  firstDayShiftReason?: string;
   createdAt: string;
   updatedAt: string;
   // Per-day delivery rows (when subscription detail includes schedules)
@@ -158,6 +164,9 @@ export interface DeliverySchedule {
   userId?: string;
   litresPerDay?: number;
   deliveryTime?: string;
+  productId?: string;
+  /** From `product_variations.size` when subscription stores `product_variation_id`. */
+  variationSize?: string;
   productName?: string;
   userName?: string;
   userEmail?: string;

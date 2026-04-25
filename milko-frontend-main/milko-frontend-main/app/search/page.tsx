@@ -9,7 +9,11 @@ import { Product } from '@/types';
 import styles from '@/components/ProductsSection.module.css';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
 import RatingBadge from '@/components/ui/RatingBadge';
-import { getCardDiscountOff, getCardDisplayPrice } from '@/lib/utils/productCardPricing';
+import { getCardDiscountOff, getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
+import { getPrimaryProductImageUrl } from '@/lib/utils/productImages';
+import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useCategoryMap } from '@/hooks/useCategoryMap';
 
 /**
  * Search Results Page
@@ -22,6 +26,9 @@ function SearchContent() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { addItem } = useCart();
+  const { showToast } = useToast();
+  const categoryMap = useCategoryMap();
 
   useEffect(() => {
     const searchProducts = async () => {
@@ -104,7 +111,12 @@ function SearchContent() {
                   Found {products.length} product{products.length !== 1 ? 's' : ''}
                 </p>
                 <div className={styles.productsGrid}>
-                  {products.map((product) => (
+                  {products.map((product) => {
+                    const categoryLabel = product.categoryId ? (categoryMap.get(product.categoryId) || 'Dairy') : 'Dairy';
+                    const unitLabel = getProductDisplayUnitLabel(product);
+                    const productImage = getPrimaryProductImageUrl(product);
+
+                    return (
                     <div 
                       key={product.id} 
                       className={styles.productCard}
@@ -121,9 +133,9 @@ function SearchContent() {
                           </svg>
                           <span>Assured</span>
                         </div>
-                        {product.imageUrl ? (
+                        {productImage ? (
                           <Image
-                            src={product.imageUrl}
+                            src={productImage}
                             alt={product.name}
                             fill
                             style={{ objectFit: 'cover' }}
@@ -136,7 +148,7 @@ function SearchContent() {
                       </div>
                       <div className={styles.productInfo}>
                         <div className={styles.productCategory}>
-                          {(product as any).category || 'Dairy'}
+                          {categoryLabel}
                         </div>
                         <div className={styles.productTitleRow}>
                           <h3 className={styles.productName}>{product.name}</h3>
@@ -171,24 +183,37 @@ function SearchContent() {
                         <div className={styles.addToCartRow}>
                           <div className={styles.priceDisplay}>
                             <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
-                            <span className={styles.priceUnit}>/{product.suffixAfterPrice || 'litre'}</span>
+                            <span className={styles.priceUnit}>/{unitLabel}</span>
                           </div>
-                          <Link
-                            href={`/subscribe?productId=${product.id}`}
+                          <button
+                            type="button"
                             className={styles.addToCartButton}
+                            disabled={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)}
                             onClick={(e) => {
-                              e.stopPropagation(); // Prevent card click
+                              e.stopPropagation();
+                              if (product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0)) {
+                                showToast('Out of stock', 'error');
+                                return;
+                              }
+                              const result = addItem({ productId: product.id, quantity: 1 }, product.maxQuantity);
+                              showToast(
+                                result.appliedQuantity > 0 && result.ok ? 'Added to cart' : `Maximum order quantity is ${product.maxQuantity ?? 99}`,
+                                result.appliedQuantity > 0 && result.ok ? 'success' : 'error',
+                              );
                             }}
-                            aria-label="Subscribe Now"
+                            aria-label={product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of stock' : 'Add to cart'}
                           >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          </Link>
+                            {product.isActive === false || (typeof product.quantity === 'number' && product.quantity <= 0) ? 'Out of Stock' : (
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </button>
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             ) : (
