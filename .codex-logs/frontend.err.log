@@ -1,0 +1,11 @@
+ ⚠ The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.
+ ⨯ ./app/admin/deliveries/page.module.css:268:1
+Syntax error: C:\Users\GOPES\OneDrive\Desktop\milko\app\admin\deliveries\page.module.css Unclosed block
+
+ [90m 266 | [39m[33m}[39m
+ [90m 267 | [39m
+[1m[31m>[39m[22m[90m 268 | [39m[33m.todaysNeedTotalUnit[39m [33m{[39m
+ [90m     | [39m[1m[31m^[39m[22m
+ [90m 269 | [39m  font-size[33m:[39m 1rem[33m;[39m
+ [90m 270 | [39m    font-weight[33m:[39m 800[33m;[39m
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload

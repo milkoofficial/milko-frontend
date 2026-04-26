@@ -1,0 +1,77 @@
+
+> milko-frontend@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 5.4s
+ ✓ Compiled /middleware in 333ms (73 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 5s (947 modules)
+ GET / 200 in 5743ms
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 3.3s (1072 modules)
+ GET /admin 200 in 346ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1132ms (1000 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1320ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 55ms
+ ○ Compiling /admin/deliveries ...
+ ✓ Compiled /admin/deliveries in 1916ms (1077 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 195ms
+ ✓ Compiled in 6.3s (1039 modules)
+ GET /admin/deliveries 200 in 465ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1405ms (560 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1897ms
+ ✓ Compiled in 1251ms (1050 modules)
+ ✓ Compiled in 1825ms (1049 modules)
+ ✓ Compiled in 1287ms (1049 modules)
+ GET /admin/deliveries 200 in 258ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1224ms (560 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1627ms
+ ✓ Compiled in 1638ms (1050 modules)
+ ✓ Compiled in 1549ms (1049 modules)
+ ✓ Compiled in 2.2s (1049 modules)
+ ✓ Compiled in 911ms (1049 modules)
+ ✓ Compiled in 2.1s (1049 modules)
+ ✓ Compiled in 959ms (1049 modules)
+ ✓ Compiled in 788ms (1049 modules)
+ ✓ Compiled in 1544ms (1049 modules)
+ ✓ Compiled in 1108ms (1049 modules)
+ ✓ Compiled in 3.2s (1039 modules)
+ ✓ Compiled in 3.1s (1049 modules)
+ GET /admin/deliveries 200 in 263ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1119ms (560 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 1565ms
+ GET /admin/deliveries 200 in 115ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 43ms
+ ✓ Compiled in 1006ms (1050 modules)
+ ✓ Compiled in 780ms (1050 modules)
+ ✓ Compiled in 4.3s (1049 modules)
+ ✓ Compiled in 1041ms (1049 modules)
+ ✓ Compiled in 1124ms (1049 modules)
+ ✓ Compiled in 964ms (1049 modules)
+ ✓ Compiled in 747ms (1049 modules)
+ GET /admin/deliveries 200 in 317ms
+ ○ Compiling /admin/content ...
+ ✓ Compiled /admin/content in 1775ms (1058 modules)
+ ○ Compiling /admin/orders ...
+ ✓ Compiled /admin/orders in 1488ms (1067 modules)
+ ✓ Compiled in 2.7s (1130 modules)
+ ✓ Compiled in 4.2s (1133 modules)
+ GET /admin/orders 200 in 574ms
+ ○ Compiling /admin/logo ...
+ ✓ Compiled /admin/logo in 1907ms (1079 modules)
+ ○ Compiling /admin/products ...
+ ✓ Compiled /admin/products in 1632ms (1073 modules)
+ ○ Compiling /admin/products/new ...
+ ✓ Compiled /admin/products/new in 1599ms (1096 modules)
+ ○ Compiling /admin/products/[id] ...
+ ✓ Compiled /admin/products/[id] in 1325ms (1086 modules)
+ GET /admin/content 200 in 437ms

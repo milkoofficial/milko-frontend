@@ -1,0 +1,2080 @@
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3003
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at Server.listen (node:net:2110:7)
+    at app.listen (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\src\server.js:135:5)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1984:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3003
+}
+
+Node.js v24.14.1
+[milko-backend] ⚠️  Could not resolve aws-1-ap-south-1.pooler.supabase.com to IPv4: queryA ECONNREFUSED aws-1-ap-south-1.pooler.supabase.com
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 48,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 65,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 41,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 45,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 32,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 32,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+❌ Unexpected error on idle client Error: Connection terminated unexpectedly
+    at Connection.<anonymous> (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\node_modules\pg\lib\client.js:136:73)
+    at Object.onceWrapper (node:events:622:28)
+    at Connection.emit (node:events:508:28)
+    at Socket.<anonymous> (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\node_modules\pg\lib\connection.js:62:12)
+    at Socket.emit (node:events:520:35)
+    at TCP.<anonymous> (node:net:346:12) {
+  client: Client {
+    _events: [Object: null prototype] { error: [Function (anonymous)] },
+    _eventsCount: 1,
+    _maxListeners: undefined,
+    connectionParameters: ConnectionParameters {
+      user: 'postgres.qbjluvlqbaxgsvtyjqid',
+      database: 'postgres',
+      port: 6543,
+      host: 'aws-1-ap-south-1.pooler.supabase.com',
+      binary: false,
+      options: '-c TimeZone=UTC',
+      ssl: [Object],
+      client_encoding: '',
+      replication: undefined,
+      isDomainSocket: false,
+      application_name: undefined,
+      fallback_application_name: undefined,
+      statement_timeout: false,
+      lock_timeout: false,
+      idle_in_transaction_session_timeout: false,
+      query_timeout: false,
+      connect_timeout: 20,
+      keepalives: 1,
+      keepalives_idle: 10
+    },
+    user: 'postgres.qbjluvlqbaxgsvtyjqid',
+    database: 'postgres',
+    port: 6543,
+    host: 'aws-1-ap-south-1.pooler.supabase.com',
+    replication: undefined,
+    _Promise: [Function: Promise],
+    _types: TypeOverrides { _types: [Object], text: {}, binary: {} },
+    _ending: true,
+    _ended: true,
+    _connecting: false,
+    _connected: true,
+    _connectionError: false,
+    _queryable: false,
+    enableChannelBinding: false,
+    connection: Connection {
+      _events: [Object: null prototype],
+      _eventsCount: 23,
+      _maxListeners: undefined,
+      stream: [TLSSocket],
+      _keepAlive: true,
+      _keepAliveInitialDelayMillis: 10000,
+      lastBuffer: false,
+      parsedStatements: {},
+      ssl: [Object],
+      _ending: true,
+      _emitMessage: false,
+      _connecting: true,
+      Symbol(shapeMode): false,
+      Symbol(kCapture): false
+    },
+    queryQueue: [],
+    binary: false,
+    processID: 724138712,
+    secretKey: 271817353,
+    ssl: { rejectUnauthorized: false },
+    _connectionTimeoutMillis: 20000,
+    _connectionCallback: null,
+    connectionTimeoutHandle: Timeout {
+      _idleTimeout: -1,
+      _idlePrev: null,
+      _idleNext: null,
+      _idleStart: 603507,
+      _onTimeout: null,
+      _timerArgs: undefined,
+      _repeat: null,
+      _destroyed: true,
+      Symbol(refed): false,
+      Symbol(kHasPrimitive): false,
+      Symbol(asyncId): 3635,
+      Symbol(triggerId): 0,
+      Symbol(kAsyncContextFrame): undefined
+    },
+    saslSession: null,
+    release: [Function (anonymous)],
+    activeQuery: null,
+    readyForQuery: true,
+    hasExecuted: true,
+    _poolUseCount: 2,
+    Symbol(shapeMode): false,
+    Symbol(kCapture): false
+  }
+}
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+❌ Unexpected error on idle client Error: Connection terminated unexpectedly
+    at Connection.<anonymous> (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\node_modules\pg\lib\client.js:136:73)
+    at Object.onceWrapper (node:events:622:28)
+    at Connection.emit (node:events:508:28)
+    at Socket.<anonymous> (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\node_modules\pg\lib\connection.js:62:12)
+    at Socket.emit (node:events:520:35)
+    at TCP.<anonymous> (node:net:346:12) {
+  client: Client {
+    _events: [Object: null prototype] { error: [Function (anonymous)] },
+    _eventsCount: 1,
+    _maxListeners: undefined,
+    connectionParameters: ConnectionParameters {
+      user: 'postgres.qbjluvlqbaxgsvtyjqid',
+      database: 'postgres',
+      port: 6543,
+      host: 'aws-1-ap-south-1.pooler.supabase.com',
+      binary: false,
+      options: '-c TimeZone=UTC',
+      ssl: [Object],
+      client_encoding: '',
+      replication: undefined,
+      isDomainSocket: false,
+      application_name: undefined,
+      fallback_application_name: undefined,
+      statement_timeout: false,
+      lock_timeout: false,
+      idle_in_transaction_session_timeout: false,
+      query_timeout: false,
+      connect_timeout: 20,
+      keepalives: 1,
+      keepalives_idle: 10
+    },
+    user: 'postgres.qbjluvlqbaxgsvtyjqid',
+    database: 'postgres',
+    port: 6543,
+    host: 'aws-1-ap-south-1.pooler.supabase.com',
+    replication: undefined,
+    _Promise: [Function: Promise],
+    _types: TypeOverrides { _types: [Object], text: {}, binary: {} },
+    _ending: true,
+    _ended: true,
+    _connecting: false,
+    _connected: true,
+    _connectionError: false,
+    _queryable: false,
+    enableChannelBinding: false,
+    connection: Connection {
+      _events: [Object: null prototype],
+      _eventsCount: 23,
+      _maxListeners: undefined,
+      stream: [TLSSocket],
+      _keepAlive: true,
+      _keepAliveInitialDelayMillis: 10000,
+      lastBuffer: false,
+      parsedStatements: {},
+      ssl: [Object],
+      _ending: true,
+      _emitMessage: false,
+      _connecting: true,
+      Symbol(shapeMode): false,
+      Symbol(kCapture): false
+    },
+    queryQueue: [],
+    binary: false,
+    processID: 550355801,
+    secretKey: 561361451,
+    ssl: { rejectUnauthorized: false },
+    _connectionTimeoutMillis: 20000,
+    _connectionCallback: null,
+    connectionTimeoutHandle: Timeout {
+      _idleTimeout: -1,
+      _idlePrev: null,
+      _idleNext: null,
+      _idleStart: 670553,
+      _onTimeout: null,
+      _timerArgs: undefined,
+      _repeat: null,
+      _destroyed: true,
+      Symbol(refed): false,
+      Symbol(kHasPrimitive): false,
+      Symbol(asyncId): 3760,
+      Symbol(triggerId): 0,
+      Symbol(kAsyncContextFrame): undefined
+    },
+    saslSession: null,
+    release: [Function (anonymous)],
+    activeQuery: null,
+    readyForQuery: true,
+    hasExecuted: true,
+    _poolUseCount: 2,
+    Symbol(shapeMode): false,
+    Symbol(kCapture): false
+  }
+}
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3003
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at Server.listen (node:net:2110:7)
+    at app.listen (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\src\server.js:135:5)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1984:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3003
+}
+
+Node.js v24.14.1
+[milko-backend] ⚠️  Could not resolve aws-1-ap-south-1.pooler.supabase.com to IPv4: queryA ECONNREFUSED aws-1-ap-south-1.pooler.supabase.com
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 49,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 58,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 32,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+[milko-backend] ⚠️  Could not resolve aws-1-ap-south-1.pooler.supabase.com to IPv4: queryA ECONNREFUSED aws-1-ap-south-1.pooler.supabase.com
+^C^C: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 30,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 41,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 32,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 617,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 42,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 60,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 31,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 57,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 41,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 40,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 91,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 35,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: '\n' +
+    '        SELECT\n' +
+    '          pmt.id AS order_id,\n' +
+    '          pmt.razorpay_order_id,\n' +
+    '          pmt.razorpa',
+  duration: 39,
+  error: 'relation "payments" does not exist'
+}
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: '\n' +
+    '        SELECT\n' +
+    '          pmt.id AS order_id,\n' +
+    '          pmt.razorpay_order_id,\n' +
+    '          pmt.razorpa',
+  duration: 33,
+  error: 'relation "payments" does not exist'
+}
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+[milko-backend] ⚠️  Could not resolve aws-1-ap-south-1.pooler.supabase.com to IPv4: queryA ECONNREFUSED aws-1-ap-south-1.pooler.supabase.com
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 33,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 38,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: '\n' +
+    '        SELECT\n' +
+    '          pmt.id AS order_id,\n' +
+    '          pmt.razorpay_order_id,\n' +
+    '          pmt.razorpa',
+  duration: 34,
+  error: 'relation "payments" does not exist'
+}
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 34,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 37,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: '\n' +
+    '        SELECT\n' +
+    '          pmt.id AS order_id,\n' +
+    '          pmt.razorpay_order_id,\n' +
+    '          pmt.razorpa',
+  duration: 37,
+  error: 'relation "payments" does not exist'
+}
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 39,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+Query error {
+  text: 'INSERT INTO users (id, name, email, role, created_at, updated_at)\n' +
+    '           VALUES ($1, $2, $3, $4,',
+  duration: 36,
+  error: 'duplicate key value violates unique constraint "users_email_key"'
+}
+[AUTH] User insert failed, checking for existing user: duplicate key value violates unique constraint "users_email_key"
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3003
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at Server.listen (node:net:2110:7)
+    at app.listen (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\src\server.js:135:5)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1984:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3003
+}
+
+Node.js v24.14.1
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3003
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at Server.listen (node:net:2110:7)
+    at app.listen (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\Users\GOPES\OneDrive\Desktop\milko\milko-backend-main\src\server.js:135:5)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1984:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3003
+}
+
+Node.js v24.14.1
+^C^C

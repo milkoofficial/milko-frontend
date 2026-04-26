@@ -364,7 +364,7 @@ export default function GetTrialPackPage() {
       </div>
 
       <div className={styles.faqSection}>
-        <h2 className={styles.faqTitle}>We're here to answer all your questions.</h2>
+        <h2 className={styles.faqTitle}>We&apos;re here to answer all your questions.</h2>
         <div className={styles.faqList}>
           {faqs.map((faq, index) => (
             <details key={index} className={styles.faqItem} open={index === 0}>
