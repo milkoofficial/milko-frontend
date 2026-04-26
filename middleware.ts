@@ -18,8 +18,8 @@ export async function middleware(request: NextRequest) {
 
   const isAdminSubdomain =
     hostname.startsWith('admin.') || hostname === 'admin.milko.in';
-  const isCustomerDomain =
-    !isAdminSubdomain && (hostname === 'milko.in' || hostname.includes('localhost'));
+  const isLocalDevelopment =
+    hostname.includes('localhost') || hostname.startsWith('127.0.0.1');
 
   // Always allow these paths (admin, auth, coming-soon page itself)
   const alwaysAllowed = ['/admin', '/auth', '/coming-soon'];
@@ -27,6 +27,11 @@ export async function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(route + '/')
   );
   if (isAlwaysAllowed) {
+    return NextResponse.next();
+  }
+
+  // Never block customer routes on localhost during development.
+  if (!isAdminSubdomain && isLocalDevelopment) {
     return NextResponse.next();
   }
 

@@ -8,6 +8,7 @@ import styles from './MobileBottomNav.module.css';
 const navItems = [
   { href: '/', label: 'Home', icon: 'home' },
   { href: '/products', label: 'Shop', icon: 'shop' },
+  { href: '/get-trial-pack', label: 'Trial', icon: 'trial' },
   { href: '/subscriptions', label: 'Subscription', icon: 'subscription' },
   { href: '/orders', label: 'Orders', icon: 'orders' },
 ] as const;
@@ -36,6 +37,21 @@ function NavIcon({ name, active }: { name: (typeof navItems)[number]['icon']; ac
           <path d="M1 4v6h6" />
           <path d="M23 20v-6h-6" />
           <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+        </svg>
+      );
+    case 'trial':
+      return (
+        <svg width="22" height="22" viewBox="0 0 54.391 54.391" fill={c} xmlns="http://www.w3.org/2000/svg">
+          <g>
+            <polygon points="0.285,19.392 24.181,49.057 13.342,19.392" />
+            <polygon points="15.472,19.392 27.02,50.998 38.795,19.392" />
+            <polygon points="29.593,49.823 54.105,19.392 40.929,19.392" />
+            <polygon points="44.755,3.392 29.297,3.392 39.896,16.437" />
+            <polygon points="38.094,17.392 27.195,3.979 16.297,17.392" />
+            <polygon points="25.094,3.392 9.625,3.392 14.424,16.525" />
+            <polygon points="7.959,4.658 0,17.392 12.611,17.392" />
+            <polygon points="54.391,17.392 46.424,4.645 41.674,17.392" />
+          </g>
         </svg>
       );
     case 'orders':
@@ -80,7 +96,7 @@ export default function MobileBottomNav() {
           <Link
             key={label}
             href={href}
-            className={`${styles.item} ${active ? styles.active : ''}`}
+            className={`${styles.item} ${icon === 'trial' ? styles.trialItem : ''} ${active ? styles.active : ''}`}
             aria-current={active ? 'page' : undefined}
           >
             <span className={styles.icon}>

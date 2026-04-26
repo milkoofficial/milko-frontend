@@ -20,6 +20,7 @@ async function ensureOrdersSchema() {
       currency VARCHAR(3) NOT NULL DEFAULT 'INR',
       subtotal DECIMAL(10, 2) NOT NULL CHECK (subtotal >= 0),
       discount DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (discount >= 0),
+      platform_fee DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (platform_fee >= 0),
       delivery_charges DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (delivery_charges >= 0),
       total DECIMAL(10, 2) NOT NULL CHECK (total >= 0),
       wallet_used DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (wallet_used >= 0),
@@ -53,6 +54,7 @@ async function ensureOrdersSchema() {
   await query(`CREATE INDEX IF NOT EXISTS idx_orders_razorpay_order_id ON orders(razorpay_order_id) WHERE razorpay_order_id IS NOT NULL;`);
   await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_last4 VARCHAR(4);`);
   await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_network VARCHAR(50);`);
+  await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS platform_fee DECIMAL(10, 2) NOT NULL DEFAULT 0;`);
   await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS wallet_used DECIMAL(10, 2) NOT NULL DEFAULT 0;`);
 
   await query(`ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;`);
@@ -175,6 +177,7 @@ async function createOrder({
   currency,
   subtotal,
   discount,
+  platformFee = 0,
   deliveryCharges,
   total,
   deliveryAddress,
@@ -188,11 +191,11 @@ async function createOrder({
     `
     INSERT INTO orders (
       id, user_id, order_number, status, payment_method, payment_status,
-      currency, subtotal, discount, delivery_charges, total, wallet_used, delivery_address, razorpay_order_id
+      currency, subtotal, discount, platform_fee, delivery_charges, total, wallet_used, delivery_address, razorpay_order_id
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
     RETURNING id, user_id, order_number, status, payment_method, payment_status, currency,
-              subtotal, discount, delivery_charges, total, wallet_used, delivery_address, created_at
+              subtotal, discount, platform_fee, delivery_charges, total, wallet_used, delivery_address, created_at
     `,
     [
       id,
@@ -204,6 +207,7 @@ async function createOrder({
       currency,
       subtotal,
       discount,
+      platformFee,
       deliveryCharges,
       total,
       walletUsed,
@@ -255,6 +259,7 @@ async function createOrder({
     currency: order.currency,
     subtotal: parseFloat(order.subtotal),
     discount: parseFloat(order.discount),
+    platformFee: parseFloat(order.platform_fee || 0),
     deliveryCharges: parseFloat(order.delivery_charges),
     total: parseFloat(order.total),
     walletUsed: parseFloat(order.wallet_used || 0),
@@ -437,6 +442,7 @@ async function getOrderByIdForUser(userId, orderId) {
       o.currency,
       o.subtotal,
       o.discount,
+      o.platform_fee,
       o.delivery_charges,
       o.total,
       o.delivery_address,
@@ -511,6 +517,7 @@ async function getOrderByIdForUser(userId, orderId) {
     currency: r.currency || 'INR',
     subtotal: r.subtotal != null ? parseFloat(r.subtotal) : 0,
     discount: r.discount != null ? parseFloat(r.discount) : 0,
+    platformFee: r.platform_fee != null ? parseFloat(r.platform_fee) : 0,
     deliveryCharges: r.delivery_charges != null ? parseFloat(r.delivery_charges) : 0,
     total: r.total != null ? parseFloat(r.total) : 0,
     deliveryAddress: r.delivery_address,
@@ -810,6 +817,7 @@ async function getOrderByIdForAdmin(orderId) {
     currency: r.currency || 'INR',
     subtotal: r.subtotal != null ? parseFloat(r.subtotal) : 0,
     discount: r.discount != null ? parseFloat(r.discount) : 0,
+    platformFee: r.platform_fee != null ? parseFloat(r.platform_fee) : 0,
     deliveryCharges: r.delivery_charges != null ? parseFloat(r.delivery_charges) : 0,
     total: r.total != null ? parseFloat(r.total) : 0,
     deliveryAddress: r.delivery_address,

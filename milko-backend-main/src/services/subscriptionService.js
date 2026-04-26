@@ -12,6 +12,7 @@ const { ValidationError, NotFoundError } = require('../utils/errors');
 const { getClient, query } = require('../config/database');
 const walletService = require('./walletService');
 const { computeFirstDayShiftBonus } = require('./subscriptionSlotShift');
+const { getPlatformFeeAmount, roundMoney } = require('./pricingService');
 
 const AUTOPAY_FAILURE_MESSAGE = 'Autopay failed: Either low balance or Issue with the provider.';
 
@@ -171,6 +172,7 @@ const createSubscription = async (subscriptionData) => {
   const {
     userId,
     productId,
+    variationId = null,
     litresPerDay,
     durationMonths,
     durationDays,
@@ -198,13 +200,38 @@ const createSubscription = async (subscriptionData) => {
   }
   const durationMonthsForDb = Math.max(1, Math.round(daysInDuration / 30));
 
-  // Calculate total amount (price per litre * litres per day * days in duration)
-  const perUnitPrice =
+  let selectedVariation = null;
+  if (variationId) {
+    const variationRes = await query(
+      `
+      SELECT id, size, price_multiplier, price
+      FROM product_variations
+      WHERE id = $1 AND product_id = $2
+      `,
+      [variationId, productId]
+    );
+    if (variationRes.rows.length === 0) {
+      throw new ValidationError('Invalid subscription variation');
+    }
+    selectedVariation = variationRes.rows[0];
+  }
+
+  const basePerUnitPrice =
     product.sellingPrice !== null && product.sellingPrice !== undefined
       ? Number(product.sellingPrice)
       : Number(product.pricePerLitre);
+  const variationMultiplier =
+    selectedVariation?.price_multiplier !== null && selectedVariation?.price_multiplier !== undefined
+      ? Number(selectedVariation.price_multiplier)
+      : 1;
+  const perUnitPrice =
+    selectedVariation?.price !== null && selectedVariation?.price !== undefined
+      ? Number(selectedVariation.price) / variationMultiplier
+      : basePerUnitPrice;
   const totalQty = litresPerDay * daysInDuration;
-  const totalAmount = perUnitPrice * totalQty;
+  const totalAmount = roundMoney(perUnitPrice * totalQty);
+  const platformFee = await getPlatformFeeAmount();
+  const payableAmount = roundMoney(totalAmount + platformFee);
 
   const client = await getClient();
   try {
@@ -218,13 +245,13 @@ const createSubscription = async (subscriptionData) => {
     }
 
     let walletUsed = 0;
-    let remainingAmount = totalAmount;
+    let remainingAmount = payableAmount;
 
     if (paymentMethod === 'wallet') {
       const balRes = await client.query(`SELECT wallet_balance FROM users WHERE id = $1`, [userId]);
       const walletBalance = balRes.rows.length > 0 ? parseFloat(balRes.rows[0].wallet_balance || 0) : 0;
-      walletUsed = Math.max(0, Math.min(walletBalance, totalAmount));
-      remainingAmount = Math.max(0, Math.round((totalAmount - walletUsed) * 100) / 100);
+      walletUsed = Math.max(0, Math.min(walletBalance, payableAmount));
+      remainingAmount = Math.max(0, Math.round((payableAmount - walletUsed) * 100) / 100);
     }
 
     let razorpayOrder = null;
@@ -253,17 +280,17 @@ const createSubscription = async (subscriptionData) => {
       `
       INSERT INTO subscriptions (
         user_id, product_id, litres_per_day, duration_months, duration_days, delivery_time,
-        address_id,
+        address_id, product_variation_id,
         start_date, end_date, razorpay_subscription_id, status,
-        total_qty, delivered_qty, remaining_qty, per_unit_price, total_amount, total_amount_paid, wallet_used, purchased_at,
+        total_qty, delivered_qty, remaining_qty, per_unit_price, total_amount, total_amount_paid, wallet_used, platform_fee, purchased_at,
         created_at, updated_at
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,
+        $1,$2,$3,$4,$5,$6,$7,$8,
         (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
         (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + ($5::integer - 1),
-        $8,'pending',
-        $9,0,$9,$10,$11,$12,$12,$13,
+        $9,'pending',
+        $10,0,$10,$11,$12,$13,$13,$14,$15,
         NOW(),NOW()
       )
       RETURNING id
@@ -276,11 +303,13 @@ const createSubscription = async (subscriptionData) => {
         daysInDuration,
         deliveryTime,
         addressId,
+        variationId,
         razorpayOrder ? razorpayOrder.id : null,
         totalQty,
         perUnitPrice,
         totalAmount,
         walletUsed,
+        platformFee,
         new Date().toISOString(),
       ]
     );
@@ -379,7 +408,7 @@ const activateSubscription = async (subscriptionId) => {
       `
       UPDATE subscriptions
       SET status = 'active',
-          total_amount_paid = COALESCE(total_amount, total_amount_paid),
+          total_amount_paid = COALESCE(total_amount, 0) + COALESCE(platform_fee, 0),
           purchased_at = COALESCE(purchased_at, NOW()),
           duration_days = $2,
           end_date = start_date + ($2::integer - 1) * INTERVAL '1 day',
@@ -1056,7 +1085,7 @@ const createFromCheckoutOrder = async (orderId) => {
 
     const itemRes = await client.query(
       `
-      SELECT product_id, product_name, variation_size, unit_price
+      SELECT product_id, product_name, variation_size, unit_price, variation_id
       FROM order_items
       WHERE order_id = $1
         AND LOWER(product_name) LIKE 'subscription for %'
@@ -1107,16 +1136,17 @@ const createFromCheckoutOrder = async (orderId) => {
       `
       INSERT INTO subscriptions (
         user_id, product_id, litres_per_day, duration_months, duration_days, delivery_time,
+        product_variation_id,
         start_date, end_date, razorpay_subscription_id, status, checkout_order_id,
-        total_qty, delivered_qty, remaining_qty, per_unit_price, total_amount, total_amount_paid, wallet_used, purchased_at,
+        total_qty, delivered_qty, remaining_qty, per_unit_price, total_amount, total_amount_paid, wallet_used, platform_fee, purchased_at,
         created_at, updated_at
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,
+        $1,$2,$3,$4,$5,$6,$7,
         (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
         (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date + ($5::integer - 1),
-        NULL,'pending',$7,
-        $8,0,$8,$9,$10,$11,0,$12,
+        NULL,'pending',$8,
+        $9,0,$9,$10,$11,$12,0,0,$13,
         NOW(),NOW()
       )
       RETURNING id
@@ -1128,6 +1158,7 @@ const createFromCheckoutOrder = async (orderId) => {
         durationMonthsForDb,
         planDays,
         deliveryTime,
+        item.variation_id || null,
         orderId,
         totalQty,
         perUnitPrice,

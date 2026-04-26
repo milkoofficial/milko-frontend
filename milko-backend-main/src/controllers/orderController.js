@@ -6,6 +6,7 @@ const couponService = require('../services/couponService');
 const { createOrder: createRazorpayOrder, hasRazorpayKeys, getPayment: getRazorpayPayment } = require('../config/razorpay');
 const walletService = require('../services/walletService');
 const subscriptionService = require('../services/subscriptionService');
+const { calculateCheckoutFees, roundMoney } = require('../services/pricingService');
 
 function normalizeInt(val) {
   if (val === null || val === undefined || val === '') return null;
@@ -98,6 +99,12 @@ const createOrder = async (req, res, next) => {
 
     if (hasSubscriptionItem) {
       const subscriptionProductId = normalizeInt(subscriptionItem?.productId);
+      const subscriptionVariationId = normalizeInt(
+        subscriptionItem?.variationId
+          ?? subscriptionItem?.variation_id
+          ?? subscriptionItem?.productVariationId
+          ?? subscriptionItem?.product_variation_id
+      );
       const litresPerDay = Number(subscriptionItem?.litresPerDay);
       const durationMonths = Number(subscriptionItem?.durationMonths);
       const durationDaysRaw = subscriptionItem?.durationDays;
@@ -130,13 +137,34 @@ const createOrder = async (req, res, next) => {
       const sp = subProductRes.rows[0];
       if (!sp.is_membership_eligible) throw new ValidationError('Selected product is not eligible for subscription');
 
-      const perUnit = sp.selling_price !== null && sp.selling_price !== undefined
+      let variation = null;
+      if (subscriptionVariationId) {
+        const variationRes = await query(
+          `
+          SELECT id, size, price_multiplier, price
+          FROM product_variations
+          WHERE id = $1 AND product_id = $2
+          `,
+          [subscriptionVariationId, subscriptionProductId]
+        );
+        if (variationRes.rows.length === 0) throw new ValidationError('Invalid subscription variation');
+        variation = variationRes.rows[0];
+      }
+
+      const basePerUnit = sp.selling_price !== null && sp.selling_price !== undefined
         ? parseFloat(sp.selling_price)
         : parseFloat(sp.price_per_litre);
+      const variationMultiplier =
+        variation?.price_multiplier !== null && variation?.price_multiplier !== undefined
+          ? parseFloat(variation.price_multiplier)
+          : 1;
+      const perUnit = variation?.price !== null && variation?.price !== undefined
+        ? parseFloat(variation.price) / variationMultiplier
+        : basePerUnit;
       const days = hasDayDuration
         ? Math.min(3650, Math.floor(durationDays))
         : Math.max(1, Math.round(durationMonths * 30));
-      const subscriptionAmount = perUnit * litresPerDay * days;
+      const subscriptionAmount = roundMoney(perUnit * litresPerDay * days);
       subtotal += subscriptionAmount;
 
       const periodLabel = hasDayDuration
@@ -145,7 +173,7 @@ const createOrder = async (req, res, next) => {
 
       computedItems.push({
         productId: subscriptionProductId,
-        variationId: null,
+        variationId: subscriptionVariationId,
         productName: `Subscription for ${sp.name}`,
         variationSize: `Qty: ${litresPerDay} L/day | Period: ${periodLabel} | Delivery: ${deliveryTime}`,
         unitPrice: subscriptionAmount,
@@ -172,8 +200,13 @@ const createOrder = async (req, res, next) => {
       discount = Math.min(discount, subtotal);
     }
 
-    const deliveryCharges = 0;
-    const total = subtotal - discount + deliveryCharges;
+    await orderModel.ensureOrdersSchema();
+    const { platformFee, deliveryCharges } = await calculateCheckoutFees({
+      userId,
+      itemsCount: Array.isArray(items) ? items.length : 0,
+      deliveryAddress,
+    });
+    const total = roundMoney(subtotal - discount + deliveryCharges + platformFee);
 
     const id = crypto.randomUUID();
     const orderNumber = id.split('-')[0].toUpperCase();
@@ -189,6 +222,7 @@ const createOrder = async (req, res, next) => {
         currency: 'INR',
         subtotal,
         discount,
+        platformFee,
         deliveryCharges,
         total,
         deliveryAddress,
@@ -209,7 +243,6 @@ const createOrder = async (req, res, next) => {
       });
     }
 
-    await orderModel.ensureOrdersSchema();
     if (method === 'wallet') {
       await walletService.ensureWalletSchema();
     }
@@ -268,9 +301,9 @@ const createOrder = async (req, res, next) => {
         `
         INSERT INTO orders (
           id, user_id, order_number, status, payment_method, payment_status,
-          currency, subtotal, discount, delivery_charges, total, wallet_used, delivery_address, razorpay_order_id
+          currency, subtotal, discount, platform_fee, delivery_charges, total, wallet_used, delivery_address, razorpay_order_id
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
         `,
         [
           id,
@@ -282,6 +315,7 @@ const createOrder = async (req, res, next) => {
           'INR',
           subtotal,
           discount,
+          platformFee,
           deliveryCharges,
           total,
           walletUsed,

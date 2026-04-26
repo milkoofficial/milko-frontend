@@ -23,6 +23,7 @@ import styles from './cart.module.css';
 type SubscriptionCartItem = {
   type: 'subscription';
   productId: string;
+  variationId?: string;
   productName: string;
   litresPerDay: number;
   durationMonths: number;
@@ -204,6 +205,7 @@ export default function CartPage() {
     const next = new URLSearchParams();
     next.set('from', 'cart');
     if (firstProductId) next.set('productId', firstProductId);
+    if (subscriptionCartItem?.variationId) next.set('variationId', subscriptionCartItem.variationId);
     if (subscriptionCartItem) {
       next.set('liters', String(subscriptionCartItem.litresPerDay));
       if (subscriptionCartItem.durationDays != null && subscriptionCartItem.durationDays >= 1) {
@@ -516,10 +518,7 @@ export default function CartPage() {
                 </button>
               </div>
               <div className={styles.subscriptionIcon}>
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M5 16L3 5L8.5 10L12 8L15.5 10L21 5L19 16H5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M3 16H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <svg viewBox="-3.02 0 48.891 48.891" xmlns="http://www.w3.org/2000/svg" fill="#000000"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g id="red_dimond_premium" data-name="red dimond premium" transform="translate(-229.078 -417.619)"> <path id="Path_140" data-name="Path 140" d="M240.523,432.087l-7.982,9.977L250.5,466.01l17.959-23.946-7.982-9.977Z" fill="#0070f3" fill-rule="evenodd"></path> <path id="Path_141" data-name="Path 141" d="M238.527,421.328l2.993,5.184m-11.759,3.58,5.186,2.993m36.29-2.993-5.184,2.993m-3.58-11.757-2.993,5.184m-8.98-8.393v5.986m17.959,17.96H232.541m16.273-9.978-1.842,9.978L250.5,466.01l3.528-23.945-1.842-9.978Zm-3.668,0-4.671,9.978L250.5,466.01l10.025-23.945-4.671-9.978Zm17.327,17.96,5.986-7.982-7.982-9.978H240.523l-7.982,9.978,5.986,7.982m2.993,3.991,8.98,11.972,8.98-11.972" fill="none" stroke="#0f0e0b" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"></path> </g> </g></svg>
               </div>
             </div>
           </div>

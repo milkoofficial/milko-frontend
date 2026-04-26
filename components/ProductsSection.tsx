@@ -12,7 +12,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { animateToCart } from '@/lib/utils/cartAnimation';
 import { cartIconRefStore } from '@/lib/utils/cartIconRef';
 import { contentApi } from '@/lib/api';
-import { getCardDiscountOff, getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
+import { getFirstVariationForCard, getCardDiscountOff, getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
 import { getPrimaryProductImageUrl } from '@/lib/utils/productImages';
 import { useCategoryMap } from '@/hooks/useCategoryMap';
 import styles from './ProductsSection.module.css';
@@ -276,8 +276,18 @@ export default function ProductsSection() {
                 })()}
                 <div className={`${styles.addToCartRow} ${isOutOfStock ? styles.addToCartRowOutOfStock : ''}`}>
                   <div className={styles.priceDisplay}>
-                    <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
-                    <span className={styles.priceUnit}>/{unitLabel}</span>
+                    {product.variations && product.variations.length > 0 ? (
+                      <>
+                        
+                        <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
+                        <span className={styles.priceUnit}>/{unitLabel}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
+                        <span className={styles.priceUnit}>/{unitLabel}</span>
+                      </>
+                    )}
                   </div>
                   <button
                     className={styles.addToCartButton}
@@ -290,9 +300,11 @@ export default function ProductsSection() {
                       }
                       
                       // Add to cart
+                      const variation = getFirstVariationForCard(product);
                       const result = addItem({
                         productId: product.id,
                         quantity: 1,
+                        variationId: variation?.id,
                       }, product.maxQuantity);
                       if (result.appliedQuantity <= 0) {
                         showToast(`Maximum order quantity is ${product.maxQuantity ?? 99}`, 'error');

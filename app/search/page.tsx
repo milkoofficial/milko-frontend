@@ -9,7 +9,7 @@ import { Product } from '@/types';
 import styles from '@/components/ProductsSection.module.css';
 import ProductDetailsModal from '@/components/ProductDetailsModal';
 import RatingBadge from '@/components/ui/RatingBadge';
-import { getCardDiscountOff, getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
+import { getFirstVariationForCard, getCardDiscountOff, getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
 import { getPrimaryProductImageUrl } from '@/lib/utils/productImages';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -182,8 +182,17 @@ function SearchContent() {
                         })()}
                         <div className={styles.addToCartRow}>
                           <div className={styles.priceDisplay}>
-                            <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
-                            <span className={styles.priceUnit}>/{unitLabel}</span>
+                            {product.variations && product.variations.length > 0 ? (
+                              <>
+                                                                <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
+                                <span className={styles.priceUnit}>/{unitLabel}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className={styles.priceAmount}>₹{getDisplayPrice(product)}</span>
+                                <span className={styles.priceUnit}>/{unitLabel}</span>
+                              </>
+                            )}
                           </div>
                           <button
                             type="button"
@@ -195,7 +204,8 @@ function SearchContent() {
                                 showToast('Out of stock', 'error');
                                 return;
                               }
-                              const result = addItem({ productId: product.id, quantity: 1 }, product.maxQuantity);
+                              const variation = getFirstVariationForCard(product);
+                              const result = addItem({ productId: product.id, quantity: 1, variationId: variation?.id }, product.maxQuantity);
                               showToast(
                                 result.appliedQuantity > 0 && result.ok ? 'Added to cart' : `Maximum order quantity is ${product.maxQuantity ?? 99}`,
                                 result.appliedQuantity > 0 && result.ok ? 'success' : 'error',

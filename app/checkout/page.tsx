@@ -36,6 +36,7 @@ type CheckoutStep = 'login' | 'address' | 'review';
 type SubscriptionCartItem = {
   type: 'subscription';
   productId: string;
+  variationId?: string;
   productName: string;
   litresPerDay: number;
   durationMonths: number;
@@ -781,6 +782,7 @@ export default function CheckoutPage() {
         subscriptionItem: subscriptionCartItem
           ? {
             productId: subscriptionCartItem.productId,
+            variationId: subscriptionCartItem.variationId || null,
             litresPerDay: subscriptionCartItem.litresPerDay,
             durationDays: subscriptionCartItem.durationDays,
             durationMonths: subscriptionCartItem.durationMonths,

@@ -52,8 +52,22 @@ const getSubscriptionById = async (req, res, next) => {
  */
 const createSubscription = async (req, res, next) => {
   try {
-    const { productId, litresPerDay, durationMonths, durationDays, deliveryTime, paymentMethod, addressId } =
+    const {
+      productId,
+      variationId,
+      variation_id: variationIdLegacy,
+      productVariationId,
+      product_variation_id: productVariationIdLegacy,
+      litresPerDay,
+      durationMonths,
+      durationDays,
+      deliveryTime,
+      paymentMethod,
+      addressId,
+    } =
       req.body;
+    const resolvedVariationId =
+      variationId ?? variationIdLegacy ?? productVariationId ?? productVariationIdLegacy ?? null;
 
     if (!productId || !litresPerDay || !deliveryTime) {
       throw new ValidationError('All fields are required');
@@ -72,6 +86,7 @@ const createSubscription = async (req, res, next) => {
     const result = await subscriptionService.createSubscription({
       userId: req.user.id,
       productId,
+      variationId: resolvedVariationId,
       litresPerDay,
       durationMonths,
       durationDays,

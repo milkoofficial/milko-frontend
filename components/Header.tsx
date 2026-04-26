@@ -14,14 +14,14 @@ import { readScopedPincode, writeScopedPincode, scopedPincodeStatusKey } from '@
 import { contentApi, productsApi, walletApi } from '@/lib/api';
 import ProductDetailsModal from './ProductDetailsModal';
 import Logo from './Logo';
-import { getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
+import { getFirstVariationForCard, getCardDisplayPrice, getProductDisplayUnitLabel } from '@/lib/utils/productCardPricing';
 import { getPrimaryProductImageUrl } from '@/lib/utils/productImages';
 
 /**
  * User Dropdown Component
  * Shows "Hi, [name]" with dropdown menu
  */
-function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User | null; logout: () => void; isAdmin: boolean; isMobile?: boolean }) {
+function UserDropdown({ user, logout, isAdmin, isMobile = false, className = '' }: { user: User | null; logout: () => void; isAdmin: boolean; isMobile?: boolean; className?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -228,7 +228,7 @@ function UserDropdown({ user, logout, isAdmin, isMobile = false }: { user: User 
   // Mobile: redirect to /account page instead of showing dropdown
   if (isMobile) {
     return (
-      <Link href="/account" className={styles.iconButton} aria-label="Account">
+      <Link href="/account" className={`${styles.iconButton} ${className}`.trim()} aria-label="Account">
         <svg className={styles.buttonIcon} viewBox="0 0 24.00 24.00" fill="none" xmlns="http://www.w3.org/2000/svg">
           <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
           <g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g>
@@ -1043,8 +1043,11 @@ export default function Header() {
                             {imageUrl && <img src={imageUrl} alt="" className={styles.searchResultImg} />}
                             <div className={styles.searchResultText}>
                               <span className={styles.searchResultName}>{p.name}</span>
-                              <span className={styles.searchResultPrice}>₹{displayPrice}/{unitLabel}</span>
-                              <span className={styles.searchResultPrice}>₹{p.pricePerLitre} per litre</span>
+                              {p.variations && p.variations.length > 0 ? (
+                                <span className={styles.searchResultPrice}>Starting from ₹{displayPrice}/{unitLabel}</span>
+                              ) : (
+                                <span className={styles.searchResultPrice}>₹{displayPrice}/{unitLabel}</span>
+                              )}
                             </div>
                             <button
                               type="button"
@@ -1057,7 +1060,8 @@ export default function Header() {
                                   showToast('Out of stock', 'error');
                                   return;
                                 }
-                                const result = addItem({ productId: p.id, quantity: 1 }, p.maxQuantity);
+                                const variation = getFirstVariationForCard(p);
+                                const result = addItem({ productId: p.id, quantity: 1, variationId: variation?.id }, p.maxQuantity);
                                 showToast(
                                   result.appliedQuantity > 0 && result.ok ? 'Added to cart' : `Maximum order quantity is ${p.maxQuantity ?? 99}`,
                                   result.appliedQuantity > 0 && result.ok ? 'success' : 'error',
@@ -1157,7 +1161,7 @@ export default function Header() {
                 {/* Membership Button - Icon Only on Mobile */}
                 <Link
                   href="/#membership"
-                  className={styles.iconButton}
+                  className={`${styles.iconButton} ${styles.mobileSubscriptionButton}`}
                   onClick={(e) => {
                     // If we're already on the homepage, don't navigate — just scroll.
                     if (pathname === '/') {
@@ -1192,7 +1196,7 @@ export default function Header() {
                 </Link>
 
                 {/* Desktop Trial Pack Button */}
-                <Link href="/#membership" className={styles.trialPackButton}>
+                <Link href="/get-trial-pack" className={styles.trialPackButton}>
                   <svg className={styles.buttonIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" aria-hidden="true">
                     <path d="M20.808,11.079C19.829,16.132,12,20.5,12,20.5s-7.829-4.368-8.808-9.421C2.227,6.1,5.066,3.5,8,3.5a4.444,4.444,0,0,1,4,2,4.444,4.444,0,0,1,4-2C18.934,3.5,21.773,6.1,20.808,11.079Z"></path>
                   </svg>
@@ -1237,11 +1241,11 @@ export default function Header() {
 
                 {/* Login/User Button - Icon Only on Mobile */}
                 {isAuthenticated ? (
-                  <UserDropdown user={user} logout={logout} isAdmin={isAdmin} isMobile={true} />
+                  <UserDropdown user={user} logout={logout} isAdmin={isAdmin} isMobile={true} className={styles.mobileAccountButton} />
                 ) : (
                   <Link
                     href="/auth/login"
-                    className={styles.iconButton}
+                    className={`${styles.iconButton} ${styles.mobileAccountButton}`}
                     aria-label="Login"
                   >
                     <svg className={styles.buttonIcon} viewBox="0 0 24.00 24.00" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" strokeWidth="0.00024000000000000003">
@@ -1264,6 +1268,7 @@ export default function Header() {
                     aria-haspopup="dialog"
                     aria-expanded={isCallMenuOpen}
                     onClick={() => setIsCallMenuOpen((prev) => !prev)}
+                    aria-label="Call"
                   >
                     <svg
                       className={styles.buttonIcon}
@@ -1277,7 +1282,7 @@ export default function Header() {
                     >
                       <path d="M23.407 30.394c-2.431 0-8.341-3.109-13.303-9.783-4.641-6.242-6.898-10.751-6.898-13.785 0-2.389 1.65-3.529 2.536-4.142l0.219-0.153c0.979-0.7 2.502-0.927 3.086-0.927 1.024 0 1.455 0.599 1.716 1.121 0.222 0.442 2.061 4.39 2.247 4.881 0.286 0.755 0.192 1.855-0.692 2.488l-0.155 0.108c-0.439 0.304-1.255 0.869-1.368 1.557-0.055 0.334 0.057 0.684 0.342 1.068 1.423 1.918 5.968 7.55 6.787 8.314 0.642 0.6 1.455 0.685 2.009 0.218 0.573-0.483 0.828-0.768 0.83-0.772l0.059-0.057c0.048-0.041 0.496-0.396 1.228-0.396 0.528 0 1.065 0.182 1.596 0.541 1.378 0.931 4.487 3.011 4.487 3.011l0.050 0.038c0.398 0.341 0.973 1.323 0.302 2.601-0.695 1.327-2.85 4.066-5.079 4.066zM9.046 2.672c-0.505 0-1.746 0.213-2.466 0.728l-0.232 0.162c-0.827 0.572-2.076 1.435-2.076 3.265 0 2.797 2.188 7.098 6.687 13.149 4.914 6.609 10.532 9.353 12.447 9.353 1.629 0 3.497-2.276 4.135-3.494 0.392-0.748 0.071-1.17-0.040-1.284-0.36-0.241-3.164-2.117-4.453-2.988-0.351-0.238-0.688-0.358-0.999-0.358-0.283 0-0.469 0.1-0.532 0.14-0.104 0.111-0.39 0.405-0.899 0.833-0.951 0.801-2.398 0.704-3.424-0.254-0.923-0.862-5.585-6.666-6.916-8.459-0.46-0.62-0.641-1.252-0.538-1.877 0.187-1.133 1.245-1.866 1.813-2.26l0.142-0.099c0.508-0.363 0.4-1.020 0.316-1.242-0.157-0.414-1.973-4.322-2.203-4.781-0.188-0.376-0.336-0.533-0.764-0.533z"></path>
                     </svg>
-                    Call
+                    <span className={styles.callButtonLabel}>Call</span>
                   </button>
 
                   {isCallMenuOpen ? (
@@ -1347,7 +1352,7 @@ export default function Header() {
                 {/* Cart Button - Icon Only on Mobile */}
                 <Link
                   href="/cart"
-                  className={styles.iconButton}
+                  className={`${styles.iconButton} ${styles.mobileCartButton}`}
                   aria-label="Cart"
                 >
                   <div ref={cartButtonMobileRef as any} className={styles.cartIconWrapper}>
@@ -1648,8 +1653,11 @@ export default function Header() {
                       {imageUrl ? <img src={imageUrl} alt="" className={styles.searchOverlayRowImg} /> : <div className={styles.searchOverlayRowImg} />}
                       <div className={styles.searchOverlayRowText}>
                         <span className={styles.searchOverlayRowName}>{p.name}</span>
-                        <span className={styles.searchOverlayRowPrice}>₹{displayPrice}/{unitLabel}</span>
-                        <span className={styles.searchOverlayRowPrice}>₹{p.pricePerLitre} per litre</span>
+                        {p.variations && p.variations.length > 0 ? (
+                          <span className={styles.searchOverlayRowPrice}>Starting from ₹{displayPrice}/{unitLabel}</span>
+                        ) : (
+                          <span className={styles.searchOverlayRowPrice}>₹{displayPrice}/{unitLabel}</span>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -1662,7 +1670,8 @@ export default function Header() {
                             showToast('Out of stock', 'error');
                             return;
                           }
-                          const result = addItem({ productId: p.id, quantity: 1 }, p.maxQuantity);
+                          const variation = getFirstVariationForCard(p);
+                                const result = addItem({ productId: p.id, quantity: 1, variationId: variation?.id }, p.maxQuantity);
                           showToast(
                             result.appliedQuantity > 0 && result.ok ? 'Added to cart' : `Maximum order quantity is ${p.maxQuantity ?? 99}`,
                             result.appliedQuantity > 0 && result.ok ? 'success' : 'error',

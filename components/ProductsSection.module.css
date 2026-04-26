@@ -492,6 +492,8 @@
   align-items: baseline;
   gap: 0.25rem;
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .priceAmount {
@@ -499,6 +501,7 @@
   font-weight: 900;
   color: #000;
   font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  flex-shrink: 0;
 }
 
 .priceUnit {
@@ -506,6 +509,10 @@
   font-weight: 500;
   color: #666;
   text-transform: uppercase;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .addToCartButton {

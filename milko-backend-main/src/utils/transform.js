@@ -32,6 +32,7 @@ const transformSubscription = (row) => {
     id: String(row.id),
     userId: String(row.user_id),
     productId: String(row.product_id),
+    variationId: row.product_variation_id != null ? String(row.product_variation_id) : undefined,
     addressId: row.address_id ? String(row.address_id) : undefined,
     product: row.product_name ? {
       id: String(row.product_id),
@@ -73,6 +74,7 @@ const transformSubscription = (row) => {
     perUnitPrice: row.per_unit_price !== null && row.per_unit_price !== undefined ? parseFloat(row.per_unit_price) : undefined,
     totalAmount: row.total_amount !== null && row.total_amount !== undefined ? parseFloat(row.total_amount) : undefined,
     totalAmountPaid: row.total_amount_paid !== null && row.total_amount_paid !== undefined ? parseFloat(row.total_amount_paid) : undefined,
+    platformFee: row.platform_fee !== null && row.platform_fee !== undefined ? parseFloat(row.platform_fee) : undefined,
     walletUsed: row.wallet_used !== null && row.wallet_used !== undefined ? parseFloat(row.wallet_used) : undefined,
     purchasedAt: row.purchased_at ? new Date(row.purchased_at).toISOString() : undefined,
     cancelledAt: row.cancelled_at ? new Date(row.cancelled_at).toISOString() : undefined,

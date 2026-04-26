@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { productsApi } from '@/lib/api';
-import { Product } from '@/types';
+import { Product, ProductVariation } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/contexts/ToastContext';
@@ -14,7 +14,7 @@ import Link from 'next/link';
  * Membership Section Component
  * Shows membership subscription form with dropdowns
  * - Product selection
- * - Liters per day
+ * - Quantity per day
  * - Duration (days)
  * - Calculated amount
  * - Buy button
@@ -25,7 +25,7 @@ export default function MembershipSection() {
   const { showToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
-  const [litersPerDay, setLitersPerDay] = useState<string>('1');
+  const [quantityPerDay, setQuantityPerDay] = useState<string>('1');
   const [durationDays, setDurationDays] = useState<string>('30');
   const [loading, setLoading] = useState(true);
 
@@ -79,16 +79,33 @@ export default function MembershipSection() {
       try {
         const data = await productsApi.getAll();
         if (data && data.length > 0) {
-          // Filter to only show membership-eligible products
+          let finalProducts = data;
           const eligibleProducts = data.filter(p => p.isMembershipEligible === true);
           if (eligibleProducts.length > 0) {
-            setProducts(eligibleProducts);
-            setSelectedProduct(eligibleProducts[0].id);
+            finalProducts = eligibleProducts;
           } else {
-            // If no eligible products, show all active products as fallback
             const activeProducts = data.filter(p => p.isActive);
-            setProducts(activeProducts.length > 0 ? activeProducts : data);
-            setSelectedProduct(activeProducts.length > 0 ? activeProducts[0].id : data[0].id);
+            if (activeProducts.length > 0) finalProducts = activeProducts;
+          }
+          
+          const withDetails = await Promise.all(
+            finalProducts.map(async (p) => {
+              try {
+                return await productsApi.getById(p.id, true);
+              } catch {
+                return p;
+              }
+            })
+          );
+          setProducts(withDetails);
+          
+          if (withDetails.length > 0) {
+            const firstProduct = withDetails[0];
+            if (firstProduct.variations && firstProduct.variations.length > 0) {
+              setSelectedProduct(`${firstProduct.id}::${firstProduct.variations[0].id}`);
+            } else {
+              setSelectedProduct(firstProduct.id);
+            }
           }
         } else {
           if (showDemoFallback) {
@@ -119,9 +136,48 @@ export default function MembershipSection() {
   }, []);
 
   // Calculate total amount
-  const selectedProductData = products.find(p => p.id === selectedProduct);
+  let selectedProductData: Product | undefined;
+  let currentVariation: ProductVariation | undefined;
+  let basePrice = 0;
+
+  if (selectedProduct) {
+    const [pid, vid] = selectedProduct.split('::');
+    selectedProductData = products.find(p => p.id === pid);
+    if (selectedProductData) {
+      if (vid && selectedProductData.variations) {
+        currentVariation = selectedProductData.variations.find((v: any) => v.id === vid);
+      }
+      if (currentVariation) {
+        const vPrice = currentVariation.price ?? (selectedProductData.pricePerLitre * (currentVariation.priceMultiplier || 1));
+        basePrice = vPrice / (currentVariation.priceMultiplier || 1);
+      } else {
+        basePrice = selectedProductData.pricePerLitre;
+      }
+    }
+  }
+
+  const maxSubscriptionQuantity = useMemo(() => {
+    const rawLimit = Number(selectedProductData?.maxQuantity);
+    return Number.isFinite(rawLimit) && rawLimit >= 1 ? Math.max(1, Math.floor(rawLimit)) : 10;
+  }, [selectedProductData?.maxQuantity]);
+
+  useEffect(() => {
+    setQuantityPerDay((prev) => {
+      const next = Math.min(Math.max(1, Math.floor(Number(prev) || 1)), maxSubscriptionQuantity);
+      return String(next);
+    });
+  }, [maxSubscriptionQuantity]);
+
+  const quantityOptions = useMemo(
+    () => Array.from({ length: maxSubscriptionQuantity }, (_, index) => {
+      const qty = index + 1;
+      return { value: String(qty), label: String(qty) };
+    }),
+    [maxSubscriptionQuantity],
+  );
+
   const totalAmount = selectedProductData
-    ? parseFloat(litersPerDay) * parseFloat(durationDays) * selectedProductData.pricePerLitre
+    ? parseFloat(quantityPerDay) * parseFloat(durationDays) * basePrice
     : 0;
 
   const formatINR = (amount: number) => {
@@ -137,7 +193,7 @@ export default function MembershipSection() {
       return;
     }
 
-    if (!selectedProduct || !litersPerDay || !durationDays) {
+    if (!selectedProduct || !quantityPerDay || !durationDays) {
       alert('Please fill in all fields');
       return;
     }
@@ -147,7 +203,12 @@ export default function MembershipSection() {
     const months = Math.max(1, Math.round(days / 30));
 
     // Navigate to subscribe page with pre-filled data
-    router.push(`/subscribe?productId=${selectedProduct}&liters=${litersPerDay}&days=${durationDays}&months=${months}`);
+    const [productId, variationId] = selectedProduct.split('::');
+    let url = `/subscribe?productId=${productId}&liters=${quantityPerDay}&days=${durationDays}&months=${months}`;
+    if (variationId) {
+      url += `&variationId=${variationId}`;
+    }
+    router.push(url);
   };
 
   if (loading) {
@@ -307,28 +368,32 @@ export default function MembershipSection() {
                 className={styles.select}
                 value={selectedProduct}
                 onChange={setSelectedProduct}
-                options={products.map((product) => ({
-                  value: product.id,
-                  label: `${product.name} - ₹${product.pricePerLitre}/litre`,
-                }))}
+                options={products.flatMap((product) => {
+                  if (product.variations && product.variations.length > 0) {
+                    return product.variations.map((v) => {
+                      const price = v.price ?? (product.pricePerLitre * (v.priceMultiplier || 1));
+                      return {
+                        value: `${product.id}::${v.id}`,
+                        label: `${product.name} [${v.size} - ₹${price}]`,
+                      };
+                    });
+                  }
+                  return [{
+                    value: product.id,
+                    label: `${product.name} [1L - ₹${product.pricePerLitre}]`,
+                  }];
+                })}
               />
             </div>
 
-            {/* Liters Per Day */}
+            {/* Quantity */}
             <div className={styles.formField}>
-              <label className={styles.label}>Liters Per Day</label>
+              <label className={styles.label}>Quantity</label>
               <Select
                 className={styles.select}
-                value={litersPerDay}
-                onChange={setLitersPerDay}
-                options={[
-                  { value: '0.5', label: '0.5 Liters' },
-                  { value: '1', label: '1 Liter' },
-                  { value: '2', label: '2 Liters' },
-                  { value: '3', label: '3 Liters' },
-                  { value: '4', label: '4 Liters' },
-                  { value: '5', label: '5 Liters' },
-                ]}
+                value={quantityPerDay}
+                onChange={setQuantityPerDay}
+                options={quantityOptions}
               />
             </div>
 
@@ -360,7 +425,7 @@ export default function MembershipSection() {
             </div>
             {selectedProductData && (
               <div className={styles.amountBreakdown}>
-                {litersPerDay}L/day × {durationDays} days × ₹{formatINR(selectedProductData.pricePerLitre)}/L
+                {quantityPerDay} qty/day × {durationDays} days × ₹{formatINR(basePrice)}
               </div>
             )}
           </div>

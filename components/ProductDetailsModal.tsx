@@ -78,7 +78,7 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
 
   // Membership subscription state
   const [showMembershipDetails, setShowMembershipDetails] = useState(false);
-  const [membershipFrequency, setMembershipFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly'>('daily');
+  const [membershipFrequency, setMembershipFrequency] = useState<'daily'>('daily');
   const [membershipQuantity, setMembershipQuantity] = useState('1');
   const [membershipDuration, setMembershipDuration] = useState('30');
   const [showRatingDetailsPopup, setShowRatingDetailsPopup] = useState(false);
@@ -1156,13 +1156,10 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                         <label className={styles.membershipLabel}>Frequency</label>
                         <select
                           value={membershipFrequency}
-                          onChange={(e) => setMembershipFrequency(e.target.value as 'daily' | 'weekly' | 'monthly' | 'quarterly')}
+                          onChange={() => setMembershipFrequency('daily')}
                           className={styles.membershipSelect}
                         >
                           <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                          <option value="quarterly">Quarterly</option>
                         </select>
                       </div>
 
@@ -1207,22 +1204,9 @@ export default function ProductDetailsModal({ product, isOpen, onClose, onRelate
                           ? displayProduct.sellingPrice
                           : displayProduct.pricePerLitre;
 
-                        // Calculate number of deliveries based on frequency
                         const durationDays = parseFloat(membershipDuration);
-                        let numberOfDeliveries = 0;
-
-                        if (membershipFrequency === 'daily') {
-                          numberOfDeliveries = durationDays; // 1 delivery per day
-                        } else if (membershipFrequency === 'weekly') {
-                          numberOfDeliveries = Math.ceil(durationDays / 7); // 1 delivery per week
-                        } else if (membershipFrequency === 'monthly') {
-                          numberOfDeliveries = Math.ceil(durationDays / 30); // 1 delivery per month
-                        } else if (membershipFrequency === 'quarterly') {
-                          numberOfDeliveries = Math.ceil(durationDays / 90); // 1 delivery per quarter
-                        }
-
                         const quantityPerDelivery = parseFloat(membershipQuantity);
-                        const totalAmount = basePrice * quantityPerDelivery * numberOfDeliveries;
+                        const totalAmount = basePrice * quantityPerDelivery * durationDays;
 
                         return (
                           <div className={styles.membershipTotal}>

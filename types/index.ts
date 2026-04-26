@@ -93,6 +93,8 @@ export interface Subscription {
   userId: string;
   productId: string;
   product?: Product;
+  variationId?: string;
+  variation?: ProductVariation;
   litresPerDay: number;
   durationMonths: number;
   /** Calendar days in the plan when set (preferred for display and renewals). */
@@ -113,6 +115,7 @@ export interface Subscription {
   perUnitPrice?: number;
   totalAmount?: number;
   totalAmountPaid?: number;
+  platformFee?: number;
   walletUsed?: number;
   purchasedAt?: string;
   renewedAt?: string;
@@ -206,15 +209,22 @@ export interface RazorpayOrder {
 
 export interface SubscriptionCreateRequest {
   productId: string;
+  variationId?: string;
+  variation_id?: string;
+  productVariationId?: string;
+  product_variation_id?: string;
   litresPerDay: number;
   /** Exact plan length in days (e.g. 15). Prefer this over durationMonths when both are sent. */
   durationDays?: number;
   /** Legacy: month buckets of 30 days each when durationDays is omitted. */
   durationMonths?: number;
   deliveryTime: string;
-  frequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  frequency?: 'daily' | 'alternate' | 'weekly' | 'monthly' | 'quarterly';
   paymentMethod?: 'online' | 'wallet';
   addressId?: string;
+  totalAmount?: number;
+  total_amount?: number;
+  amount?: number;
 }
 
 // Address Types

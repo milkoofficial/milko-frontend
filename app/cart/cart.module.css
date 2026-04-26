@@ -4,7 +4,7 @@
   margin: 0 auto;
   padding: 2rem 1.5rem;
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  
+
 }
 
 .emptyCart {
@@ -350,10 +350,10 @@
 
 .sectionTitle {
   font-size: 1rem;
-    font-weight: 600;
-    margin: 0 0 1rem;
-    color: #000;
-    letter-spacing: -0.45px;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: #000;
+  letter-spacing: -0.45px;
 }
 
 /* Coupons */
@@ -366,7 +366,8 @@
 .couponInput {
   width: 100%;
   padding: 0.875rem 1rem;
-  padding-right: 90px; /* Make room for the button */
+  padding-right: 90px;
+  /* Make room for the button */
   border: 1px solid #e5e5e5;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -394,11 +395,27 @@
 }
 
 @keyframes couponShake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8px); }
-  40% { transform: translateX(8px); }
-  60% { transform: translateX(-6px); }
-  80% { transform: translateX(6px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-8px);
+  }
+
+  40% {
+    transform: translateX(8px);
+  }
+
+  60% {
+    transform: translateX(-6px);
+  }
+
+  80% {
+    transform: translateX(6px);
+  }
 }
 
 .applyCouponButton {
@@ -472,8 +489,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.25rem;
-  background: linear-gradient(352deg, #ffffff, #dbeafe);
-  border: 1px solid #60a5fa;
+  background: white;
+  border: 1px solid #e5e5e5;
   border-radius: 12px;
   position: relative;
   box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
@@ -559,6 +576,7 @@
     transform: translateY(50px) scale(0.95);
     opacity: 0;
   }
+
   to {
     transform: translateY(0) scale(1);
     opacity: 1;
@@ -825,11 +843,13 @@
   .subscriptionModalContent {
     padding: 1rem;
   }
+
   .subscriptionModal {
     max-height: 100vh;
-    
+
     border-radius: 0px;
   }
+
   .modalOverlay {
     padding: 0rem !important;
   }
@@ -873,7 +893,7 @@
   padding: 0.75rem 0;
   font-size: 0.95rem;
   color: #333;
- 
+
 }
 
 .priceRow:last-of-type {
@@ -901,15 +921,15 @@
 
 .totalSavingsBox {
   display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #cdffe169;
-    border: 1px solid #bbf7d0;
-    border-radius: 0px 0 12px 12px;
-    padding: 1rem 1.25rem;
-    margin-top: 0;
-    box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
-  }
+  justify-content: space-between;
+  align-items: center;
+  background: #cdffe169;
+  border: 1px solid #bbf7d0;
+  border-radius: 0px 0 12px 12px;
+  padding: 1rem 1.25rem;
+  margin-top: 0;
+  box-shadow: 0px 1px 1px 0px rgb(0 0 0 / 20%);
+}
 
 .totalSavingsLabel {
   font-size: 0.95rem;
@@ -932,7 +952,8 @@
 
 @media (max-width: 768px) {
   .paymentMethods {
-    margin-bottom: 6rem; /* Space above fixed Place Order bar */
+    margin-bottom: 6rem;
+    /* Space above fixed Place Order bar */
   }
 }
 
@@ -966,6 +987,7 @@
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(200%);
   }
@@ -1037,7 +1059,8 @@
 @media (max-width: 768px) {
   .container {
     padding: 2rem 1rem 1rem 1rem;
-    padding-bottom: 100px; /* Add padding for sticky button */
+    padding-bottom: 100px;
+    /* Add padding for sticky button */
   }
 
   .progressBar {

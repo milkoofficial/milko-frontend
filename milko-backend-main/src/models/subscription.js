@@ -62,6 +62,7 @@ async function ensureSubscriptionSchema() {
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS first_day_shift_applied BOOLEAN NOT NULL DEFAULT FALSE;`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS first_day_shift_reason VARCHAR(64);`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS product_variation_id INTEGER;`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS platform_fee NUMERIC(12, 2) NOT NULL DEFAULT 0;`);
 
   // Ensure delivery schedule + paused dates tables exist.
   // Live deployments may run partially without executing schema.sql migrations.
